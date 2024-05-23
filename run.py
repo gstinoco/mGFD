@@ -8,8 +8,8 @@ from mGFD import TimeDerivative1
 from mGFD import TimeDerivative2
 
 # Define the paths for the data and the results.
-data_path    = 'Data/Holes/'
-results_path = 'Results/Holes/'
+data_path    = 'Data/Clouds/'
+results_path = 'Results/Clouds/'
 
 # Create a list of the data files.
 files = os.listdir(data_path)
