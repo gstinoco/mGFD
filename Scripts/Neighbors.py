@@ -35,18 +35,18 @@ def Triangulation(p, tt, nvec):
     """
 
     ## Variable initialization.
-    m   = len(p[:,0])                                                               # The size if the triangulation is obtained.
+    m   = len(p[:, 0])                                                              # The size if the triangulation is obtained.
     vec = np.zeros([m, nvec], dtype=int)-1                                          # The array for the neighbors is initialized.
 
     ## Neighbor search.
     for i in np.arange(m):                                                          # For each of the nodes.
         kn    = np.argwhere(tt == i)                                                # Search in which triangles the node appears.
-        vec2  = np.setdiff1d(tt[kn[:,0]], i)                                        # Neighbors are stored inside vec2.
+        vec2  = np.setdiff1d(tt[kn[:, 0]], i)                                       # Neighbors are stored inside vec2.
         vec2  = np.vstack([vec2])                                                   # Convert vec2 to a column.
-        nvec2 = sum(vec2[0,:] != -1)                                                # The number of neighbors of the node is calculated.
+        nvec2 = sum(vec2[0, :] != -1)                                               # The number of neighbors of the node is calculated.
         nnvec = np.minimum(nvec, nvec2)                                             # The real number of neighbors.
         for j in np.arange(nnvec):                                                  # For each of the nodes.
-            vec[i,j] = vec2[0,j]                                                    # Neighbors are saved.
+            vec[i, j] = vec2[0, j]                                                  # Neighbors are saved.
     return vec
 
 def Cloud(p, nvec):
@@ -66,7 +66,7 @@ def Cloud(p, nvec):
     dist = find_distances(p, mode = 2)
 
     ## Neighbor search.
-    vec = find_neighbors(p, dist, nvec, mode = 2)
+    vec = find_neighbors(p, dist, nvec, mode = 3)
 
     return vec
 
@@ -90,7 +90,6 @@ def find_distances(p, mode = 2):
 
     if mode == 1:
         ## Brute Force
-
         dmin = np.zeros([m, 1]) + 10                                                # dmin initialization with a "big" value.
         for i in np.arange(m):                                                      # For each of the nodes.
             x    = p[i, 0]                                                          # x coordinate of the central node.
@@ -100,7 +99,7 @@ def find_distances(p, mode = 2):
                     x1 = p[j, 0]                                                    # x coordinate of the possible neighbor.
                     y1 = p[j, 1]                                                    # y coordinate of the possible neighbor.
                     d  = np.sqrt((x - x1)**2 + (y - y1)**2)                         # Distance from the possible neighbor to the central node.
-                    dmin[i] = min(dmin[i],d)                                        # Look for the distance to the closest node.
+                    dmin[i] = min(dmin[i], d)                                       # Look for the distance to the closest node.
         dist = (3/2)*np.max(dmin)                                                   # The distance is the maximum distance between two consecutive nodes.
 
     if mode == 2:
@@ -138,41 +137,41 @@ def find_neighbors(p, dist, nvec, mode = 2):
     if mode == 1:
         ## Brute Force
         for i in np.arange(m):                                                      # For each of the nodes.
-            x     = p[i, 0]                                                         # x coordinate of the central node.
-            y     = p[i, 1]                                                         # y coordinate of the central node.
-            temp  = 0                                                               # Temporal variable as a counter.
-            dst   = []
-            index = []
+            x, y  = p[i, 0], p[i, 1]                                                # x, y coordinates of the central node.
+            temp_neighbors = []                                                     # Create an empty array for neighbors.
             for j in np.arange(m):                                                  # For all the interior nodes.
                 if i != j:                                                          # Check that we are not working with the central node.
-                    x1 = p[j,0]                                                     # x coordinate of the possible neighbor.
-                    y1 = p[j,1]                                                     # y coordinate of the possible neighbor.
-                    d  = np.sqrt((x - x1)**2 + (y - y1)**2)                         # Distance from the possible neighbor to the central node.
+                    x1, y1 = p[j, 0], p[j, 1]                                       # x, y coordinates of the possible neighbor.
+                    d = np.sqrt((x - x1)**2 + (y - y1)**2)                          # Distance from the possible neighbor to the central node.
                     if d < dist:                                                    # If the distance is smaller or equal to the tolerance distance.
-                        dst.append(d)                                               # Save the distance to the neighbor node.
-                        index.append(j)                                             # Store the neighbor node.
-            
-            index = [x for _, x in sorted(zip(dst, index))]                         # Sort the neighbors by distance.
-
-            for idx, j in enumerate(index):                                         # For each stored neighbor.
-                if idx < nvec:                                                      # If the number of neighbors is smaller than nvec.
-                    vec[i, idx] = j                                                 # Store the neighbor.
+                        temp_neighbors.append((d, j))                               # Store the neighbor node.
+            temp_neighbors.sort()                                                   # Sort the neighbors by distance.
+            for idx, (d, j) in enumerate(temp_neighbors[:nvec]):                    # For each stored neighbor.
+                vec[i, idx] = j                                                     # Store the neighbor.
     
-    if mode == 2:
+    elif mode == 2:
         ## Optimized
-        dx = np.expand_dims(p[:,0], 1) - np.expand_dims(p[:,0], 0)                  # Compute dx between all the nodes.
-        dy = np.expand_dims(p[:,1], 1) - np.expand_dims(p[:,1], 0)                  # Compute dy between all the nodes.
+        dx = np.expand_dims(p[:, 0 ], 1) - np.expand_dims(p[:, 0], 0)                # Compute dx between all the nodes.
+        dy = np.expand_dims(p[:, 1 ], 1) - np.expand_dims(p[:, 1], 0)                # Compute dy between all the nodes.
+        radius = np.sqrt(dx**2 + dy**2)                                              # Get the distances from each node to all the others.
         
-        radius = np.sqrt(dx**2 + dy**2)                                             # Get the distances from each node to all the others.
-        
-        for i in range(m):                                                          # For each node.
-            neighbors = np.where((radius[i,:] < dist) & (np.arange(m) != i))[0]     # The neighbors are all the nodes within the radius.
+        for i in range(m):                                                           # For each node.
+            neighbors = np.where((radius[i, :] < dist) & (np.arange(m) != i))[0]     # The neighbors are all the nodes within the radius.
 
-            if len(neighbors) > 0:                                                  # If there are more neighbors than the requested.
-                neighbors = neighbors[np.argsort(radius[i, neighbors])][:nvec]      # The neighbors are sorted by distance and only the closest nvec neighbors remains.
-                vec[i, :len(neighbors)] = neighbors                                 # The nvec neighbors are stored.
+            if len(neighbors) > 0:                                                   # If there are more neighbors than the requested.
+                neighbors = neighbors[np.argsort(radius[i, neighbors])][:nvec]       # The neighbors are sorted by distance and only the closest nvec neighbors remains.
+                vec[i, :len(neighbors)] = neighbors                                  # The nvec neighbors are stored.
             else:
-                neighbors = neighbors[np.argsort(radius[i, neighbors])]             # The neighbors are sorted by distance and only the closest nvec neighbors remains.
-                vec[i, :len(neighbors)] = neighbors                                 # The neighbors are stored.
+                neighbors = neighbors[np.argsort(radius[i, neighbors])]              # The neighbors are sorted by distance and only the closest nvec neighbors remains.
+                vec[i, :len(neighbors)] = neighbors                                  # The neighbors are stored.
+    
+    elif mode == 3:
+        # KDTree
+        tree = KDTree(p[:, :2])                                                     # Create a KDTree using the first two columns of p (x and y coordinates).
+        for i in range(m):                                                          # For each node.
+            distances, indices = tree.query(p[i, :2], k = nvec + 1, distance_upper_bound = dist)
+            valid_indices = indices[distances < dist]                               # Filter out invalid distances.
+            valid_indices = valid_indices[valid_indices != i]                       # Remove self from neighbors.
+            vec[i, :min(len(valid_indices), nvec)] = valid_indices[:nvec]           # Store the neighbors.
 
     return vec
