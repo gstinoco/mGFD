@@ -27,22 +27,22 @@ For this, the proposed method uses a Generalized Finite Differences Method for t
         <td colspan="2" style="text-align: center;">Heat Equation</td>
     <tr>
     <tr>
-        <td><video src="https://youtu.be/f6Invdy5juY"></video></td>
-        <td><video src="https://youtu.be/f6Invdy5juY"></video></td>
+        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/bc58c6b8-3821-445c-9b00-e3f917c1e38f"></video></td>
+        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/fcbded0b-91b6-4937-adf4-1b2cc6c337af"></video></td>
     </tr>
     <tr>
         <td colspan="2" style="text-align: center;">Advection-Diffusion Equation</td>
     <tr>
     <tr>
-        <td><img src="Results/Clouds/Advection-Diffusion/TIT/Solution_0.33s.png"></td>
-        <td><img src="Results/Holes/Advection-Diffusion/TIT/Solution_0.33s.png"></td>
+        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/f3ace4e7-de20-4420-a492-8bea4be77d9d"></video></td>
+        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/8226f148-2086-4dbe-85e5-597ba4ed8498"></video></td>
     </tr>
     <tr>
         <td colspan="2" style="text-align: center;">Wave Equation</td>
     <tr>
     <tr>
-        <td><img src="Results/Clouds/Wave/TIT/Solution_0.33s.png"></td>
-        <td><img src="Results/Holes/Wave/TIT/Solution_0.33s.png"></td>
+        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/6060f485-475a-40e7-9528-d4b88bf8c3d3"></video></td>
+        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/7555e9c9-a396-4b0a-a646-8a0cd1111a6c"></video></td>
     </tr>
 </table>
 
