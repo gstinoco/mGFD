@@ -27,8 +27,8 @@ For this, the proposed method uses a Generalized Finite Differences Method for t
         <td colspan="2" style="text-align: center;">Heat Equation</td>
     <tr>
     <tr>
-        <td><video src='Results/Clouds/Heat/TIT/Solution.mp4' width=360/></td>
-        <td><video src='Results/Holes/Heat/TIT/Solution.mp4' width=360/></td>
+        <td><video src='/Results/Clouds/Heat/TIT/Solution.mp4' width=360/></td>
+        <td><video src='/Results/Holes/Heat/TIT/Solution.mp4' width=360/></td>
     </tr>
     <tr>
         <td colspan="2" style="text-align: center;">Advection-Diffusion Equation</td>
