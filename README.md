@@ -8,7 +8,7 @@ This repository proposes a way to achieve approximations to various Partial Diff
 
 For this, the proposed method uses a Generalized Finite Differences Method for the numerical solution on unstructured clouds of points.
 
-<table border="1">
+<table border="0">
     <tr>
         <th style="text-align: center;">Titicaca Lake Cloud of Points</th>
         <th style="text-align: center;">Titicaca Lake Cloud of Points with Holes</th>
