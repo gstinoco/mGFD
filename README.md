@@ -16,7 +16,6 @@ For this, the proposed method uses a Generalized Finite Differences Method for t
     <tr>
         <th><img src="Data/Clouds/TIT.png" alt="Titicaca Lake"></th>            <th><img src="Data/Holes/TIT.png" alt="Titicaca Lake with Holes"></th>
     </tr>
-
     <tr>
         <td colspan="2" style="text-align: center;">Poisson Equation</td>
     <tr>
@@ -24,7 +23,6 @@ For this, the proposed method uses a Generalized Finite Differences Method for t
         <td><img src="Results/Clouds/Poisson/TIT/Solution.png"></td>
         <td><img src="Results/Holes/Poisson/TIT/Solution.png"></td>
     </tr>
-
     <tr>
         <td colspan="2" style="text-align: center;">Heat Equation</td>
     <tr>
@@ -32,7 +30,6 @@ For this, the proposed method uses a Generalized Finite Differences Method for t
         <td><img src="Results/Clouds/Heat/TIT/Solution_0.33s.png"></td>
         <td><img src="Results/Holes/Heat/TIT/Solution_0.33s.png"></td>
     </tr>
-
     <tr>
         <td colspan="2" style="text-align: center;">Advection-Diffusion Equation</td>
     <tr>
@@ -40,7 +37,6 @@ For this, the proposed method uses a Generalized Finite Differences Method for t
         <td><img src="Results/Clouds/Advection-Diffusion/TIT/Solution_0.33s.png"></td>
         <td><img src="Results/Holes/Advection-Diffusion/TIT/Solution_0.33s.png"></td>
     </tr>
-    
     <tr>
         <td colspan="2" style="text-align: center;">Wave Equation</td>
     <tr>
