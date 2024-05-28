@@ -35,64 +35,73 @@ Examples of solving various problems in an irregular region can be found below.
 All the data were taken from Author's [Cloud-Generation Github Repository](https://github.com/gstinoco/Cloud-Generation). The data is free for anyone to use to compare the results using different methods with the same dataset.
 
 The following regions were considered for this repository:
-- BAN: Banderas bay in Mexico.
-- BLU: Blue Lagoon in Iceland.
-- CUA: Unitary square.
-- CUI: Cuitzeo Lake in Mexico.
-- ENG: United Kingdom Island.
-- GIB: Strait of Gibraltar.
-- HAB: Havana bay.
-- MIC: Michoacan State in Mexico.
-- PAT: Patzcuaro Lake in Mexico.
-- TIT: Titicaca Lake in South America.
-- TOB: Toba Lake in Indonesia.
-- UCH: Uchinskoye Reservoir in Russia.
-- VAL: Valencia Lake in Spain.
-- ZIR: Zirahuen Lake in Mexico
+- **BAN**: Banderas bay in Mexico.
+- **BLU**: Blue Lagoon in Iceland.
+- **CUA**: Unitary square.
+- **CUI**: Cuitzeo Lake in Mexico.
+- **ENG**: United Kingdom Island.
+- **GIB**: Strait of Gibraltar.
+- **HAB**: Havana bay.
+- **MIC**: Michoacan State in Mexico.
+- **PAT**: Patzcuaro Lake in Mexico.
+- **TIT**: Titicaca Lake in South America.
+- **TOB**: Toba Lake in Indonesia.
+- **UCH**: Uchinskoye Reservoir in Russia.
+- **VAL**: Valencia Lake in Spain.
+- **ZIR**: Zirahuen Lake in Mexico
+
+## How to :microscope:
+The codes are self explained and completely documented. Example on how to perform approximations can be found on the files:
+- **run_Poisson.py**: Execution of the methods to numerically solve Poisson equation, on all the regions in the Data folder.
+- **run_Heat.py**: Execution of the methods to numerically solve Heat equation, on all the regions in the Data folder.
+- **run_AdvDif.py**: Execution of the methods to numerically solve Advection-Diffusion equation, on all the regions in the Data folder.
+- **run_Wave.py**: Execution of the methods to numerically solve Wave equation, on all the regions in the Data folder.
+
+These examples can be easily modified to perform approximations with different conditions and coefficients.
 
 ## Researchers :scientist:
 All the codes presented were developed by:
     
-  - Dr. Gerardo Tinoco Guerrero<br>
+  - **Dr. Gerardo Tinoco Guerrero**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     Aula CIMNE-Morelia<br>
     gerardo.tinoco@umich.mx<br>
     https://orcid.org/0000-0003-3119-770X
 
-  - Dr. Francisco Javier Domínguez Mota<br>
+  - **Dr. Francisco Javier Domínguez Mota**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     Aula CIMNE-Morelia<br>
     francisco.mota@umich.mx<br>
     https://orcid.org/0000-0001-6837-172X
 
-  - Dr. José Alberto Guzmán Torres<br>
+  - **Dr. José Alberto Guzmán Torres**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     Aula CIMNE-Morelia<br>
     jose.alberto.guzman@umich.mx<br>
     https://orcid.org/0000-0002-9309-9390
 
-  - Dr. José Gerardo Tinoco Ruiz<br>
+  - **Dr. José Gerardo Tinoco Ruiz**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     jose.gerardo.tinoco@umich.mx<br>
     https://orcid.org/0000-0002-0866-4798
 
 ## Students :man_student: :woman_student:
-  - Heriberto Arias Rojas<br>
+  - **Heriberto Arias Rojas**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     heriberto.arias@umich.mx<br>
     https://orcid.org/0000-0002-7641-8310
 
-  - Gabriela Pedraza Jiménez<br>
+  - **Gabriela Pedraza Jiménez**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     2220157h@umich.mx<br>
     https://orcid.org/0009-0002-8118-0260
   
-  - Miguel Ángel Rodríguez Velázquez<br>
+  - **Miguel Ángel Rodríguez Velázquez**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     miguel.rodriguez@umich.mx<br>
     https://orcid.org/0009-0009-7245-1517
   
-  - Ricardo Román Gutiérrez<br>
+  - **Ricardo Román Gutiérrez**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     ricardo.roman@umich.mx<br>
     https://orcid.org/0000-0001-8521-9391
