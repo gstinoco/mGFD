@@ -8,61 +8,27 @@ This repository proposes a way to achieve approximations to various Partial Diff
 
 For this, the proposed method uses a Generalized Finite Differences Method for the numerical solution on unstructured clouds of points.
 
-Examples of solving various problems in an irregular region can be found below
+Examples of solving various problems in an irregular region can be found below.
 
-<table border="0">
-    <tr>
-        <th style="text-align: center;">Titicaca Lake Cloud of Points</th>
-        <th style="text-align: center;">Titicaca Lake Cloud of Points with Holes</th>
-    </tr>
-    <tr>
-        <th><img src="Data/Clouds/TIT.png" alt="Titicaca Lake"></th>            <th><img src="Data/Holes/TIT.png" alt="Titicaca Lake with Holes"></th>
-    </tr>
-    <tr>
-        <td colspan="2" style="text-align: center;">Poisson Equation</td>
-    <tr>
-    <tr>
-        <td><img src="Results/Clouds/Poisson/TIT/Solution.png"></td>
-        <td><img src="Results/Holes/Poisson/TIT/Solution.png"></td>
-    </tr>
-    <tr>
-        <td style="text-align: center;">error = 2.577253005346005e-06</td>
-        <td style="text-align: center;">error = 4.051923736734612e-06</td>
-    </tr>
-    <tr>
-        <td colspan="2" style="text-align: center;">Heat Equation</td>
-    <tr>
-    <tr>
-        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/bc58c6b8-3821-445c-9b00-e3f917c1e38f"></video></td>
-        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/fcbded0b-91b6-4937-adf4-1b2cc6c337af"></video></td>
-    </tr>
-    <tr>
-        <td style="text-align: center;">error = 2.772683874643615e-07</td>
-        <td style="text-align: center;">error = 3.844963195258414e-07</td>
-    </tr>
-    <tr>
-        <td colspan="2" style="text-align: center;">Advection-Diffusion Equation</td>
-    <tr>
-    <tr>
-        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/f3ace4e7-de20-4420-a492-8bea4be77d9d"></video></td>
-        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/8226f148-2086-4dbe-85e5-597ba4ed8498"></video></td>
-    </tr>
-    <tr>
-        <td style="text-align: center;">error = 8.682520100538671e-07</td>
-        <td style="text-align: center;">error = 5.293394861064519e-07</td>
-    </tr>
-    <tr>
-        <td colspan="2" style="text-align: center;">Wave Equation</td>
-    <tr>
-    <tr>
-        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/6060f485-475a-40e7-9528-d4b88bf8c3d3"></video></td>
-        <td><video src="https://github.com/gstinoco/mGFD/assets/111999346/7555e9c9-a396-4b0a-a646-8a0cd1111a6c"></video></td>
-    </tr>
-    <tr>
-        <td style="text-align: center;">error = 3.999132412126389e-06</td>
-        <td style="text-align: center;">error = 4.584086365945307e-06</td>
-    </tr>
-</table>
+| Titicaca Lake Cloud of Points                                                                        | Titicaca Lake Cloud of Points with Holes                                                             |
+| :--------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------: |
+| ![Titicaca Cloud of Points](/Data/Clouds/TIT.png)                                                    | ![Titicaca Cloud of Points with Holes](/Data/Holes/TIT.png)                                          |
+|                                                                                                      |                                                                                                      |
+| Poisson Equation                                                                                                                                                                                            |
+| ![Poisson Equation](/Results/Clouds/Poisson/TIT/Solution.png)                                        | ![Poisson Equation](/Results/Holes/Poisson/TIT/Solution.png)                                         |
+| $\mid\mid e\mid\mid = 2.577253005346005e-06$                                                         | $\mid\mid e\mid\mid = 4.051923736734612e-06$                                                         |
+|                                                                                                      |                                                                                                      |
+| Heat Equation                                                                                                                                                                                               |
+| <video src="https://github.com/gstinoco/mGFD/assets/111999346/bc58c6b8-3821-445c-9b00-e3f917c1e38f"> | <video src="https://github.com/gstinoco/mGFD/assets/111999346/fcbded0b-91b6-4937-adf4-1b2cc6c337af"> |
+| $\mid\mid e\mid\mid = 2.772683874643615e-07$                                                         | $\mid\mid e\mid\mid = 3.844963195258414e-07$                                                         |
+|                                                                                                      |                                                                                                      |
+| Advection-Diffusion Equation Equation                                                                                                                                                                       |
+| <video src="https://github.com/gstinoco/mGFD/assets/111999346/f3ace4e7-de20-4420-a492-8bea4be77d9d"> | <video src="https://github.com/gstinoco/mGFD/assets/111999346/8226f148-2086-4dbe-85e5-597ba4ed8498"> |
+| $\mid\mid e\mid\mid = 8.682520100538671e-07$                                                         | $\mid\mid e\mid\mid = 5.293394861064519e-07$                                                         |
+|                                                                                                      |                                                                                                      |
+| Wave Equation                                                                                                                                                                                               |
+| <video src="https://github.com/gstinoco/mGFD/assets/111999346/6060f485-475a-40e7-9528-d4b88bf8c3d3"> | <video src="https://github.com/gstinoco/mGFD/assets/111999346/7555e9c9-a396-4b0a-a646-8a0cd1111a6c"> |
+| $\mid\mid e\mid\mid = 3.999132412126389e-06$                                                         | $\mid\mid e\mid\mid = 4.584086365945307e-06$                                                         |
 
 
 It is possible to find several test data in the "Data" folder and some results in the "Results" folder.
