@@ -12,10 +12,10 @@ Examples of solving various problems in an irregular region can be found below.
 
 | Titicaca Lake Cloud of Points                                                                        | Titicaca Lake Cloud of Points with Holes                                                             |
 | :--------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------: |
-| <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Clouds/TIT.png">                           | <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Clouds/TIT.png">                           |
+| <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Clouds/TIT.png">                           | <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Holes/TIT.png">                            |
 |                                                                                                      |                                                                                                      |
 | Poisson Equation                                                                                                                                                                                            |
-| <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Clouds/TIT.png">                           | <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Clouds/TIT.png">                           |
+| <img src="https://github.com/gstinoco/mGFD/blob/main/Results/Clouds/Poisson/TIT/Solution.png">       | <img src="https://github.com/gstinoco/mGFD/blob/main/Results/Holes/Poisson/TIT/Solution.png">        |
 | $\mid\mid e\mid\mid = 2.577253005346005e-06$                                                         | $\mid\mid e\mid\mid = 4.051923736734612e-06$                                                         |
 |                                                                                                      |                                                                                                      |
 | Heat Equation                                                                                                                                                                                               |
