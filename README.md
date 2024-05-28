@@ -31,7 +31,24 @@ Examples of solving various problems in an irregular region can be found below.
 | $\mid\mid e\mid\mid = 3.999132412126389e-06$                                                         | $\mid\mid e\mid\mid = 4.584086365945307e-06$                                                         |
 
 
-It is possible to find several test data in the "Data" folder and some results in the "Results" folder.
+## Data :open_file_folder:
+All the data were taken from Author's [Cloud-Generation Github Repository](https://github.com/gstinoco/Cloud-Generation). The data is free for anyone to use to compare the results using different methods with the same dataset.
+
+The following regions were considered for this repository:
+- BAN: Banderas bay in Mexico.
+- BLU: Blue Lagoon in Iceland.
+- CUA: Unitary square.
+- CUI: Cuitzeo Lake in Mexico.
+- ENG: United Kingdom Island.
+- GIB: Strait of Gibraltar.
+- HAB: Havana bay.
+- MIC: Michoacan State in Mexico.
+- PAT: Patzcuaro Lake in Mexico.
+- TIT: Titicaca Lake in South America.
+- TOB: Toba Lake in Indonesia.
+- UCH: Uchinskoye Reservoir in Russia.
+- VAL: Valencia Lake in Spain.
+- ZIR: Zirahuen Lake in Mexico
 
 ## Researchers :scientist:
 All the codes presented were developed by:
