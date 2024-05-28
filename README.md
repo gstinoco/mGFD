@@ -13,20 +13,20 @@ Examples of solving various problems in an irregular region can be found below.
 | Titicaca Lake Cloud of Points                                                                        | Titicaca Lake Cloud of Points with Holes                                                             |
 | :--------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------: |
 | <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Clouds/TIT.png">                           | <img src="https://github.com/gstinoco/mGFD/blob/main/Data/Holes/TIT.png">                            |
-|                                                                                                      |                                                                                                      |
-| Poisson Equation                                                                                     | Poisson Equation                                                                                     |
+
+| *Poisson Equation*                                                                                                                                                                                         ||
 | <img src="https://github.com/gstinoco/mGFD/blob/main/Results/Clouds/Poisson/TIT/Solution.png">       | <img src="https://github.com/gstinoco/mGFD/blob/main/Results/Holes/Poisson/TIT/Solution.png">        |
 | $\mid\mid e\mid\mid = 2.577253005346005e-06$                                                         | $\mid\mid e\mid\mid = 4.051923736734612e-06$                                                         |
-|                                                                                                      |                                                                                                      |
-| Heat Equation                                                                                        | Heat Equation                                                                                        |
+
+| *Heat Equation*                                                                                                                                                                                            ||
 | <video src="https://github.com/gstinoco/mGFD/assets/111999346/bc58c6b8-3821-445c-9b00-e3f917c1e38f"> | <video src="https://github.com/gstinoco/mGFD/assets/111999346/fcbded0b-91b6-4937-adf4-1b2cc6c337af"> |
 | $\mid\mid e\mid\mid = 2.772683874643615e-07$                                                         | $\mid\mid e\mid\mid = 3.844963195258414e-07$                                                         |
-|                                                                                                      |                                                                                                      |
-| Advection-Diffusion Equation Equation                                                                | Advection-Diffusion Equation Equation                                                                |
+
+| *Advection-Diffusion Equation*                                                                                                                                                                             ||
 | <video src="https://github.com/gstinoco/mGFD/assets/111999346/f3ace4e7-de20-4420-a492-8bea4be77d9d"> | <video src="https://github.com/gstinoco/mGFD/assets/111999346/8226f148-2086-4dbe-85e5-597ba4ed8498"> |
 | $\mid\mid e\mid\mid = 8.682520100538671e-07$                                                         | $\mid\mid e\mid\mid = 5.293394861064519e-07$                                                         |
-|                                                                                                      |                                                                                                      |
-| Wave Equation                                                                                        | Wave Equation                                                                                        |
+
+| *Wave Equation*                                                                                                                                                                                            ||
 | <video src="https://github.com/gstinoco/mGFD/assets/111999346/6060f485-475a-40e7-9528-d4b88bf8c3d3"> | <video src="https://github.com/gstinoco/mGFD/assets/111999346/7555e9c9-a396-4b0a-a646-8a0cd1111a6c"> |
 | $\mid\mid e\mid\mid = 3.999132412126389e-06$                                                         | $\mid\mid e\mid\mid = 4.584086365945307e-06$                                                         |
 
