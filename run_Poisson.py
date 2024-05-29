@@ -76,7 +76,7 @@ def process_region(region, files, data_path, results_path, save):
                                                                                             # Set the name of the file for the theoretical solution.
             np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%d')        # Save the theoretical solution.
 
-        plot_path = os.path.join(results_path, 'Poisson', region, 'Solution.png')           # Set the name for the resulting graph.
+        plot_path = os.path.join(results_path, 'Poisson', region, 'Solution')               # Set the name for the resulting graph.
         Graph.Cloud_Stationary(p, tt, u_ap, u_ex, save = save, nom = plot_path)             # Save the resulting graph.
 
 # Read the files with the data of all the regions in the Data folder.

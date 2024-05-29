@@ -66,7 +66,8 @@ def Cloud_Stationary(p, tt, u_ap, u_ex, save = False, nom = ''):
     fig.suptitle('Stationary Solution Comparison')
     
     if save:
-        plt.savefig(nom)
+        plt.savefig(nom + '.png')
+        plt.savefig(nom + '.eps', format = 'eps')
     else:
         plt.show()
     
