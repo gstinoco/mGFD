@@ -196,8 +196,9 @@ def Cloud_Transient_Steps(p, tt, u_ap, u_ex, nom):
         ax2.plot_trisurf(p[:, 0], p[:, 1], u_ex[:, k], triangles = tt, cmap = cm.coolwarm, linewidth = 0, antialiased = False)
         ax2.set_zlim([min_val, max_val])
         ax2.set_title('Theoretical Solution')
-        nok = nom + '_' + str(format(T[k], '.2f')) + 's.png'
-        plt.savefig(nok)
+        nok = nom + '_' + str(format(T[k], '.2f'))
+        plt.savefig(nok + 's.png')
+        plt.savefig(nok + 's.eps', format = 'eps')
         plt.close()
 
 
@@ -310,6 +311,7 @@ def Cloud_Transient_Steps_1(p, tt, u_ap, nom = ''):
         ax1.view_init(90, 270)
         ax1.set_zticks([])
         
-        nok = nom + '_' + str(format(T[k], '.2f')) + 's.png'
-        plt.savefig(nok)
+        nok = nom + '_' + str(format(T[k], '.2f'))
+        plt.savefig(nok + 's.png')
+        plt.savefig(nok + 's.eps', format = 'eps')
         plt.close()
