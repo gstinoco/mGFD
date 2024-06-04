@@ -106,7 +106,7 @@ t = 2000                                                                        
 
 ## Functions for the problem.
 f = lambda x, y, t, coef: np.cos(np.pi*t)*np.sin(np.pi*(x+y))
-g = lambda x, y, t, coef: -np.sin(np.pi*t)*np.sin(np.pi*(x+y))
+g = lambda x, y, t, coef: -np.pi*np.sin(np.pi*t)*np.sin(np.pi*(x+y))
 
 ## Operator L = [C, D, A, B, C, F]
 L = np.vstack([[0], [0], [2*c**2], [0], [2*c**2], [0]])                                     # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
