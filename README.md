@@ -106,10 +106,11 @@ All the codes presented were developed by:
     ricardo.roman@umich.mx<br>
     https://orcid.org/0000-0001-8521-9391
 
+<!--
   - **Nancy Saray Saucedo León**<br>
     Universidad Michoacana de San Nicolás de Hidalgo<br>
     1153558a@umich.mx<br>
-
+-->
 ## Funding :dollar:
 With the financing of:
 
