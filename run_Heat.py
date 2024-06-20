@@ -70,11 +70,11 @@ def process_region(region, files, data_path, results_path, save):
 
             computed_solution_path = os.path.join(results_path, 'Heat', region, 'Computed Solution.csv')
                                                                                             # Set the name of the file for the computed solution.
-            np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt = '%d')           # Save the computed solution.
+            np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt = '%.8f')         # Save the computed solution.
 
             theoretical_solution_path = os.path.join(results_path, 'Heat', region, 'Theoretical Solution.csv')
                                                                                             # Set the name of the file for the theoretical solution.
-            np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%d')        # Save the theoretical solution.
+            np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%.8f')      # Save the theoretical solution.
 
             plot_path = os.path.join(results_path, 'Heat', region, 'Solution')              # Set the name for the resulting graphs.
             Graph.Cloud_Transient_Steps(p, tt, u_ap, u_ex, nom = plot_path)                 # Save the resulting graphs.
