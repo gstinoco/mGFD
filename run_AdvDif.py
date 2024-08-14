@@ -113,7 +113,7 @@ t = 2000                                                                        
 ## Functions for the problem.
 f = lambda x, y, t, coef: (1/(4*t+1))*np.exp(-(x-coef[1]*t-0.5)**2/(coef[0]*(4*t+1)) - (y-coef[2]*t-0.5)**2/(coef[0]*(4*t+1)))
 
-## Operator L = [C, D, A, B, C, F]
+## Operator L = [D, E, A, B, C, F]
 L = np.vstack([[-a], [-b], [2*v], [0], [2*v], [0]])                                         # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
 
 # Should I save the results?

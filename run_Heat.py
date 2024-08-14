@@ -107,7 +107,7 @@ t = 2000                                                                        
 ## Functions for the problem.
 f = lambda x, y, t, coef: np.exp(-2*np.pi**2*coef[0]*t)*np.cos(np.pi*x)*np.cos(np.pi*y)
 
-## Operator L = [C, D, A, B, C, F]
+## Operator L = [D, E, A, B, C, F]
 L = np.vstack([[0], [0], [2*v], [0], [2*v], [0]])                                           # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
 
 # Should I save the results?

@@ -48,8 +48,8 @@ def Cloud_Stationary(p, tt, u_ap, u_ex, save = False, nom = ''):
     """
 
     # Variable initialization.
-    min_val = min(u_ex.min(), u_ap.min())
-    max_val = max(u_ex.max(), u_ap.max())
+    min_val = u_ex.min()
+    max_val = u_ex.max()
 
     fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={"projection": "3d"}, figsize=(10, 5))
     

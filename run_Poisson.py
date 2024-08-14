@@ -101,7 +101,7 @@ regions_h = group_files_by_region(holes)                                        
 phi = lambda x, y: 2*np.exp(2*x + y)                                                        # Boundary condition for the problem.
 f   = lambda x, y: 10*np.exp(2*x + y)                                                       # Right-hand-side of the equation.
 
-## Operator L = [C, D, A, B, C, F]
+## Operator L = [D, E, A, B, C, F]
 L = np.vstack([[0], [0], [2], [0], [2], [0]])                                               # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
 
 # Should I save the results?
