@@ -22,10 +22,6 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.animation import FuncAnimation
 
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-
 def Cloud_Stationary(p, tt, u_ap, u_ex, save = False, nom = ''):
     """
     Cloud

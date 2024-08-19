@@ -123,7 +123,7 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                        # Save the boundary nodes.
     inne_n = p[:, 2] == 0                                                           # Save the inner nodes.
     
-    ## Boundary conditions.
+    # Boundary conditions.
     for k in np.arange(t):                                                          # For each time step.
         u_ap[boun_n, k] = f(p[boun_n, 0], p[boun_n, 1], T[k], coef)                 # The boundary condition is assigned.
   
@@ -136,7 +136,7 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     else:                                                                           # If there are no triangles available.
         vec = Neighbors.Cloud(p, nvec)                                              # Neighbor search with the proper routine.
 
-    ## Gamma computation.
+    # Gamma computation.
     L = dt*operator[:-1]                                                            # The values of the differential operator are assigned.
     K = Gammas.Cloud(p, vec, L)                                                     # K computation with the required Gammas.
     
