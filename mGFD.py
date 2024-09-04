@@ -22,7 +22,7 @@ import numpy as np
 import Scripts.Gammas as Gammas
 import Scripts.Neighbors as Neighbors
 
-def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), triangulation = False, tt = None):
+def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), triangulation = False, tt = None, Adv = False):
     '''
     Numerical solution of partial differential equations with no time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -56,13 +56,20 @@ def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), trian
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                        # Save the boundary nodes.
     inne_n = p[:, 2] == 0                                                           # Save the inner nodes.
 
+    # Values for the velocities form the operator
+    if Adv == True:                                                                 # If an Upwind stencil is requested.
+        a = operator[0][0]                                                          # Value of the velocity on x.
+        b = operator[1][0]                                                          # Value of the velocity on y.
+
     # Boundary conditions
     u_ap[boun_n] = phi(p[boun_n, 0], p[boun_n, 1])                                  # The boundary condition is assigned.
     
-    ## Neighbor search.
+    ## Neighbor search for all the nodes.
     if triangulation == True:                                                       # If there are triangles available.
         vec = Neighbors.Triangulation(p, tt, nvec)                                  # Neighbor search with the proper routine.
-    else:                                                                           # If there are no triangles available.
+    elif Adv == True:                                                               # If there are no triangles available and upwind required.
+        vec = Neighbors.CloudAdv(p, a, b, nvec)                                     # Neighbor search with the proper routine.
+    else:                                                                           # All the other cases.
         vec = Neighbors.Cloud(p, nvec)                                              # Neighbor search with the proper routine.
 
     # Computation of Gamma values
@@ -81,7 +88,7 @@ def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), trian
     return u_ap, u_ex, vec
 
 
-def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]]), triangulation = False, tt = [], implicit = False, lam = 0.5):
+def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]]), triangulation = False, tt = [], implicit = False, lam = 0.5, Adv = False):
     """
     Numerical solution of partial differential equations with first-order time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -122,6 +129,11 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     u_ex = np.zeros([m,t])                                                          # u_ex initialization with zeros.
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                        # Save the boundary nodes.
     inne_n = p[:, 2] == 0                                                           # Save the inner nodes.
+
+    # Values for the velocities form the operator
+    if Adv == True:                                                                 # If an Upwind stencil is requested.
+        a = L[0]                                                                    # Value of the velocity on x.
+        b = L[1]                                                                    # Value of the velocity on y.
     
     # Boundary conditions.
     for k in np.arange(t):                                                          # For each time step.
@@ -130,10 +142,12 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     # Initial condition
     u_ap[:, 0] = f(p[:, 0], p[:, 1], T[0], coef)                                    # The initial condition is assigned.
     
-    # Neighbor search for all the nodes.
+    ## Neighbor search for all the nodes.
     if triangulation == True:                                                       # If there are triangles available.
         vec = Neighbors.Triangulation(p, tt, nvec)                                  # Neighbor search with the proper routine.
-    else:                                                                           # If there are no triangles available.
+    elif Adv == True:                                                               # If there are no triangles available and upwind required.
+        vec = Neighbors.CloudAdv(p, nvec)                                           # Neighbor search with the proper routine.
+    else:                                                                           # All the other cases.
         vec = Neighbors.Cloud(p, nvec)                                              # Neighbor search with the proper routine.
 
     # Gamma computation.
@@ -157,7 +171,7 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     return u_ap, u_ex, vec
 
 
-def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]]), triangulation = False, tt = None, implicit = False, lam = 0.5):
+def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]]), triangulation = False, tt = None, implicit = False, lam = 0.5, Adv = False):
     '''
     Numerical solution of partial differential equations with second-order time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -200,6 +214,11 @@ def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], 
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                        # Save the boundary nodes.
     inne_n = p[:, 2] == 0                                                           # Save the inner nodes.
 
+    # Values for the velocities form the operator
+    if Adv == True:                                                                 # If an Upwind stencil is requested.
+        a = L[0]                                                                    # Value of the velocity on x.
+        b = L[1]                                                                    # Value of the velocity on y.
+
     ## Boundary conditions.
     for k in np.arange(t):                                                          # For each time step.
         u_ap[boun_n, k] = f(p[boun_n, 0], p[boun_n, 1], T[k], coef)                 # The boundary condition is assigned.
@@ -207,10 +226,12 @@ def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], 
     ## Initial condition.
     u_ap[:, 0] = f(p[:, 0], p[:, 1], T[0], coef)                                    # The initial condition is assigned.
     
-    ## Neighbor search.
+    ## Neighbor search for all the nodes.
     if triangulation == True:                                                       # If there are triangles available.
         vec = Neighbors.Triangulation(p, tt, nvec)                                  # Neighbor search with the proper routine.
-    else:                                                                           # If there are no triangles available.
+    elif Adv == True:                                                               # If there are no triangles available and upwind required.
+        vec = Neighbors.CloudAdv(p, nvec)                                           # Neighbor search with the proper routine.
+    else:                                                                           # All the other cases.
         vec = Neighbors.Cloud(p, nvec)                                              # Neighbor search with the proper routine.
 
     ## Gamma computation.

@@ -52,11 +52,13 @@ def Cloud_Stationary(p, tt, u_ap, u_ex, save = False, nom = ''):
     # Plotting the approximated solution
     ax1.plot_trisurf(p[:, 0], p[:, 1], u_ap[:], triangles=tt, cmap=cm.coolwarm, linewidth=0, antialiased=False)
     ax1.set_zlim([min_val, max_val])
+    ax1.view_init(elev = 9, azim = -50)
     ax1.set_title('Approximation')
     
     # Plotting the theoretical solution
     ax2.plot_trisurf(p[:, 0], p[:, 1], u_ex[:], triangles=tt, cmap=cm.coolwarm, linewidth=0, antialiased=False)
     ax2.set_zlim([min_val, max_val])
+    ax2.view_init(elev = 9, azim = -50)
     ax2.set_title('Theoretical Solution')
     
     fig.suptitle('Stationary Solution Comparison')

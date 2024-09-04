@@ -19,6 +19,7 @@ Last Modification:
 ## Library importation.
 import numpy as np
 from scipy.spatial import KDTree
+from joblib import Parallel, delayed
 
 def Triangulation(p, tt, nvec):
     """
@@ -67,6 +68,27 @@ def Cloud(p, nvec):
 
     ## Neighbor search.
     vec = find_neighbors(p, dist, nvec, mode = 3)
+
+    return vec
+
+def CloudAdv(p, a, b, nvec):
+    """
+    CloudAdv
+    Function to find the neighbor nodes in a cloud of points; it considers an Upwind scheme
+    
+    Input:
+        p               ndarray         Array with the coordinates of the nodes and a flag for the boundary.
+        nvec            int             Maximum number of neighbors.
+    
+    Output:
+        vec             ndarray         Array with matching neighbors of each node.
+    """
+
+    ## Delta computation.
+    dist = find_distances(p, mode = 2)
+
+    ## Neighbor search.
+    vec = find_neighbors_adv(p, dist, a, b, nvec)
 
     return vec
 
@@ -175,3 +197,49 @@ def find_neighbors(p, dist, nvec, mode = 2):
             vec[i, :min(len(valid_indices), nvec)] = valid_indices[:nvec]           # Store the neighbors.
 
     return vec
+
+def find_neighbors_adv(p, dist, a, b, nvec, n_jobs = -1):
+    """
+    find_neighbors
+    Function to find all the neighbors of a node within a given distance, with parallelization.
+    
+    Input:
+        p                   ndarray         Array with the coordinates of the nodes and a flag for the boundary.
+        dist                float           Radius distance to look for neighbors.
+        nvec                int             Maximum number of neighbors.
+        mode                int             Choose the way to compute the distances:
+                                                    1: brute force
+                                                    2: optimized (default)
+                                                    3: KDTree
+    
+    Output:
+        vec                 ndarray         Array with matching neighbors of each node.
+    """
+    m   = len(p[:, 0])                                                              # The size if the triangulation is obtained.
+    vec = np.zeros([m, nvec], dtype=int) - 1                                        # The array for the neighbors is initialized.
+
+    # Brute Force.
+    vec_rows = Parallel(n_jobs=n_jobs)(delayed(find_neighbors_brute_force)(i, p, a, b, dist, nvec) for i in range(m))
+    vec      = np.array(vec_rows)
+
+    return vec
+
+def find_neighbors_brute_force(i, p, a, b, dist, nvec):
+    """
+    Helper function for finding neighbors using brute force method.
+    """
+    x, y = p[i, 0], p[i, 1]                                                         # x, y coordinates of the central node.
+    temp_neighbors = []                                                             # Create an empty array for neighbors.
+    for j in np.arange(len(p)):                                                     # For all the nodes.
+        if i != j:                                                                  # Check that we are not working with the central node.
+            x1, y1 = p[j, 0], p[j, 1]                                               # x, y coordinates of the possible neighbor.
+            xt, yt = x1 - x, y1 - y                                                 # Change the "origin" of x and y.
+            di = np.sign(np.dot([xt, yt],[a, b]))                                   # Check the direction between (xt, yt) and (a,b).
+            d  = np.sqrt((x - x1)**2 + (y - y1)**2)                                 # Distance from the possible neighbor to the central node.
+            if di == -1 and d < dist:                                               # If the neighbors are in the correct position and the distance is smaller or equal to the tolerance distance.
+                temp_neighbors.append((d, j))                                       # Store the neighbor node.
+    temp_neighbors.sort()                                                           # Sort the neighbors by distance.
+    neighbors = np.array([j for _, j in temp_neighbors[:nvec]])                     # Extract neighbor indices.
+    vec_row   = np.zeros(nvec, dtype=int) - 1                                       # Initialize row with -1.
+    vec_row[:len(neighbors)] = neighbors                                            # Store the neighbors.
+    return vec_row
