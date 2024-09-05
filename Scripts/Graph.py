@@ -71,6 +71,46 @@ def Cloud_Stationary(p, tt, u_ap, u_ex, save = False, nom = ''):
     
     plt.close()
 
+def Cloud_Stationary_1(p, tt, u_ap, save = False, nom = ''):
+    """
+    Cloud_Stationary_1
+
+    This function graphs and saves the approximated solution of the problem being solved.
+
+    Input:
+        p           m x 2           ndarray         Array with the coordinates of the nodes.
+        tt          n x 3           ndarray         Array with the correspondence of the n triangles.
+        u_ap        m x 1           ndarray         Array with the computed solution.
+        save                        bool            Save the graphic.
+                                                        True: Save the created graphs.
+                                                        False: Don't save the created graphs (Default).
+        nom                         string          Name of the files to be saved to drive.
+        
+    Output:
+        None
+    """
+
+    # Variable initialization.
+    min_val = u_ap.min()
+    max_val = u_ap.max()
+
+    fig, (ax1) = plt.subplots(1, 1, subplot_kw = {"projection": "3d"}, figsize = (5, 5))
+    
+    # Plotting the approximated solution
+    ax1.plot_trisurf(p[:, 0], p[:, 1], u_ap[:], triangles=tt, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax1.set_zlim([min_val, max_val])
+    ax1.view_init(elev = 9, azim = -50)
+        
+    fig.suptitle('Stationary Approximation')
+    
+    if save:
+        plt.savefig(nom + '.png')
+        plt.savefig(nom + '.eps', format = 'eps')
+    else:
+        plt.show()
+    
+    plt.close()
+
 
 def Cloud_Transient(p, tt, u_ap, u_ex, save = False, nom = ''):
     """
