@@ -5,15 +5,16 @@ All the codes presented below were developed by:
     gerardo.tinoco@umich.mx
 
 With the funding of:
-    National Council of Humanities, Sciences and Technologies, CONAHCyT (Consejo Nacional de Humanidades, Ciencias y Tecnologías, CONAHCyT). México.
+    Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
     Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México
     Aula CIMNE-Morelia. México
+    SIIIA-MATH: Soluciones de Ingeniería. México
 
 Date:
     May, 2024.
 
 Last Modification:
-    May, 2024.
+    May, 2025.
 """
 ## Library importation.
 import numpy as np

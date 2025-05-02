@@ -1,4 +1,4 @@
-# mGFD
+# mGFD: A Meshless Generalized Finite Difference Method
 Data and methods for numerically solving Partial Differential Equations using a meshless Generalized Finite Differences Scheme.
 
 All the codes are distributed under MIT License on [GitHub](https://github.com/gstinoco/mGFD) and are free to use, modify, and distribute giving the proper copyright notice.
@@ -114,8 +114,10 @@ All the codes presented were developed by:
 ## Funding :dollar:
 With the financing of:
 
-  - National Council of Humanities, Sciences and Technologies, CONAHCyT (Consejo Nacional de Humanidades, Ciencias y Tecnologías, CONAHCyT), México.
+  - Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
   
   - Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH), México.
   
   - Aula CIMNE-Morelia, México.
+
+  - SIIIA-MATH: Soluciones de Ingeniería, México.

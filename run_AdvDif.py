@@ -14,15 +14,16 @@ All the codes presented below were developed by:
     gerardo.tinoco@umich.mx
 
 With the funding of:
-    National Council of Science and Technology, CONACyT (Consejo Nacional de Ciencia y Tecnología, CONACyT). México.
+    Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
     Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México
     Aula CIMNE-Morelia. México
+    SIIIA-MATH: Soluciones de Ingeniería. México
 
 Date:
     May, 2024.
 
 Last Modification:
-    May 2024
+    May, 2025.
 """
 
 # Library importation
@@ -117,7 +118,7 @@ f = lambda x, y, t, coef: (1/(4*t+1))*np.exp(-(x-coef[1]*t-0.5)**2/(coef[0]*(4*t
 L = np.vstack([[-a], [-b], [2*v], [0], [2*v], [0]])                                         # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
 
 # Should I save the results?
-Save = True                                                                                 # Choose wether the results must be saved.
+Save = False                                                                                # Choose wether the results must be saved.
 
 # Solve the problem using a meshless Generalized Finite Difference approach.
 # Solve in clouds.
