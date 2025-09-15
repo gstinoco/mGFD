@@ -1,4 +1,4 @@
-"""
+'''
 All the codes presented below were developed by:
     Dr. Gerardo Tinoco Guerrero
     Universidad Michoacana de San Nicolás de Hidalgo
@@ -15,12 +15,12 @@ Date:
 
 Last Modification:
     May, 2025.
-"""
+'''
 ## Library importation.
 import numpy as np
 
 def PolyArea(x,y):
-    """
+    '''
     PolyArea
     Function to calculate the area of a polygon defined by the vertices whose coordinates are stored in $x$ and $y$.
     
@@ -30,13 +30,13 @@ def PolyArea(x,y):
     
     Output:
         area                        Float           Area of the polygon.
-    """
+    '''
     ## Area computation.
     area = 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))          # Compute the area of the element.
     return area
 
 def Cloud_Transient(p, vec, u_ap, u_ex):
-    """
+    '''
     Cloud_Transient
     Function to compute the error in a triangulation or an unstructured cloud of points for a problem that depends on time.
     The polygon used to calculate the area is the one defined by all the immediate neighbors of the central node.
@@ -49,7 +49,7 @@ def Cloud_Transient(p, vec, u_ap, u_ex):
     
     Output:
         er          t x 1           Array           Mean square error computed on each time step.
-    """
+    '''
 
     ## Variable initialization.
     m, t = p.shape[0], u_ap.shape[1]                                                # The size of the region.
@@ -74,7 +74,7 @@ def Cloud_Transient(p, vec, u_ap, u_ex):
     return er
 
 def Cloud_Stationary(p, vec, u_ap, u_ex):
-    """
+    '''
     Cloud_Stationary
     Function to compute the error in a triangulation or an unstructured cloud of points for a problem that depends on time.
     The polygon used to calculate the area is the one defined by all the immediate neighbors of the central node.
@@ -87,7 +87,7 @@ def Cloud_Stationary(p, vec, u_ap, u_ex):
     
     Output:
         er          t x 1           Array           Mean square error computed on each time step.
-    """
+    '''
 
     ## Variable initialization.
     m    = p.shape[0]                                                               # The size of the region.
