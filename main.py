@@ -40,7 +40,7 @@ def main():
     successful_runs = 0
     
     for run_file in run_files:
-        file_path = os.path.join(current_dir, run_file)
+        file_path = os.path.join(current_dir, 'batches', run_file)
         if not os.path.exists(file_path):
             print(f'Warning: File {run_file} not found')
             continue

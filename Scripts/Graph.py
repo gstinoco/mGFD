@@ -162,7 +162,17 @@ def Cloud_Transient(p, tt, u_ap, u_ex, save = False, nom = ''):
             return fig, 
     
         ani = FuncAnimation(fig, update_plot, frames = np.arange(0, t+1, step), blit = True)
-        ani.save(nom, writer = 'ffmpeg', fps = 10)
+        try:
+            ani.save(nom, writer = 'ffmpeg', fps = 10)
+        except Exception as e:
+            print(f"Warning: ffmpeg not available, using pillow writer instead. Error: {e}")
+            # Change extension to .gif if using pillow
+            if nom.endswith('.mp4'):
+                nom_gif = nom.replace('.mp4', '.gif')
+                ani.save(nom_gif, writer = 'pillow', fps = 10)
+                print(f"Video saved as {nom_gif} instead of {nom}")
+            else:
+                ani.save(nom, writer = 'pillow', fps = 10)
         plt.close()
 
     else:
@@ -284,7 +294,17 @@ def Cloud_Transient_1(p, tt, u_ap, save = False, nom = ''):
             return fig, 
     
         ani = FuncAnimation(fig, update_plot, frames = np.arange(0, t+1, step), blit = True)
-        ani.save(nom, writer = 'ffmpeg', fps = 10)
+        try:
+            ani.save(nom, writer = 'ffmpeg', fps = 10)
+        except Exception as e:
+            print(f"Warning: ffmpeg not available, using pillow writer instead. Error: {e}")
+            # Change extension to .gif if using pillow
+            if nom.endswith('.mp4'):
+                nom_gif = nom.replace('.mp4', '.gif')
+                ani.save(nom_gif, writer = 'pillow', fps = 10)
+                print(f"Video saved as {nom_gif} instead of {nom}")
+            else:
+                ani.save(nom, writer = 'pillow', fps = 10)
         plt.close()
 
     else:

@@ -95,7 +95,7 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     
     The problem to solve is:
     
-    \frac{\partial u}{\partial t} = Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
+    \\frac{\\partial u}{\\partial t} = Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
     
     Input:
         p           m x 3           ndarray         Array with the coordinates of the nodes and the flag for boundary or inner node.
@@ -178,7 +178,7 @@ def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], 
     
     The problem to solve is:
     
-    \frac{\partial^2 u}{\partial t^2} = Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
+    \\frac{\\partial^2 u}{\\partial t^2} = Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
     
     Input:
         p           m x 2           ndarray         Array with the coordinates of the nodes.
