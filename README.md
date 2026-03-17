@@ -677,7 +677,7 @@ python batches/benchmark.py
         <img src="docs/team/profile_placeholder_woman.svg" alt="Maria Goretti Fraga Lopez" width="96" height="96" style="border-radius: 50%;">
       </td>
       <td>
-        <b>Maria Goretti Fraga Lopez</b><br/>
+        <b>Maria Goretti Fraga-Lopez</b><br/>
         <img alt="Undergraduate Research Student" src="https://img.shields.io/badge/Undergraduate-Research%20Student-green?style=flat-square">
       </td>
       <td>
