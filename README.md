@@ -76,7 +76,7 @@
 - **Error evaluation** utilities for stationary and transient problems.
 
 ### :world_map: Domain & Data Handling
-- **Point-cloud datasets** packaged under `Data/<Region>/<scale>/` (with optional `cloud_exterior` variants).
+- **Point-cloud datasets** packaged under `Data/<Region>/<scale>/` with two main variants: `*_cloud.csv` (no holes) and `*_cloud_exterior.csv` (with holes).
 - **Region catalog** with 2D domains used for consistent comparisons.
 - **CSV-based interchange** for easy inspection and external tooling.
 
@@ -160,7 +160,7 @@ python batches/run_Poisson.py
     <tr>
       <td><b>2) Inspect outputs</b></td>
       <td>
-        Check <code>Results/Poisson/&lt;Region&gt;/&lt;scale&gt;/&lt;variant&gt;/</code> (e.g., <code>Results/Poisson/Titicaca/2x/cloud/</code>).
+        Check <code>Results/Poisson/&lt;Region&gt;/&lt;scale&gt;/&lt;variant&gt;/</code> (e.g., <code>Results/Poisson/Poopo/2x/cloud/</code>).
       </td>
     </tr>
     <tr>
@@ -227,7 +227,7 @@ python batches/run_Poisson.py
 
 ## :movie_camera: Visualizations
 
-### :framed_picture: Titicaca Lake (TIT)
+### :framed_picture: Poopo (Data/Poopo/)
 
 <div align="center">
 
@@ -235,39 +235,53 @@ python batches/run_Poisson.py
   <tr>
     <td align="center">
       <b>Cloud</b><br/>
-      <sub>Data/Titicaca/&lt;scale&gt;</sub><br/><br/>
-      <img src="docs/images/TIT_cloud.png" alt="TIT cloud" width="260"><br/>
+      <sub>Data/Poopo/&lt;scale&gt;</sub><br/><br/>
+      <img src="docs/images/Poopo_cloud.png" alt="Poopo cloud" width="260"><br/>
     </td>
     <td align="center">
-      <b>Exterior / interior-boundary variant</b><br/>
-      <sub>Data/Titicaca/&lt;scale&gt; (cloud_exterior)</sub><br/><br/>
-      <img src="docs/images/TIT_holes.png" alt="TIT holes" width="260"><br/>
+      <b>Cloud exterior (with holes)</b><br/>
+      <sub>Data/Poopo/&lt;scale&gt; (cloud_exterior)</sub><br/><br/>
+      <img src="docs/images/Poopo_cloud_exterior.png" alt="Poopo cloud exterior" width="260"><br/>
     </td>
   </tr>
 </table>
 
 </div>
 
-### :zap: Poisson (Cloud vs Cloud Exterior)
+### :zap: Stationary Examples (Poisson / Perturbation)
 
 <div align="center">
 
 <table>
   <tr>
     <td align="center">
-      <b>Cloud</b><br/><br/>
-      <img src="docs/images/Poisson_TIT_clouds.png" alt="Poisson solution (clouds)" width="320"><br/>
+      <b>Poisson (Cloud)</b><br/><br/>
+      <img src="docs/images/Poopo_cloud_Poisson.png" alt="Poisson solution (cloud)" width="320"><br/>
+      <a href="Results/Poisson/Poopo/2x/cloud/"><code>Results/Poisson/Poopo/2x/cloud/</code></a>
     </td>
     <td align="center">
-      <b>Cloud exterior</b><br/><br/>
-      <img src="docs/images/Poisson_TIT_holes.png" alt="Poisson solution (holes)" width="320"><br/>
+      <b>Poisson (Cloud exterior)</b><br/><br/>
+      <img src="docs/images/Poopo_cloud_exterior_Poisson.png" alt="Poisson solution (cloud exterior)" width="320"><br/>
+      <a href="Results/Poisson/Poopo/2x/cloud_exterior/"><code>Results/Poisson/Poopo/2x/cloud_exterior/</code></a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Perturbation (Cloud)</b><br/><br/>
+      <img src="docs/images/Poopo_cloud_Perturbation.png" alt="Perturbation solution (cloud)" width="320"><br/>
+      <a href="Results/Perturbation/Poopo/2x/cloud/"><code>Results/Perturbation/Poopo/2x/cloud/</code></a>
+    </td>
+    <td align="center">
+      <b>Perturbation (Cloud exterior)</b><br/><br/>
+      <img src="docs/images/Poopo_cloud_exterior_Perturbation.png" alt="Perturbation solution (cloud exterior)" width="320"><br/>
+      <a href="Results/Perturbation/Poopo/2x/cloud_exterior/"><code>Results/Perturbation/Poopo/2x/cloud_exterior/</code></a>
     </td>
   </tr>
 </table>
 
 </div>
 
-### :movie_camera: Transient Animations (Heat / Wave)
+### :movie_camera: Transient Animations (Heat / Wave / Advection–Diffusion)
 
 <div align="center">
 
@@ -275,25 +289,37 @@ python batches/run_Poisson.py
   <tr>
     <td align="center">
       <b>Heat (Cloud)</b><br/><br/>
-      <img src="docs/videos/Heat_TIT_clouds.gif" alt="Heat solution (clouds, TIT)" width="320"><br/>
-      <a href="Results/Heat/Titicaca/2x/cloud/"><code>Results/Heat/Titicaca/2x/cloud/</code></a>
+      <img src="docs/videos/Poopo_cloud_Heat.gif" alt="Heat solution (cloud, Poopo)" width="320"><br/>
+      <a href="Results/Heat/Poopo/2x/cloud/"><code>Results/Heat/Poopo/2x/cloud/</code></a>
     </td>
     <td align="center">
       <b>Heat (Cloud exterior)</b><br/><br/>
-      <img src="docs/videos/Heat_TIT_holes.gif" alt="Heat solution (holes, TIT)" width="320"><br/>
-      <a href="Results/Heat/Titicaca/2x/cloud_exterior/"><code>Results/Heat/Titicaca/2x/cloud_exterior/</code></a>
+      <img src="docs/videos/Poopo_cloud_exterior_Heat.gif" alt="Heat solution (cloud exterior, Poopo)" width="320"><br/>
+      <a href="Results/Heat/Poopo/2x/cloud_exterior/"><code>Results/Heat/Poopo/2x/cloud_exterior/</code></a>
     </td>
   </tr>
   <tr>
     <td align="center">
       <b>Wave (Cloud)</b><br/><br/>
-      <img src="docs/videos/Wave_TIT_clouds.gif" alt="Wave solution (clouds, TIT)" width="320"><br/>
-      <a href="Results/Wave/Titicaca/2x/cloud/"><code>Results/Wave/Titicaca/2x/cloud/</code></a>
+      <img src="docs/videos/Poopo_cloud_Wave.gif" alt="Wave solution (cloud, Poopo)" width="320"><br/>
+      <a href="Results/Wave/Poopo/2x/cloud/"><code>Results/Wave/Poopo/2x/cloud/</code></a>
     </td>
     <td align="center">
       <b>Wave (Cloud exterior)</b><br/><br/>
-      <img src="docs/videos/Wave_TIT_holes.gif" alt="Wave solution (holes, TIT)" width="320"><br/>
-      <a href="Results/Wave/Titicaca/2x/cloud_exterior/"><code>Results/Wave/Titicaca/2x/cloud_exterior/</code></a>
+      <img src="docs/videos/Poopo_cloud_exterior_Wave.gif" alt="Wave solution (cloud exterior, Poopo)" width="320"><br/>
+      <a href="Results/Wave/Poopo/2x/cloud_exterior/"><code>Results/Wave/Poopo/2x/cloud_exterior/</code></a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Advection–Diffusion (Cloud)</b><br/><br/>
+      <img src="docs/videos/Poopo_cloud_AdvDif.gif" alt="Advection–Diffusion solution (cloud, Poopo)" width="320"><br/>
+      <a href="Results/AdvDif/Poopo/2x/cloud/"><code>Results/AdvDif/Poopo/2x/cloud/</code></a>
+    </td>
+    <td align="center">
+      <b>Advection–Diffusion (Cloud exterior)</b><br/><br/>
+      <img src="docs/videos/Poopo_cloud_exterior_AdvDif.gif" alt="Advection–Diffusion solution (cloud exterior, Poopo)" width="320"><br/>
+      <a href="Results/AdvDif/Poopo/2x/cloud_exterior/"><code>Results/AdvDif/Poopo/2x/cloud_exterior/</code></a>
     </td>
   </tr>
 </table>
@@ -321,7 +347,7 @@ import numpy as np
 from Scripts.IO import load_points
 from mGFD import Stationary
 
-p = load_points("Data/Titicaca/2x/Titicaca_cloud.csv")
+p = load_points("Data/Poopo/2x/Poopo_cloud.csv")
 
 phi = lambda x, y: 2*np.exp(2*x + y)
 f = lambda x, y: 10*np.exp(2*x + y)
@@ -351,6 +377,9 @@ x,y,region,classification
 Notes:
 - The solvers consume a `(m, 3)` array `p = [x, y, flag]`, where `flag=0` is interior and `flag=1/2` mark boundary-related nodes.
 - Use `Scripts.IO.load_points(...)` to load dataset CSVs into this `(m, 3)` convention (it maps `classification` values like `boundary`/`hole` into `flag` when needed).
+- Dataset variants:
+  - `*_cloud.csv`: region without holes (either because the geometry has no islands, or because interior islands are filled by adding interior point clouds).
+  - `*_cloud_exterior.csv`: region with holes (interior islands have no interior point clouds and are treated as voids).
 
 ---
 
@@ -398,6 +427,14 @@ Where boundary values are imposed through $u = \\phi(x,y)$ on boundary nodes and
 ## :file_cabinet: Dataset Structure
 
 All datasets are taken from the Author's [Cloud-Generation GitHub Repository](https://github.com/gstinoco/Cloud-Generation). The data is free to use for comparisons across methods using the same inputs.
+
+### Variants (`cloud` vs `cloud_exterior`)
+
+For each region/scale you may find two point-cloud variants:
+- `*_cloud.csv`: region without holes (either because there are no islands, or because islands are filled by adding interior nodes so the domain stays connected).
+- `*_cloud_exterior.csv`: region with holes (interior islands have no interior point cloud, so they are treated as void regions).
+
+These point clouds supersede older dataset layouts used in previous versions of this repository.
 
 ### Available Regions (Folders under `Data/`)
 
@@ -749,7 +786,7 @@ The benchmark script writes its summary files under `benchmark_results/`.
 ### :trophy: Project Highlights
 
 - **Meshless PDE solver core** for irregular 2D domains using Generalized Finite Differences (mGFD)
-- **Reference datasets** (clouds and holes) enabling consistent method-to-method comparisons
+- **Reference datasets** (multiple regions, scales, and variants) enabling consistent method-to-method comparisons
 - **Reproducible batch scripts** covering Poisson, Heat, Advection–Diffusion, and Wave equation families
 - **Error analysis and benchmarks** with saved artifacts under `Results/` for validation and reporting
 
@@ -1001,13 +1038,18 @@ SOFTWARE.
 <details>
   <summary><b>Where are datasets located?</b></summary>
   <br/>
-  Under <code>Data/&lt;Region&gt;/&lt;scale&gt;/</code>, e.g. <code>Data/Titicaca/2x/Titicaca_cloud.csv</code>.
+  Under <code>Data/&lt;Region&gt;/&lt;scale&gt;/</code>, e.g. <code>Data/Poopo/2x/Poopo_cloud.csv</code>.
 </details>
 
 <details>
   <summary><b>What is the difference between <code>cloud</code> and <code>cloud_exterior</code>?</b></summary>
   <br/>
-  They are two input variants of the same region at the same scale. The <code>cloud_exterior</code> files add or emphasize boundary-related nodes; both are loaded into the solver as <code>p=[x,y,flag]</code> via <code>Scripts.IO.load_points</code>.
+  They are two input variants of the same region at the same scale:
+  <ul>
+    <li><code>*_cloud.csv</code>: no holes (islands are filled with interior nodes, or the geometry has no islands).</li>
+    <li><code>*_cloud_exterior.csv</code>: with holes (islands have no interior nodes and are treated as void regions).</li>
+  </ul>
+  Both are loaded into the solver as <code>p=[x,y,flag]</code> via <code>Scripts.IO.load_points</code>.
 </details>
 
 <details>
