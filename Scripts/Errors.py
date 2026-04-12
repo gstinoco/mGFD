@@ -1,111 +1,157 @@
-'''
-All the codes presented below were developed by:
-    Dr. Gerardo Tinoco Guerrero
-    Universidad Michoacana de San Nicolás de Hidalgo
-    gerardo.tinoco@umich.mx
+"""
+Errors — Area-weighted error metrics on point clouds
 
-With the funding of:
-    Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
-    Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México
-    Aula CIMNE-Morelia. México
-    SIIIA-MATH: Soluciones de Ingeniería. México
+Overview:
+    Utilities to compute an area-weighted RMSE between an approximate solution (u_ap) and a reference
+    solution (u_ex) on an unstructured 2D point cloud.
 
-Date:
-    May, 2024.
+    The local area weight for each node i is estimated as the area of a polygon constructed from the
+    coordinates of its immediate neighbors vec[i, :]. The polygon area is computed with the shoelace
+    formula (PolyArea).
 
-Last Modification:
-    May, 2025.
-'''
+Notes:
+    The polygon area calculation assumes that the neighbor vertices are ordered around the node
+    (counterclockwise or clockwise). If vec does not provide an ordered ring, the computed area can
+    be inaccurate (including self-intersections).
+
+Public API:
+    PolyArea             Polygon area by the shoelace formula.
+    Cloud_Transient      Area-weighted RMSE per time step.
+    Cloud_Stationary     Area-weighted RMSE for a single snapshot.
+
+Credits:
+    All the codes presented below were developed by:
+        Dr. Gerardo Tinoco Guerrero
+        Universidad Michoacana de San Nicolás de Hidalgo
+        gerardo.tinoco@umich.mx
+
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México
+        Aula CIMNE-Morelia. México
+        SIIIA-MATH: Soluciones de Ingeniería. México
+
+    Date:
+        May, 2024.
+    Last Modification:
+        April, 2026.
+"""
+
 ## Library importation.
-import numpy as np
+import numpy as np                                                                                      # Core numerical operations.
 
 def PolyArea(x,y):
     '''
     PolyArea
-    Function to calculate the area of a polygon defined by the vertices whose coordinates are stored in $x$ and $y$.
+    Compute the area of a polygon defined by its ordered vertices (x, y).
+    
+    This function uses the shoelace formula and returns the absolute area.
     
     Input:
-        x           m x n           Array           Array with the coordinates in x of the vertices of the polygon.
-        y           m x n           Array           Array with the coordinates in y of the vertices of the polygon.
+        x                           array-like      x-coordinates of polygon vertices (1D).
+        y                           array-like      y-coordinates of polygon vertices (1D).
     
     Output:
-        area                        Float           Area of the polygon.
+        area                        float           Area of the polygon.
+    
+    Notes:
+        The vertices must be ordered along the polygon boundary (clockwise or counterclockwise).
+        If the polygon is self-intersecting or the vertex order is arbitrary, the result may be incorrect.
     '''
     ## Area computation.
-    area = 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))          # Compute the area of the element.
-    return area
+    x    = np.asarray(x, dtype = float)                                                                 # Normalize x to ndarray.
+    y    = np.asarray(y, dtype = float)                                                                 # Normalize y to ndarray.
+    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))                            # Shoelace formula (absolute area).
+    return float(area)                                                                                  # Return scalar area.
 
 def Cloud_Transient(p, vec, u_ap, u_ex):
     '''
     Cloud_Transient
-    Function to compute the error in a triangulation or an unstructured cloud of points for a problem that depends on time.
-    The polygon used to calculate the area is the one defined by all the immediate neighbors of the central node.
+    Compute the area-weighted RMSE on an unstructured point cloud for a transient solution.
+    
+    For each node i, a local weight area[i] is computed as the polygon area formed by its neighbor
+    coordinates p[vec[i, :], :]. For each time step k, the error is computed as:
+        er[k] = sqrt(mean( (u_ap[:, k] - u_ex[:, k])^2 * area[:] ))
     
     Input:
-        p           m x 2           Array           Array with the coordinates of the nodes.
-        vec         m x nvec        Array           Array with the correspondence of the nvec neighbors of each node.
-        u_ap        m x t           Array           Array with the computed solution.
-        u_ex        m x t           Array           Array with the theoretical solution.
+        p           m x 2           array-like      Node coordinates [x, y].
+        vec         m x nvec        array-like[int] Neighbor indices per node (unused slots padded with -1).
+        u_ap        m x t           array-like      Approximate solution values on nodes over time.
+        u_ex        m x t           array-like      Reference/exact solution values on nodes over time.
     
     Output:
-        er          t x 1           Array           Mean square error computed on each time step.
+        er          t               ndarray         Area-weighted RMSE at each time step.
+    
+    Notes:
+        The neighbor list vec is assumed to define a valid polygonal ring around each node. If vec
+        is unordered, PolyArea may compute an inaccurate area and the weighting becomes unreliable.
     '''
 
     ## Variable initialization.
-    m, t = p.shape[0], u_ap.shape[1]                                                # The size of the region.
-    er   = np.zeros(t)                                                              # er initialization with zeros.
-    area = np.zeros(m)                                                              # area initialization with zeros.
+    p     = np.asarray(p)                                                                               # Normalize coordinates to ndarray.
+    vec   = np.asarray(vec)                                                                             # Normalize neighbors to ndarray.
+    u_ap  = np.asarray(u_ap)                                                                            # Normalize approximate solution to ndarray.
+    u_ex  = np.asarray(u_ex)                                                                            # Normalize reference solution to ndarray.
+    m, t  = p.shape[0], u_ap.shape[1]                                                                   # Number of nodes and time steps.
+    er    = np.zeros(t)                                                                                 # Per-time-step RMSE accumulator.
+    area  = np.zeros(m)                                                                                 # Per-node area weights.
 
     ## Area computation for each node.
     for i in np.arange(m):
-        nvec     = sum(vec[i,:] != -1)                                              # The number of neighbors of the central node.
-        polix    = np.zeros([nvec])                                                 # The x-values of the polygon are stored.
-        poliy    = np.zeros([nvec])                                                 # The y-values of the polygon are stored.
-        nindex   = vec[i, :nvec].astype(int)                                        # Indices of the neighbors.
-        polix[:] = p[nindex, 0]                                                     # The x coordinate of the node is stored.
-        poliy[:] = p[nindex, 1]                                                     # The y coordinate of the node is stored.
-        area[i]  = PolyArea(polix, poliy)                                           # Area computation.
+        nvec_i   = int(np.sum(vec[i, :] != -1))                                                         # Count valid neighbors (skip padding -1).
+        nindex   = vec[i, :nvec_i].astype(int)                                                          # Neighbor indices for node i.
+        polix    = p[nindex, 0]                                                                         # x-coordinates of polygon vertices.
+        poliy    = p[nindex, 1]                                                                         # y-coordinates of polygon vertices.
+        area[i]  = PolyArea(polix, poliy)                                                               # Local area weight for node i.
 
     ## Error computation.
-    for k in np.arange(t):                                                          # For each time step.
-        err   = np.square(u_ap[:, k] - u_ex[:, k])*area                             # Mean square error computation.
-        er[k] = np.sqrt(np.mean(err))                                               # The square root is computed.
+    for k in np.arange(t):                                                                              # For each time step.
+        diff2 = np.square(u_ap[:, k] - u_ex[:, k])                                                      # Pointwise squared difference.
+        err   = diff2 * area                                                                            # Area-weighted squared error.
+        er[k] = np.sqrt(np.mean(err))                                                                   # Area-weighted RMSE for this time step.
     
-    return er
+    return er                                                                                           # Return per-time-step RMSE.
 
 def Cloud_Stationary(p, vec, u_ap, u_ex):
     '''
     Cloud_Stationary
-    Function to compute the error in a triangulation or an unstructured cloud of points for a problem that depends on time.
-    The polygon used to calculate the area is the one defined by all the immediate neighbors of the central node.
+    Compute the area-weighted RMSE on an unstructured point cloud for a stationary (single snapshot) solution.
+    
+    The local area weights are computed in the same way as Cloud_Transient().
     
     Input:
-        p           m x 2           Array           Array with the coordinates of the nodes.
-        vec         m x nvec        Array           Array with the correspondence of the nvec neighbors of each node.
-        u_ap        m x t           Array           Array with the computed solution.
-        u_ex        m x t           Array           Array with the theoretical solution.
+        p           m x 2           array-like      Node coordinates [x, y].
+        vec         m x nvec        array-like[int] Neighbor indices per node (unused slots padded with -1).
+        u_ap        m               array-like      Approximate solution values on nodes.
+        u_ex        m               array-like      Reference/exact solution values on nodes.
     
     Output:
-        er          t x 1           Array           Mean square error computed on each time step.
+        er                          float           Area-weighted RMSE of the snapshot.
+    
+    Notes:
+        The neighbor list vec is assumed to define a valid polygonal ring around each node. If vec
+        is unordered, PolyArea may compute an inaccurate area and the weighting becomes unreliable.
     '''
 
     ## Variable initialization.
-    m    = p.shape[0]                                                               # The size of the region.
-    er   = 0                                                                        # er initialization with zeros.
-    area = np.zeros(m)                                                              # area initialization with zeros.
+    p     = np.asarray(p)                                                                               # Normalize coordinates to ndarray.
+    vec   = np.asarray(vec)                                                                             # Normalize neighbors to ndarray.
+    u_ap  = np.asarray(u_ap)                                                                            # Normalize approximate solution to ndarray.
+    u_ex  = np.asarray(u_ex)                                                                            # Normalize reference solution to ndarray.
+    m     = p.shape[0]                                                                                  # Number of nodes.
+    area  = np.zeros(m)                                                                                 # Per-node area weights.
 
     ## Area computation for each node.
     for i in np.arange(m):
-        nvec     = sum(vec[i,:] != -1)                                              # The number of neighbors of the central node.
-        polix    = np.zeros([nvec])                                                 # The x-values of the polygon are stored.
-        poliy    = np.zeros([nvec])                                                 # The y-values of the polygon are stored.
-        nindex   = vec[i, :nvec].astype(int)                                        # Indices of the neighbors.
-        polix[:] = p[nindex, 0]                                                     # The x coordinate of the node is stored.
-        poliy[:] = p[nindex, 1]                                                     # The y coordinate of the node is stored.
-        area[i]  = PolyArea(polix, poliy)                                           # Area computation.
+        nvec_i   = int(np.sum(vec[i, :] != -1))                                                         # Count valid neighbors (skip padding -1).
+        nindex   = vec[i, :nvec_i].astype(int)                                                          # Neighbor indices for node i.
+        polix    = p[nindex, 0]                                                                         # x-coordinates of polygon vertices.
+        poliy    = p[nindex, 1]                                                                         # y-coordinates of polygon vertices.
+        area[i]  = PolyArea(polix, poliy)                                                               # Local area weight for node i.
 
     ## Error computation.
-    err = np.square(u_ap[:] - u_ex[:])*area                                         # Mean square error computation.
-    er  = np.sqrt(np.mean(err))                                                     # The square root is computed.
+    diff2 = np.square(u_ap[:] - u_ex[:])                                                                # Pointwise squared difference.
+    err   = diff2 * area                                                                                # Area-weighted squared error.
+    er    = np.sqrt(np.mean(err))                                                                       # Area-weighted RMSE.
     
-    return er
+    return float(er)                                                                                    # Return scalar RMSE.

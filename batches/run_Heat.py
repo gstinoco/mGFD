@@ -1,12 +1,17 @@
 """
-Meshless Generalized Finite Differences to solve Heat Equation on irregular regions.
+run_Heat — Reference batch for the 2D Heat equation
 
-This script contains all the requirements to:
-    - Read the files with the data of all the regions in the Data folder.
-    - State the conditions for the problem.
-    - Solve the problem using a meshless Generalized Finite Difference approach.
-    - Save the results.
-    - Plot the results.
+Overview:
+    This script runs the first-order transient Heat reference problem on all available point clouds under
+    Data/ (both Clouds and Holes datasets), using the meshless mGFD solver.
+
+Workflow:
+    - Discover input clouds under Data/*/(2x|3x)/*.csv
+    - Load point clouds into the (m, 3) format [x, y, flag]
+    - Load cached neighbor lists when available (or compute + save them)
+    - Solve the PDE with TimeDerivative1 (explicit scheme by default)
+    - Compute error metrics and save outputs to Results/
+    - Plot/save static step snapshots (optional) and a transient animation (always)
 
 All the codes presented below were developed by:
     Dr. Gerardo Tinoco Guerrero
@@ -23,104 +28,92 @@ Date:
     May, 2024.
 
 Last Modification:
-    May, 2025.
+    April, 2026.
 """
 
-# Library importation
-import os
-import re
-import numpy as np
-import Scripts.Graph as Graph
-import Scripts.Errors as Errors
-from mGFD import TimeDerivative1
+## Library importation.
+import os                                                                                               # Filesystem and path utilities.
+import sys                                                                                              # sys.path manipulation so this script can import project modules.
+import numpy as np                                                                                      # Numerical arrays and math.
 
-## Create a dictionary to get all the regions in da Data folder.
-def group_files_by_region(files):
-    pattern = re.compile(r'^(.*?)(_p\.csv|_tt\.csv)$')                                      # Look for the files ending in "_p.csv" and "_tt.csv"
-    regions = {}                                                                            # Dictionary for the regions.
-    for file in files:                                                                      # For each of the files in clouds.
-        match = pattern.match(file)                                                         # Check for the match of the pattern with the file.
-        if match:                                                                           # If is a match.
-            region, suffix = match.groups()                                                 # Get the name of the region.
-            if region not in regions:                                                       # If the file haven't been added.
-                regions[region] = {}                                                        # Create an empty entry.
-            regions[region][suffix] = file                                                  # Add the file to the regions.
-    return regions                                                                          # Return the regions dictionary.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
+sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import TimeDerivative1".
 
-## Process the regions and compute the solutions.
-def process_region(region, files, data_path, results_path, save):
-    print(f'Working on region: {region}')
-    if '_p.csv' in files and '_tt.csv' in files:                                            # Check the existence of points and triangles.
-        p_file_path  = os.path.join(data_path, files['_p.csv'])                             # Get the file path for the points.
-        tt_file_path = os.path.join(data_path, files['_tt.csv'])                            # Get the file path fot the triangles.
+import Scripts.Graph as Graph                                                                           # Plotting helpers for stationary/transient solutions.
+import Scripts.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
+from mGFD import TimeDerivative1                                                                        # First-order transient solver to run the reference case.
+from Scripts.IO import load_points, iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
 
-        p  = np.genfromtxt(p_file_path,  delimiter = ',', skip_header = 0)                  # Load the coordinates of the points.
-        tt = np.genfromtxt(tt_file_path, delimiter = ',', skip_header = 0)                  # Load the triangles correspondence.
 
-        u_ap, u_ex, vec = TimeDerivative1(p, f, t, [v], operator = L, triangulation = False, tt = [], implicit = False, lam = 0.5)
-                                                                                            # Compute the numerical solution.
+def process_cloud(dataset, scale, variant, cloud_path, results_path, save):                             # Run one cloud case and write outputs to Results/.
+    """
+    process_cloud
+    Run the Heat benchmark on a single point cloud file.
 
-        er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)                                     # Compute the error.
-        print(f'\tError: {np.mean(er)}')                                                    # Print the mean of the error.
+    Input:
+        dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
+        scale                       str             Cloud scale folder (e.g., '2x', '3x').
+        variant                     str             Variant label emitted by iter_clouds (e.g., 'cloud', 'cloud_exterior').
+        cloud_path                  str             Path to input CSV with point cloud.
+        results_path                str             Base output directory (typically <repo>/Results).
+        save                        bool            Whether to save the solution arrays and step plots.
 
-        if save:                                                                            # If we are going to save.
-            os.makedirs(os.path.join(results_path, 'Heat', region), exist_ok = True)        # Ensure the directory exists.
-            error_path = os.path.join(results_path, 'Heat', region, 'Error.txt')            # Set the name of the file for the error.
-            with open(error_path, 'w') as file:                                             # Create the file.
-                file.write(str(np.mean(er)))                                                # Save the error.
+    Output:
+        None
+    """
+    region_id = f'{dataset}/{scale}/{variant}'                                                          # Human-readable region identifier.
+    print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
 
-            computed_solution_path = os.path.join(results_path, 'Heat', region, 'Computed Solution.csv')
-                                                                                            # Set the name of the file for the computed solution.
-            np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt = '%.8f')         # Save the computed solution.
+    p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
+    vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
+    u_ap, u_ex, vec = TimeDerivative1(                                                                  # Solve Heat with explicit time stepping.
+        p, f, t, [v], operator = L, implicit = False, lam = 0.5, vec = vec0, nvec = NVEC                # Solve with cached neighbors when available.
+    )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    if vec0 is None:                                                                                    # If there was no cache, persist computed neighbors.
+        save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.
 
-            theoretical_solution_path = os.path.join(results_path, 'Heat', region, 'Theoretical Solution.csv')
-                                                                                            # Set the name of the file for the theoretical solution.
-            np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%.8f')      # Save the theoretical solution.
+    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)                                                     # Compute per-node transient error metric.
+    print(f'\tError: {np.mean(er)}')                                                                    # Print average error for quick inspection.
 
-            plot_path = os.path.join(results_path, 'Heat', region, 'Solution')              # Set the name for the resulting graphs.
-            Graph.Cloud_Transient_Steps(p, tt, u_ap, u_ex, nom = plot_path)                 # Save the resulting graphs.
+    out_dir = os.path.join(results_path, 'Heat', dataset, scale, variant)                               # Output directory for this region.
+    os.makedirs(out_dir, exist_ok = True)                                                               # Ensure output directory exists (even if save=False).
+    if save:                                                                                            # Save solution CSVs and step visualization if requested.
+        computed_solution_path = os.path.join(out_dir, 'Computed Solution.csv')                         # Output path for numerical solution.
+        np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt = '%.8f')                         # Save computed solution (all time steps).
 
-        plot_path = os.path.join(results_path, 'Heat', region, 'Solution.mp4')              # Set the name for the resulting video.
-        Graph.Cloud_Transient(p, tt, u_ap, u_ex, save = Save, nom = plot_path)              # Save the resulting video.
+        theoretical_solution_path = os.path.join(out_dir, 'Theoretical Solution.csv')                   # Output path for exact/theoretical solution.
+        np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%.8f')                      # Save exact solution (all time steps).
 
-# Read the files with the data of all the regions in the Data folder.
-## Define the paths for the data and the results for unstructured clouds.
-data_clouds    = 'Data/Clouds/'                                                             # Folder with the data of the regions.
-results_clouds = 'Results/Clouds/'                                                          # Folder to save the results.
+        plot_path = os.path.join(out_dir, 'Solution')                                                   # Base path used by plotting helper.
+        Graph.Cloud_Transient_Steps(p, u_ap, u_ex, nom = plot_path)                                     # Save a subset of transient snapshots.
 
-## Define the paths for the data and the results for unstructured clouds with holes.
-data_holes     = 'Data/Holes/'                                                              # Folder with the data of the regions.
-results_holes  = 'Results/Holes/'                                                           # Folder to save the results.
+    error_path = os.path.join(out_dir, 'Error.txt')                                                     # Output path for scalar error report.
+    with open(error_path, 'w') as file:                                                                 # Open error report file.
+        file.write(str(np.mean(er)))                                                                    # Write mean error as text.
 
-## Create lists of the data files.
-clouds = os.listdir(data_clouds)                                                            # List for the clouds.
-holes  = os.listdir(data_holes)                                                             # List for the clouds with holes.
+    plot_path = os.path.join(out_dir, 'Solution.mp4')                                                   # Output path for transient animation.
+    Graph.Cloud_Transient(p, u_ap, u_ex, save = True, nom = plot_path)                                  # Save transient animation (mp4/gif depending on system).
 
-# Group the files by regions.
-regions_c = group_files_by_region(clouds)                                                   # Create a dictionary for all the regions in Clouds.
-regions_h = group_files_by_region(holes)                                                    # Create a dictionary for all the regions in Holes.
 
-# State the conditions for the problem.
-## Problem Parameters
-v = 0.2                                                                                     # Diffusion coefficient.
-t = 2000                                                                                    # Number of time-steps.
+DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
+RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
+SCALES = ('2x', '3x', '4x')                                                                             # Scales to process under each dataset.
+NVEC = 8                                                                                                # Neighbor count used by the solver.
+
+## Problem parameters.
+v = 0.2                                                                                                 # Diffusion coefficient.
+t = 2000                                                                                                # Number of time steps.
 
 ## Functions for the problem.
-f = lambda x, y, t, coef: np.exp(-2*np.pi**2*coef[0]*t)*np.cos(np.pi*x)*np.cos(np.pi*y)
+f = lambda x, y, t, coef: np.exp(-2 * np.pi**2 * coef[0] * t) * np.cos(np.pi * x) * np.cos(np.pi * y)   # Heat analytical solution.
 
-## Operator L = [D, E, A, B, C, F]
-L = np.vstack([[0], [0], [2*v], [0], [2*v], [0]])                                           # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
+## Operator L = [D, E, A, B, C, F].
+L = np.vstack([[0], [0], [2 * v], [0], [2 * v], [0]])                                                   # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
 
-# Should I save the results?
-Save = True                                                                                 # Choose wether the results must be saved.
+## Save policy.
+Save = False                                                                                            # Choose whether CSVs and step plots must be saved.
 
-# Solve the problem using a meshless Generalized Finite Difference approach.
-# Solve in clouds.
-print('Processing Clouds of points.')
-for region, files in regions_c.items():                                                     # For each of the regions.
-    process_region(region, files, data_clouds, results_clouds, Save)                        # Process the region.
-
-# Solve in clouds with holes.
-print('Processing Clouds of points with Holes.')
-for region, files in regions_h.items():                                                     # For each of the regions.
-    process_region(region, files, data_holes, results_holes, Save)                          # Process the region.
+## Solve the problem using a meshless Generalized Finite Difference approach.
+print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
+for dataset, scale, variant, cloud_path in iter_clouds(DATA_ROOT, scales = SCALES):                     # Iterate all discovered cloud CSVs.
+    process_cloud(dataset, scale, variant, cloud_path, RESULTS_ROOT, Save)                              # Run one case and write outputs.

@@ -46,8 +46,8 @@
 **mGFD (meshless Generalized Finite Differences)** provides a practical implementation of a meshless discretization workflow to solve **2D Partial Differential Equations (PDEs)** on **highly irregular domains**. The repository includes:
 - a compact, reusable core in `mGFD.py`,
 - batch scripts under `batches/` reproducing reference experiments,
-- datasets under `Data/` (clouds with and without holes),
-- and precomputed artifacts under `Results/`.
+- datasets under `Data/` (point-cloud domains, including variants with interior/exterior boundaries),
+- and generated outputs under `Results/` (created when you run the batch scripts).
 
 ### :wrench: Key Capabilities
 - **:triangular_ruler: Meshless discretization** without mesh generation.
@@ -58,12 +58,12 @@
 
 ### :microscope: Reference Equations Included
 
-| Equation Type | Family | Typical Use |
-|---|---|---|
-| **Poisson** :zap: | Stationary | diffusion-like operators |
-| **Heat** :fire: | First-order in time | transient diffusion |
-| **Advection–Diffusion** :ocean: | First-order in time | transport + diffusion |
-| **Wave** :sound: | Second-order in time | propagation phenomena |
+| Equation Type                   | Family               | Typical Use              |
+|---------------------------------|----------------------|--------------------------|
+| **Poisson** :zap:               | Stationary           | diffusion-like operators |
+| **Heat** :fire:                 | First-order in time  | transient diffusion      |
+| **Advection–Diffusion** :ocean: | First-order in time  | transport + diffusion    |
+| **Wave** :sound:                | Second-order in time | propagation phenomena    |
 
 ---
 
@@ -76,7 +76,7 @@
 - **Error evaluation** utilities for stationary and transient problems.
 
 ### :world_map: Domain & Data Handling
-- **Point clouds with/without holes** packaged under `Data/Clouds/` and `Data/Holes/`.
+- **Point-cloud datasets** packaged under `Data/<Region>/<scale>/` (with optional `cloud_exterior` variants).
 - **Region catalog** with 2D domains used for consistent comparisons.
 - **CSV-based interchange** for easy inspection and external tooling.
 
@@ -91,12 +91,12 @@
 
 ### :computer: System Requirements
 
-| Component | Minimum | Recommended |
-|---|---:|---:|
-| **Python** | 3.8+ | 3.10+ |
-| **RAM** | 4 GB | 8 GB+ |
-| **CPU** | 2 cores | 4+ cores |
-| **OS** | Windows/Linux/macOS | Linux for long runs |
+| Component  | Minimum | Recommended |
+|------------|--------------------:|--------------------:|
+| **Python** | 3.8+                | 3.10+               |
+| **RAM**    | 4 GB                | 8 GB+               |
+| **CPU**    | 2 cores             | 4+ cores            |
+| **OS**     | Windows/Linux/macOS | Linux for long runs |
 
 ### :clipboard: Dependencies
 
@@ -160,7 +160,7 @@ python batches/run_Poisson.py
     <tr>
       <td><b>2) Inspect outputs</b></td>
       <td>
-        Check <code>Results/Clouds/Poisson/</code> (and <code>Results/Holes/Poisson/</code> if you run the holes batch).
+        Check <code>Results/Poisson/&lt;Region&gt;/&lt;scale&gt;/&lt;variant&gt;/</code> (e.g., <code>Results/Poisson/Titicaca/2x/cloud/</code>).
       </td>
     </tr>
     <tr>
@@ -213,6 +213,10 @@ python batches/run_Poisson.py
       <td>Stability/perturbation experiments (stationary)</td>
     </tr>
     <tr>
+      <td><b>batches/run_Perturbation2.py</b></td>
+      <td>Alternative stability/perturbation experiments (stationary)</td>
+    </tr>
+    <tr>
       <td><b>batches/benchmark.py</b></td>
       <td>Performance and memory benchmark suite</td>
     </tr>
@@ -231,12 +235,12 @@ python batches/run_Poisson.py
   <tr>
     <td align="center">
       <b>Cloud</b><br/>
-      <sub>Data/Clouds</sub><br/><br/>
+      <sub>Data/Titicaca/&lt;scale&gt;</sub><br/><br/>
       <img src="docs/images/TIT_cloud.png" alt="TIT cloud" width="260"><br/>
     </td>
     <td align="center">
-      <b>Cloud with holes</b><br/>
-      <sub>Data/Holes</sub><br/><br/>
+      <b>Exterior / interior-boundary variant</b><br/>
+      <sub>Data/Titicaca/&lt;scale&gt; (cloud_exterior)</sub><br/><br/>
       <img src="docs/images/TIT_holes.png" alt="TIT holes" width="260"><br/>
     </td>
   </tr>
@@ -244,18 +248,18 @@ python batches/run_Poisson.py
 
 </div>
 
-### :zap: Poisson (Clouds vs Holes)
+### :zap: Poisson (Cloud vs Cloud Exterior)
 
 <div align="center">
 
 <table>
   <tr>
     <td align="center">
-      <b>Clouds</b><br/><br/>
+      <b>Cloud</b><br/><br/>
       <img src="docs/images/Poisson_TIT_clouds.png" alt="Poisson solution (clouds)" width="320"><br/>
     </td>
     <td align="center">
-      <b>Holes</b><br/><br/>
+      <b>Cloud exterior</b><br/><br/>
       <img src="docs/images/Poisson_TIT_holes.png" alt="Poisson solution (holes)" width="320"><br/>
     </td>
   </tr>
@@ -270,33 +274,33 @@ python batches/run_Poisson.py
 <table>
   <tr>
     <td align="center">
-      <b>Heat (Clouds)</b><br/><br/>
+      <b>Heat (Cloud)</b><br/><br/>
       <img src="docs/videos/Heat_TIT_clouds.gif" alt="Heat solution (clouds, TIT)" width="320"><br/>
-      <a href="Results/Clouds/Heat/TIT/"><code>Results/Clouds/Heat/TIT/</code></a>
+      <a href="Results/Heat/Titicaca/2x/cloud/"><code>Results/Heat/Titicaca/2x/cloud/</code></a>
     </td>
     <td align="center">
-      <b>Heat (Holes)</b><br/><br/>
+      <b>Heat (Cloud exterior)</b><br/><br/>
       <img src="docs/videos/Heat_TIT_holes.gif" alt="Heat solution (holes, TIT)" width="320"><br/>
-      <a href="Results/Holes/Heat/TIT/"><code>Results/Holes/Heat/TIT/</code></a>
+      <a href="Results/Heat/Titicaca/2x/cloud_exterior/"><code>Results/Heat/Titicaca/2x/cloud_exterior/</code></a>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <b>Wave (Clouds)</b><br/><br/>
+      <b>Wave (Cloud)</b><br/><br/>
       <img src="docs/videos/Wave_TIT_clouds.gif" alt="Wave solution (clouds, TIT)" width="320"><br/>
-      <a href="Results/Clouds/Wave/TIT/"><code>Results/Clouds/Wave/TIT/</code></a>
+      <a href="Results/Wave/Titicaca/2x/cloud/"><code>Results/Wave/Titicaca/2x/cloud/</code></a>
     </td>
     <td align="center">
-      <b>Wave (Holes)</b><br/><br/>
+      <b>Wave (Cloud exterior)</b><br/><br/>
       <img src="docs/videos/Wave_TIT_holes.gif" alt="Wave solution (holes, TIT)" width="320"><br/>
-      <a href="Results/Holes/Wave/TIT/"><code>Results/Holes/Wave/TIT/</code></a>
+      <a href="Results/Wave/Titicaca/2x/cloud_exterior/"><code>Results/Wave/Titicaca/2x/cloud_exterior/</code></a>
     </td>
   </tr>
 </table>
 
 </div>
 
-> Tip: All regions have analogous folders under `Results/` for each equation family.
+> Tip: Outputs follow the layout `Results/<Equation>/<Region>/<scale>/<variant>/` for each equation family.
 
 ---
 
@@ -304,19 +308,20 @@ python batches/run_Poisson.py
 
 The core routines are provided by `mGFD.py`:
 
-| Routine | PDE family | Inputs (main) | Outputs |
-|---|---|---|---|
-| `Stationary` | Poisson-type (stationary) | `p, phi, f` | `u_ap, u_ex, vec` |
-| `TimeDerivative1` | Heat / Advection–Diffusion (1st order in time) | `p, f, t, coef` | `u_ap, u_ex, vec` |
-| `TimeDerivative2` | Wave (2nd order in time) | `p, f, g, t, coef` | `u_ap, u_ex, vec` |
+| Routine           | PDE family                                     | Inputs (main)      | Outputs           |
+|-------------------|------------------------------------------------|--------------------|-------------------|
+| `Stationary`      | Poisson-type (stationary)                      | `p, phi, f`        | `u_ap, u_ex, vec` |
+| `TimeDerivative1` | Heat / Advection–Diffusion (1st order in time) | `p, f, t, coef`    | `u_ap, u_ex, vec` |
+| `TimeDerivative2` | Wave (2nd order in time)                       | `p, f, g, t, coef` | `u_ap, u_ex, vec` |
 
 ### :triangular_ruler: Minimal API Example (Stationary PDE)
 
 ```python
 import numpy as np
+from Scripts.IO import load_points
 from mGFD import Stationary
 
-p = np.genfromtxt("Data/Clouds/TIT_p.csv", delimiter=",")
+p = load_points("Data/Titicaca/2x/Titicaca_cloud.csv")
 
 phi = lambda x, y: 2*np.exp(2*x + y)
 f = lambda x, y: 10*np.exp(2*x + y)
@@ -328,31 +333,24 @@ u_ap, u_ex, vec = Stationary(p, phi, f)
 
 ## :file_cabinet: Data Formats
 
-### :triangular_flag_on_post: Point Cloud (`*_p.csv`)
+### :triangular_flag_on_post: Point Cloud (`*_cloud.csv`)
 
 Each row is a node with:
 - `x,y`: normalized coordinates in $[0,1] \\times [0,1]$
-- `flag`: node class (`0` interior, `1/2` boundary-related flags used by the solvers)
+- node class either as `flag` (integer) or `classification` (text), depending on the dataset file
 
 Example:
 
 ```csv
-x,y,flag
-0.08383239497221397,0.403401848345324,1
-0.05984565708356129,0.404852832064891,1
+x,y,region,classification
+0.0113314447592068,0.32861189801699714,1,boundary
+0.012128186968838528,0.3276381019830028,1,boundary
 ...
 ```
 
-### :triangular_ruler: Triangulation (`*_tt.csv`)
-
-Each row is one triangle (node indices):
-
-```csv
-i,j,k
-88,243,87
-83,84,215
-...
-```
+Notes:
+- The solvers consume a `(m, 3)` array `p = [x, y, flag]`, where `flag=0` is interior and `flag=1/2` mark boundary-related nodes.
+- Use `Scripts.IO.load_points(...)` to load dataset CSVs into this `(m, 3)` convention (it maps `classification` values like `boundary`/`hole` into `flag` when needed).
 
 ---
 
@@ -365,13 +363,14 @@ i,j,k
 ├── LICENSE                       # MIT license
 ├── README.md                     # Project documentation
 │
-├── Data/                         # Datasets (clouds + holes)
-├── Results/                      # Precomputed reference outputs
+├── Data/                         # Point-cloud datasets (per region and scale)
+├── Results/                      # Generated outputs (created by running scripts)
 │
 ├── Scripts/                      # Support modules
 │   ├── Errors.py                 # Error metrics
 │   ├── Gammas.py                 # Gamma/stencil calculations
 │   ├── Graph.py                  # Visualization helpers
+│   ├── IO.py                     # Dataset + neighbor-cache I/O helpers
 │   └── Neighbors.py              # Neighbor selection strategies
 │
 └── batches/                      # Reference experiments (reproducible)
@@ -381,8 +380,6 @@ i,j,k
     ├── run_Wave.py
     ├── run_Perturbation.py
     ├── run_Perturbation2.py
-    ├── generate_neighbors.py
-    ├── batch_gammas.py
     └── benchmark.py
 ```
 
@@ -402,39 +399,43 @@ Where boundary values are imposed through $u = \\phi(x,y)$ on boundary nodes and
 
 All datasets are taken from the Author's [Cloud-Generation GitHub Repository](https://github.com/gstinoco/Cloud-Generation). The data is free to use for comparisons across methods using the same inputs.
 
-### Available Regions
+### Available Regions (Folders under `Data/`)
 
 <div align="center">
 
-| Code | Region | Location | Type |
-|:---:|---|---|---|
-| **BAN** | Banderas Bay | Mexico | Coastal |
-| **BLU** | Blue Lagoon | Iceland | Geothermal |
-| **CUA** | Unitary Square | Synthetic | Geometric |
-| **CUI** | Cuitzeo Lake | Mexico | Lake |
-| **ENG** | United Kingdom | Europe | Island |
-| **GIB** | Strait of Gibraltar | Spain/Morocco | Strait |
-| **HAB** | Havana Bay | Cuba | Bay |
-| **MIC** | Michoacán State | Mexico | Administrative |
-| **PAT** | Pátzcuaro Lake | Mexico | Lake |
-| **TIT** | Titicaca Lake | South America | Lake |
-| **TOB** | Toba Lake | Indonesia | Lake |
-| **UCH** | Uchinskoye Reservoir | Russia | Reservoir |
-| **VAL** | Valencia Lake | Spain | Lake |
-| **ZIR** | Zirahuén Lake | Mexico | Lake |
+| Folder                | Example label used in figures |
+|-----------------------|-------------------------------|
+| `Alchichica`          | ALC                           |
+| `Baikal`              | BAI                           |
+| `Balkhash`            | BAL                           |
+| `Caspio`              | CAS                           |
+| `Catemaco`            | CAT                           |
+| `Chapala`             | CHA                           |
+| `Huron`               | HUR                           |
+| `Patzcuaro`           | PAT                           |
+| `Poopo`               | POO                           |
+| `Santa Maria del Oro` | SMO                           |
+| `Titicaca`            | TIT                           |
+| `Yuriria`             | YUR                           |
+| `Zirahuen`            | ZIR                           |
 
 </div>
 
 ```text
 Data/
-├── Clouds/
-│   ├── [REGION]_p.csv
-│   ├── [REGION]_tt.csv
-│   └── [REGION].png
-└── Holes/
-    ├── [REGION]_p.csv
-    ├── [REGION]_tt.csv
-    └── [REGION].png
+├── <Region>/
+│   ├── <Region>.png
+│   ├── <Region>_contours.csv
+│   ├── 2x/
+│   │   ├── <Region>_cloud.csv
+│   │   ├── <Region>_cloud.png
+│   │   ├── <Region>_cloud.svg
+│   │   ├── <Region>_cloud_exterior.csv          # optional
+│   │   ├── <Region>_cloud_exterior.png          # optional
+│   │   └── <Region>_cloud_exterior.svg          # optional
+│   ├── 3x/
+│   └── 4x/
+└── ...
 ```
 
 ---
@@ -447,6 +448,8 @@ The benchmark suite measures runtime and memory usage for the reference problems
 pip install -U pandas psutil
 python batches/benchmark.py
 ```
+
+The benchmark script writes its summary files under `benchmark_results/`.
 
 ---
 
@@ -998,19 +1001,19 @@ SOFTWARE.
 <details>
   <summary><b>Where are datasets located?</b></summary>
   <br/>
-  Under <code>Data/Clouds/</code> and <code>Data/Holes/</code>.
+  Under <code>Data/&lt;Region&gt;/&lt;scale&gt;/</code>, e.g. <code>Data/Titicaca/2x/Titicaca_cloud.csv</code>.
 </details>
 
 <details>
-  <summary><b>What is the difference between Clouds and Holes?</b></summary>
+  <summary><b>What is the difference between <code>cloud</code> and <code>cloud_exterior</code>?</b></summary>
   <br/>
-  Both are unstructured node sets; <code>Holes</code> includes interior boundaries (void regions) represented by the node flags in <code>*_p.csv</code>.
+  They are two input variants of the same region at the same scale. The <code>cloud_exterior</code> files add or emphasize boundary-related nodes; both are loaded into the solver as <code>p=[x,y,flag]</code> via <code>Scripts.IO.load_points</code>.
 </details>
 
 <details>
   <summary><b>How do I reproduce the reference outputs?</b></summary>
   <br/>
-  Run the scripts under <code>batches/</code> (or <code>python main.py</code>) and compare against folders under <code>Results/</code>.
+  Run the scripts under <code>batches/</code> (or <code>python main.py</code>) and inspect <code>Results/&lt;Equation&gt;/&lt;Region&gt;/&lt;scale&gt;/&lt;variant&gt;/</code>. Benchmarks are stored under <code>benchmark_results/</code>.
 </details>
 
 ---

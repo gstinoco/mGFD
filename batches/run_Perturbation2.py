@@ -1,12 +1,18 @@
 """
-Meshless Generalized Finite Differences to solve Poisson Equation on irregular regions.
+run_Perturbation2 — Stationary perturbation reference (non-advection mode)
 
-This script contains all the requirements to:
-    - Read the files with the data of all the regions in the Data folder.
-    - State the conditions for the problem.
-    - Solve the problem using a meshless Generalized Finite Difference approach.
-    - Save the results.
-    - Plot the results.
+Overview:
+    This batch solves the same perturbation-style stationary reference used in run_Perturbation.py,
+    but configures the stationary solver with Adv=False. It runs on each point cloud under Data/
+    (both Clouds and Holes datasets).
+
+Workflow:
+    - Discover input clouds under Data/*/(2x|3x)/*.csv
+    - Load point clouds into the (m, 3) format [x, y, flag]
+    - Load neighbor caches when available (or compute + save them)
+    - Validate the neighbor cache for interior nodes and recompute if insufficient neighbors exist
+    - Solve the stationary problem with Stationary(..., Adv=False)
+    - Compute error metrics and write outputs to Results/
 
 All the codes presented below were developed by:
     Dr. Gerardo Tinoco Guerrero
@@ -23,103 +29,96 @@ Date:
     May, 2024.
 
 Last Modification:
-    May, 2025.
+    April, 2026.
 """
 
-# Library importation
-import os
-import re
-import numpy as np
-import Scripts.Graph as Graph
-import Scripts.Errors as Errors
-from mGFD import Stationary
+## Library importation.
+import os                                                                                               # Filesystem and path utilities.
+import sys                                                                                              # sys.path manipulation so this script can import project modules.
+import numpy as np                                                                                      # Numerical arrays and math.
 
-## Create a dictionary to get all the regions in da Data folder.
-def group_files_by_region(files):
-    pattern = re.compile(r'^(.*?)(_p\.csv|_tt\.csv)$')                                      # Look for the files ending in "_p.csv" and "_tt.csv"
-    regions = {}                                                                            # Dictionary for the regions.
-    for file in files:                                                                      # For each of the files in clouds.
-        match = pattern.match(file)                                                         # Check for the match of the pattern with the file.
-        if match:                                                                           # If is a match.
-            region, suffix = match.groups()                                                 # Get the name of the region.
-            if region not in regions:                                                       # If the file haven't been added.
-                regions[region] = {}                                                        # Create an empty entry.
-            regions[region][suffix] = file                                                  # Add the file to the regions.
-    return regions                                                                          # Return the regions dictionary.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
+sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import Stationary".
 
-## Process the regions and compute the solutions.
-def process_region(region, files, data_path, results_path, save):
-    print(f'Working on region: {region}')
-    if '_p.csv' in files and '_tt.csv' in files:                                            # Check the existence of points and triangles.
-        p_file_path  = os.path.join(data_path, files['_p.csv'])                             # Get the file path for the points.
-        tt_file_path = os.path.join(data_path, files['_tt.csv'])                            # Get the file path fot the triangles.
+import Scripts.Graph as Graph                                                                           # Plotting helpers for stationary/transient solutions.
+import Scripts.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
+from mGFD import Stationary                                                                             # Stationary solver used for the perturbation problem.
+from Scripts.IO import load_points, iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
 
-        p  = np.genfromtxt(p_file_path,  delimiter=',', skip_header=0)                      # Load the coordinates of the points.
-        tt = np.genfromtxt(tt_file_path, delimiter=',', skip_header=0)                      # Load the triangles correspondence.
+def process_cloud(dataset, scale, variant, cloud_path, results_path, save):                             # Run one cloud case and write outputs to Results/.
+    """
+    process_cloud
+    Run the perturbation stationary problem (Adv=False) on a single point cloud file.
 
-        u_ap, u_ex, vec = Stationary(p, phi, f, operator = L, triangulation = False, tt = None, Adv = False)
-                                                                                            # Compute the numerical solution.
+    Input:
+        dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
+        scale                       str             Cloud scale folder (e.g., '2x', '3x').
+        variant                     str             Variant label emitted by iter_clouds (e.g., 'cloud', 'cloud_exterior').
+        cloud_path                  str             Path to input CSV with point cloud.
+        results_path                str             Base output directory (typically <repo>/Results).
+        save                        bool            Whether to save the solution arrays.
 
-        er = Errors.Cloud_Stationary(p, vec, u_ap, u_ex)                                    # Compute the error.
-        print(f'\tError: {np.mean(er)}')                                                    # Print the mean of the error.
+    Output:
+        None
+    """
+    region_id = f'{dataset}/{scale}/{variant}'                                                          # Human-readable region identifier.
+    print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
 
-        if save:                                                                            # If we are going to save.
-            os.makedirs(os.path.join(results_path, 'Perturbation2', region), exist_ok=True)  # Ensure the directory exists.
-            error_path = os.path.join(results_path, 'Perturbation2', region, 'Error.txt')    # Set the name of the file for the error.
-            with open(error_path, 'w') as file:                                             # Create the file.
-                file.write(str(np.mean(er)))                                                # Save the error.
+    p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
+    vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
+    if vec0 is not None:                                                                                # Validate cache consistency for interior nodes.
+        inne_n = p[:, 2] == 0                                                                           # Interior node mask (flag==0).
+        if np.any(inne_n):                                                                              # Only validate when interior nodes exist.
+            counts = np.sum(vec0[inne_n] != -1, axis = 1)                                               # Count valid neighbors per interior node.
+            if int(np.min(counts)) < int(NVEC):                                                         # If any interior node has insufficient neighbors, recompute.
+                vec0 = None                                                                             # Force neighbor recomputation in the solver.
+    u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary perturbation problem.
+        p, phi, f, operator = L, Adv = False, vec = vec0, nvec = NVEC                                   # Use cached neighbors when valid.
+    )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    if vec0 is None:                                                                                    # If we recomputed neighbors, persist them to disk.
+        save_neighbors(cloud_path, NVEC, vec)                                                           # Save neighbor cache for future runs.
 
-            computed_solution_path = os.path.join(results_path, 'Perturbation2', region, 'Computed Solution.csv')
-                                                                                            # Set the name of the file for the computed solution.
-            np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt='%.8f')           # Save the computed solution.
+    er = Errors.Cloud_Stationary(p, vec, u_ap, u_ex)                                                    # Compute per-node stationary error metric.
+    print(f'\tError: {np.mean(er)}')                                                                    # Print average error for quick inspection.
 
-            theoretical_solution_path = os.path.join(results_path, 'Perturbation2', region, 'Theoretical Solution.csv')
-                                                                                            # Set the name of the file for the theoretical solution.
-            np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%.8f')      # Save the theoretical solution.
+    out_dir = os.path.join(results_path, 'Perturbation2', dataset, scale, variant)                      # Output directory for this region.
+    os.makedirs(out_dir, exist_ok = True)                                                               # Ensure output directory exists.
+    if save:                                                                                            # Save solution arrays if requested.
+        computed_solution_path = os.path.join(out_dir, 'Computed Solution.csv')                         # Output path for numerical solution.
+        np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt = '%.8f')                         # Save computed solution.
 
-        plot_path = os.path.join(results_path, 'Perturbation2', region, 'Solution')          # Set the name for the resulting graph.
-        Graph.Cloud_Stationary(p, tt, u_ap, u_ex, save = save, nom = plot_path)             # Save the resulting graph.
+        theoretical_solution_path = os.path.join(out_dir, 'Theoretical Solution.csv')                   # Output path for exact/theoretical solution.
+        np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%.8f')                      # Save exact solution.
+    
+    error_path = os.path.join(out_dir, 'Error.txt')                                                     # Output path for scalar error report.
+    with open(error_path, 'w') as file:                                                                 # Open error report file.
+        file.write(str(np.mean(er)))                                                                    # Write mean error as text.
 
-# Read the files with the data of all the regions in the Data folder.
-## Define the paths for the data and the results for unstructured clouds.
-data_clouds    = 'Data/Clouds/'                                                             # Folder with the data of the regions.
-results_clouds = 'Results/Clouds/'                                                          # Folder to save the results.
+    plot_path = os.path.join(out_dir, 'Solution')                                                       # Base path used by plotting helper.
+    Graph.Cloud_Stationary(p, u_ap, u_ex, save = True, nom = plot_path)                                 # Save stationary comparison plot(s).
 
-## Define the paths for the data and the results for unstructured clouds with holes.
-data_holes     = 'Data/Holes/'                                                              # Folder with the data of the regions.
-results_holes  = 'Results/Holes/'                                                           # Folder to save the results.
+DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
+RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
+SCALES = ('2x', '3x', '4x')                                                                             # Scales to process under each dataset.
+NVEC = 8                                                                                                # Neighbor count used by the solver.
 
-## Create lists of the data files.
-clouds = os.listdir(data_clouds)                                                            # List for the clouds.
-holes  = os.listdir(data_holes)                                                             # List for the clouds with holes.
-
-# Group the files by regions.
-regions_c = group_files_by_region(clouds)                                                   # Create a dictionary for all the regions in Clouds.
-regions_h = group_files_by_region(holes)                                                    # Create a dictionary for all the regions in Holes.
-
-# State the conditions for the problem.
-## Variables for the problem
-vx = 1
-vy = 0
-D  = 1e-5
+## Variables for the problem.
+vx = 1                                                                                                  # Advection velocity in x (used inside operator L only).
+vy = 0                                                                                                  # Advection velocity in y (used inside operator L only).
+D = 1e-5                                                                                                # Diffusion coefficient (very small -> boundary layers).
 
 ## Functions for the problem.
-phi = lambda x, y: (x**2 - np.exp(-(1-x)/D))*y*(1-y)                                        # Boundary condition for the problem.
-f   = lambda x, y: -(1e-5)*(2*np.exp((x-1)/(1e-5)) - 2*x**2 + y*(np.exp((x-1)/(1e-5))/(1e-5)**2 - 2)*(y - 1)) - y*(2*x - np.exp((x-1)/(1e-5))/(1e-5))*(y-1)                                                                        # Right-hand-side of the equation.
+phi = lambda x, y: (x**2 - np.exp(-(1 - x) / D)) * y * (1 - y)                                          # Boundary condition for the problem.
+f = lambda x, y: -(1e-5) * (2 * np.exp((x - 1) / (1e-5)) - 2 * x**2 + y * (np.exp((x - 1) / (1e-5)) / (1e-5)**2 - 2) * (y - 1)) - y * (2 * x - np.exp((x - 1) / (1e-5)) / (1e-5)) * (y - 1)
+                                                                                                        # Right-hand side forcing term.
 
-## Operator L = [D, E, A, B, C, F]
-L = np.vstack([[vx], [vy], [-D], [0], [-D], [0]])                                           # Operator coefficients for Au_{xx} + Bu_{xy} + Cu_{yy} + Du_{x} + Eu_{y} + Fu
+## Operator L = [D, E, A, B, C, F].
+L = np.vstack([[vx], [vy], [-D], [0], [-D], [0]])                                                       # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
 
-# Should I save the results?
-Save = True                                                                                 # Choose wether the results must be saved.
+## Save policy.
+Save = False                                                                                            # Choose whether CSVs must be saved.
 
-# Solve the problem using a meshless Generalized Finite Difference approach.
-# Solve in clouds.
-print('Processing Clouds of points.')
-for region, files in regions_c.items():                                                     # For each of the regions.
-    process_region(region, files, data_clouds, results_clouds, Save)                        # Process the region.
-
-# Solve in clouds with holes.
-print('Processing Clouds of points with Holes.')
-for region, files in regions_h.items():                                                     # For each of the regions.
-    process_region(region, files, data_holes, results_holes, Save)                          # Process the region.
+## Solve the problem using a meshless Generalized Finite Difference approach.
+print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
+for dataset, scale, variant, cloud_path in iter_clouds(DATA_ROOT, scales = SCALES):                     # Iterate all discovered cloud CSVs.
+    process_cloud(dataset, scale, variant, cloud_path, RESULTS_ROOT, Save)                              # Run one case and write outputs.

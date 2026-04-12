@@ -1,364 +1,413 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import time
-import psutil
-import numpy as np
-import pandas as pd
-import json
-from datetime import datetime
-import Errors as Errors
-from mGFD import Stationary, TimeDerivative1, TimeDerivative2
+"""
+benchmark — Runtime and memory benchmarking for mGFD reference problems
 
-def measure_performance(func, *args, **kwargs):
-    """
-    Mide tiempo de ejecución y uso de memoria de una función
-    """
-    # Obtener memoria inicial
-    process = psutil.Process()
-    memory_before = process.memory_info().rss / 1024 / 1024  # MB
-    
-    # Medir tiempo de ejecución
-    start_time = time.time()
-    result = func(*args, **kwargs)
-    end_time = time.time()
-    
-    # Obtener memoria final
-    memory_after = process.memory_info().rss / 1024 / 1024  # MB
-    
-    execution_time = end_time - start_time
-    memory_used = memory_after - memory_before
-    peak_memory = memory_after
-    
-    return result, execution_time, memory_used, peak_memory
+Overview:
+    This script benchmarks the main solvers in mGFD on the available input point clouds under Data/.
+    It measures:
+    - Wall-clock execution time for each solve
+    - Process memory usage before/after the solve (RSS)
+    - Numerical error via Scripts/Errors.py
 
-def benchmark_poisson_equation(region, data_type):
-    """
-    Benchmark para la ecuación de Poisson
-    """
-    # Cargar datos
-    data_path = f'Data/{data_type}/'
-    p_file = os.path.join(data_path, f'{region}_p.csv')
-    tt_file = os.path.join(data_path, f'{region}_tt.csv')
-    
-    if not (os.path.exists(p_file) and os.path.exists(tt_file)):
-        return None
-    
-    p = np.genfromtxt(p_file, delimiter=',', skip_header=0)
-    tt = np.genfromtxt(tt_file, delimiter=',', skip_header=0)
-    
-    # Parámetros del problema (exactamente como en run_Poisson.py)
-    phi = lambda x, y: 2*np.exp(2*x + y)  # Condición de frontera
-    f = lambda x, y: 10*np.exp(2*x + y)   # Lado derecho de la ecuación
-    L = np.vstack([[0], [0], [2], [0], [2], [0]])  # Operador
-    
-    # Resolver con medición de rendimiento
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(
-        Stationary, p, phi, f, operator=L, triangulation=False, tt=None
-    )
-    
-    # Calcular error
-    er = Errors.Cloud_Stationary(p, vec, u_ap, u_ex)
-    avg_error = np.mean(er)
-    
-    return {
-        'equation': 'Poisson',
-        'region': region,
-        'data_type': data_type,
-        'num_points': len(p),
-        'boundary_condition': 'phi = 2*exp(2*x + y)',
-        'rhs_function': 'f = 10*exp(2*x + y)',
-        'operator': 'L = [0, 0, 2, 0, 2, 0]',
-        'execution_time_seconds': exec_time,
-        'memory_used_mb': memory_used,
-        'peak_memory_mb': peak_memory,
-        'avg_numerical_error': avg_error
-    }
+Reference problems:
+    - Poisson (stationary)
+    - Heat (first-order transient)
+    - Advection–Diffusion (first-order transient)
+    - Wave (second-order transient)
 
-def benchmark_heat_equation(region, data_type):
-    """
-    Benchmark para la ecuación de calor
-    """
-    # Cargar datos
-    data_path = f'Data/{data_type}/'
-    p_file = os.path.join(data_path, f'{region}_p.csv')
-    tt_file = os.path.join(data_path, f'{region}_tt.csv')
-    
-    if not (os.path.exists(p_file) and os.path.exists(tt_file)):
-        return None
-    
-    p = np.genfromtxt(p_file, delimiter=',', skip_header=0)
-    tt = np.genfromtxt(tt_file, delimiter=',', skip_header=0)
-    
-    # Parámetros del problema (exactamente como en run_Heat.py)
-    v = 0.2  # Coeficiente de difusión
-    t = 2000  # Número de pasos de tiempo
-    f = lambda x, y, t, coef: np.exp(-2*np.pi**2*coef[0]*t)*np.cos(np.pi*x)*np.cos(np.pi*y)
-    L = np.vstack([[0], [0], [2*v], [0], [2*v], [0]])  # Operador
-    
-    # Resolver con medición de rendimiento
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(
-        TimeDerivative1, p, f, t, [v], operator=L, triangulation=False, tt=[], implicit=False, lam=0.5
-    )
-    
-    # Calcular error
-    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)
-    avg_error = np.mean(er)
-    
-    return {
-        'equation': 'Heat',
-        'region': region,
-        'data_type': data_type,
-        'num_points': len(p),
-        'diffusion_coefficient': v,
-        'time_steps': t,
-        'function': 'f = exp(-2*pi^2*v*t)*cos(pi*x)*cos(pi*y)',
-        'operator': f'L = [0, 0, {2*v}, 0, {2*v}, 0]',
-        'implicit': False,
-        'lambda': 0.5,
-        'execution_time_seconds': exec_time,
-        'memory_used_mb': memory_used,
-        'peak_memory_mb': peak_memory,
-        'time_per_step_ms': (exec_time * 1000) / t,
-        'avg_numerical_error': avg_error
-    }
+Usage:
+    python batches/benchmark.py
 
-def benchmark_advdif_equation(region, data_type):
-    """
-    Benchmark para la ecuación de Advección-Difusión
-    """
-    # Cargar datos
-    data_path = f'Data/{data_type}/'
-    p_file = os.path.join(data_path, f'{region}_p.csv')
-    tt_file = os.path.join(data_path, f'{region}_tt.csv')
-    
-    if not (os.path.exists(p_file) and os.path.exists(tt_file)):
-        return None
-    
-    p = np.genfromtxt(p_file, delimiter=',', skip_header=0)
-    tt = np.genfromtxt(tt_file, delimiter=',', skip_header=0)
-    
-    # Parámetros del problema (exactamente como en run_AdvDif.py)
-    v = 0.1  # Coeficiente de difusión
-    a = 0.3  # Velocidad de transporte en dirección x
-    b = 0.2  # Velocidad de transporte en dirección y
-    t = 2000  # Número de pasos de tiempo
-    f = lambda x, y, t, coef: (1/(4*t+1))*np.exp(-(x-coef[1]*t-0.5)**2/(coef[0]*(4*t+1)) - (y-coef[2]*t-0.5)**2/(coef[0]*(4*t+1)))
-    L = np.vstack([[-a], [-b], [2*v], [0], [2*v], [0]])  # Operador
-    
-    # Resolver con medición de rendimiento
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(
-        TimeDerivative1, p, f, t, [v, a, b], operator=L, triangulation=False, tt=[], implicit=False, lam=0.5
-    )
-    
-    # Calcular error
-    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)
-    avg_error = np.mean(er)
-    
-    return {
-        'equation': 'Advection-Diffusion',
-        'region': region,
-        'data_type': data_type,
-        'num_points': len(p),
-        'diffusion_coefficient': v,
-        'transport_velocity_x': a,
-        'transport_velocity_y': b,
-        'time_steps': t,
-        'function': 'f = (1/(4*t+1))*exp(-(x-a*t-0.5)^2/(v*(4*t+1)) - (y-b*t-0.5)^2/(v*(4*t+1)))',
-        'operator': f'L = [{-a}, {-b}, {2*v}, 0, {2*v}, 0]',
-        'implicit': False,
-        'lambda': 0.5,
-        'execution_time_seconds': exec_time,
-        'memory_used_mb': memory_used,
-        'peak_memory_mb': peak_memory,
-        'time_per_step_ms': (exec_time * 1000) / t,
-        'avg_numerical_error': avg_error
-    }
+Outputs:
+    Creates a benchmark_results/ folder in the current working directory and writes:
+    - JSON with all raw results and benchmark metadata
+    - CSV with results table
+    - TXT summary (aggregated per equation)
 
-def benchmark_wave_equation(region, data_type):
-    """
-    Benchmark para la ecuación de onda
-    """
-    # Cargar datos
-    data_path = f'Data/{data_type}/'
-    p_file = os.path.join(data_path, f'{region}_p.csv')
-    tt_file = os.path.join(data_path, f'{region}_tt.csv')
-    
-    if not (os.path.exists(p_file) and os.path.exists(tt_file)):
-        return None
-    
-    p = np.genfromtxt(p_file, delimiter=',', skip_header=0)
-    tt = np.genfromtxt(tt_file, delimiter=',', skip_header=0)
-    
-    # Parámetros del problema (exactamente como en run_Wave.py)
-    c = np.sqrt(1/2)  # Coeficiente de propagación de onda
-    t = 2000  # Número de pasos de tiempo
-    f = lambda x, y, t, coef: np.cos(np.pi*t)*np.sin(np.pi*(x+y))
-    g = lambda x, y, t, coef: -np.pi*np.sin(np.pi*t)*np.sin(np.pi*(x+y))
-    L = np.vstack([[0], [0], [2*c**2], [0], [2*c**2], [0]])  # Operador
-    
-    # Resolver con medición de rendimiento
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(
-        TimeDerivative2, p, f, g, t, [c], operator=L, triangulation=False, tt=None, implicit=False, lam=1
-    )
-    
-    # Calcular error
-    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)
-    avg_error = np.mean(er)
-    
-    return {
-        'equation': 'Wave',
-        'region': region,
-        'data_type': data_type,
-        'num_points': len(p),
-        'wave_coefficient': c,
-        'time_steps': t,
-        'function_f': 'f = cos(pi*t)*sin(pi*(x+y))',
-        'function_g': 'g = -pi*sin(pi*t)*sin(pi*(x+y))',
-        'operator': f'L = [0, 0, {2*c**2}, 0, {2*c**2}, 0]',
-        'implicit': False,
-        'lambda': 1,
-        'execution_time_seconds': exec_time,
-        'memory_used_mb': memory_used,
-        'peak_memory_mb': peak_memory,
-        'time_per_step_ms': (exec_time * 1000) / t,
-        'avg_numerical_error': avg_error
-    }
+Dependencies:
+    Required:
+        numpy
+    Optional (required to run this script fully):
+        psutil   (process memory)
+        pandas   (CSV table export and aggregation)
+"""
 
-def run_comprehensive_benchmark(regions=None, data_types=None, equations=None, save_results=True):
+## Library importation.
+import sys                                                                                              # sys.path manipulation so this script can import project modules.
+import os                                                                                               # Filesystem and path utilities.
+import time                                                                                             # Wall-clock timing.
+import json                                                                                             # JSON serialization for benchmark results.
+from datetime import datetime                                                                           # Timestamping benchmark outputs.
+import numpy as np                                                                                      # Numerical arrays and math.
+
+try:                                                                                                    # Optional dependency: memory measurements.
+    import psutil                                                                                       # Process memory usage (RSS).
+except ImportError:                                                                                     # psutil not installed.
+    psutil = None                                                                                       # Mark dependency as unavailable.
+
+try:                                                                                                    # Optional dependency: CSV output + aggregation.
+    import pandas as pd                                                                                 # Tabular exports and aggregation.
+except ImportError:                                                                                     # pandas not installed.
+    pd = None                                                                                           # Mark dependency as unavailable.
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
+sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import Stationary".
+
+import Scripts.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
+from mGFD import Stationary, TimeDerivative1, TimeDerivative2                                           # Core solvers to benchmark.
+from Scripts.IO import load_points, iter_clouds                                                         # Dataset loading and traversal.
+
+
+def _require_optional_deps():                                                                           # Validate optional dependencies for benchmarking/reporting.
     """
-    Ejecuta el benchmark completo
+    _require_optional_deps
+    Ensure optional dependencies required by the benchmark script are installed.
+
+    Raises:
+        ImportError: If psutil or pandas are not available.
     """
-    if regions is None:
-        regions = ['BAN', 'BLU', 'CUA', 'CUI', 'ENG', 'GIB', 'HAB', 'MIC', 'PAT', 'TIT', 'TOB', 'UCH', 'VAL', 'ZIR']
+    if psutil is None:                                                                                  # Memory measurement dependency check.
+        raise ImportError('psutil is required for benchmark.py. Install with: pip install psutil')      # Provide installation hint.
+    if pd is None:                                                                                      # Table export/aggregation dependency check.
+        raise ImportError('pandas is required for benchmark.py. Install with: pip install pandas')      # Provide installation hint.
+
+def measure_performance(func, *args, **kwargs):                                                         # Measure time and memory for a solver call.
+    """
+    measure_performance
+    Measure runtime and memory usage for a function call.
+
+    Input:
+        func                        callable        Function to execute.
+        *args                                     Positional arguments passed to func.
+        **kwargs                                  Keyword arguments passed to func.
+
+    Output:
+        result                      any             Return value from func.
+        execution_time              float           Wall-clock execution time (seconds).
+        memory_used                 float           RSS memory delta (MB).
+        peak_memory                 float           RSS memory after execution (MB).
+    """
+    _require_optional_deps()                                                                            # Ensure psutil/pandas are available for benchmarking.
+
+    process = psutil.Process()                                                                          # Handle for current process metrics.
+    memory_before = process.memory_info().rss / 1024 / 1024                                             # Initial RSS memory (MB).
     
-    if data_types is None:
-        data_types = ['Clouds', 'Holes']
+    start_time = time.time()                                                                            # Start wall-clock timer.
+    result = func(*args, **kwargs)                                                                      # Execute target function.
+    end_time = time.time()                                                                              # Stop wall-clock timer.
     
-    if equations is None:
-        equations = ['Poisson', 'Heat', 'AdvDif', 'Wave']
+    memory_after = process.memory_info().rss / 1024 / 1024                                              # Final RSS memory (MB).
     
-    # Mapeo de ecuaciones a funciones
-    equation_functions = {
-        'Poisson': benchmark_poisson_equation,
-        'Heat': benchmark_heat_equation,
-        'AdvDif': benchmark_advdif_equation,
-        'Wave': benchmark_wave_equation
-    }
+    execution_time = end_time - start_time                                                              # Total execution time.
+    memory_used = memory_after - memory_before                                                          # Delta memory during execution.
+    peak_memory = memory_after                                                                          # Peak approximation as final RSS.
     
-    results = []
+    return result, execution_time, memory_used, peak_memory                                             # Return performance measurements and result.
+
+def benchmark_poisson_equation(p):                                                                      # Benchmark stationary Poisson problem on one point cloud.
+    """
+    benchmark_poisson_equation
+    Benchmark the stationary Poisson-type problem on a given point cloud.
+
+    The setup matches batches/run_Poisson.py.
+
+    Input:
+        p                           (m, 3) ndarray Point cloud [x, y, flag].
+
+    Output:
+        metrics                     dict            Performance and accuracy metrics for this run.
+    """
     
-    print("Iniciando benchmark completo...")
-    print(f"Regiones: {regions}")
-    print(f"Tipos de datos: {data_types}")
-    print(f"Ecuaciones: {equations}")
+    phi = lambda x, y: 2 * np.exp(2 * x + y)                                                            # Boundary condition.
+    f   = lambda x, y: 10 * np.exp(2 * x + y)                                                           # RHS forcing term.
+    L   = np.vstack([[0], [0], [2], [0], [2], [0]])                                                     # Operator (matches run_Poisson.py).
     
-    total_combinations = len(regions) * len(data_types) * len(equations)
-    current = 0
+    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+        Stationary, p, phi, f, operator = L                                                             # Call stationary solver.
+    )                                                                                                   # Unpack solution and measurements.
     
-    # Tiempo total del benchmark
-    benchmark_start_time = time.time()
+    er = Errors.Cloud_Stationary(p, vec, u_ap, u_ex)                                                    # Per-node error metric.
+    avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
-    for data_type in data_types:
-        for region in regions:
-            for equation in equations:
-                current += 1
-                print(f"\nProcesando {current}/{total_combinations}: {region} ({data_type}) - {equation}")
-                
-                try:
-                    benchmark_func = equation_functions[equation]
-                    result = benchmark_func(region, data_type)
-                    if result:
-                        results.append(result)
-                        print(f"  Error promedio: {result['avg_numerical_error']:.2e}")
-                        print(f"  Tiempo: {result['execution_time_seconds']:.3f}s")
-                        print(f"  Memoria: {result['memory_used_mb']:.1f}MB (pico: {result['peak_memory_mb']:.1f}MB)")
-                        if 'time_per_step_ms' in result:
-                            print(f"  Tiempo por paso: {result['time_per_step_ms']:.3f}ms")
-                    else:
-                        print(f"  Archivos no encontrados para {region} en {data_type}")
-                except Exception as e:
-                    print(f"  Error en {equation}: {e}")
+    return {                                                                                            # Return a structured metrics record for this run.
+        'equation': 'Poisson',                                                                          # Equation label.
+        'num_points': int(len(p)),                                                                      # Number of nodes in the cloud.
+        'boundary_condition': 'phi = 2*exp(2*x + y)',                                                   # Boundary condition description.
+        'rhs_function': 'f = 10*exp(2*x + y)',                                                          # RHS description.
+        'operator': 'L = [0, 0, 2, 0, 2, 0]',                                                           # Operator coefficients string.
+        'execution_time_seconds': float(exec_time),                                                     # Measured time.
+        'memory_used_mb': float(memory_used),                                                           # Memory delta.
+        'peak_memory_mb': float(peak_memory),                                                           # Peak approximation.
+        'avg_numerical_error': float(avg_error)                                                         # Mean error.
+    }                                                                                                   # Return metrics dict.
+
+def benchmark_heat_equation(p):                                                                         # Benchmark transient Heat problem on one point cloud.
+    """
+    benchmark_heat_equation
+    Benchmark the first-order transient Heat problem on a given point cloud.
+
+    The setup matches batches/run_Heat.py (explicit time integration).
+
+    Input:
+        p                           (m, 3) ndarray Point cloud [x, y, flag].
+
+    Output:
+        metrics                     dict            Performance and accuracy metrics for this run.
+    """
     
-    benchmark_end_time = time.time()
-    total_benchmark_time = benchmark_end_time - benchmark_start_time
+    v = 0.2                                                                                             # Diffusion coefficient.
+    t = 2000                                                                                            # Number of time steps.
+    f = lambda x, y, t, coef: np.exp(-2 * np.pi**2 * coef[0] * t) * np.cos(np.pi * x) * np.cos(np.pi * y)
+                                                                                                        # Exact solution / forcing generator.
+    L = np.vstack([[0], [0], [2 * v], [0], [2 * v], [0]])                                               # Operator (matches run_Heat.py).
     
-    if save_results and results:
-        # Crear directorio para resultados
-        os.makedirs('benchmark_results', exist_ok=True)
+    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+        TimeDerivative1, p, f, t, [v], operator = L, implicit = False, lam = 0.5                        # Call transient solver (1st order).
+    )                                                                                                   # Unpack solution and measurements.
+    
+    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)                                                     # Per-node error metric across time.
+    avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
+    
+    return {                                                                                            # Return a structured metrics record for this run.
+        'equation': 'Heat',                                                                             # Equation label.
+        'num_points': int(len(p)),                                                                      # Number of nodes in the cloud.
+        'diffusion_coefficient': float(v),                                                              # Diffusion parameter.
+        'time_steps': int(t),                                                                           # Time-step count.
+        'function': 'f = exp(-2*pi^2*v*t)*cos(pi*x)*cos(pi*y)',                                         # Function description.
+        'operator': f'L = [0, 0, {2 * v}, 0, {2 * v}, 0]',                                              # Operator coefficients string.
+        'implicit': False,                                                                              # Integration mode flag.
+        'lambda': 0.5,                                                                                  # Stabilization parameter used by the solver.
+        'execution_time_seconds': float(exec_time),                                                     # Measured time.
+        'memory_used_mb': float(memory_used),                                                           # Memory delta.
+        'peak_memory_mb': float(peak_memory),                                                           # Peak approximation.
+        'time_per_step_ms': float((exec_time * 1000) / t),                                              # Time per step (ms).
+        'avg_numerical_error': float(avg_error)                                                         # Mean error.
+    }                                                                                                   # Return metrics dict.
+
+def benchmark_advdif_equation(p):                                                                       # Benchmark transient Advection–Diffusion problem on one point cloud.
+    """
+    benchmark_advdif_equation
+    Benchmark the first-order transient Advection–Diffusion problem on a given point cloud.
+
+    The setup matches batches/run_AdvDif.py (explicit time integration).
+
+    Input:
+        p                           (m, 3) ndarray Point cloud [x, y, flag].
+
+    Output:
+        metrics                     dict            Performance and accuracy metrics for this run.
+    """
+    
+    v = 0.1                                                                                             # Diffusion coefficient.
+    a = 0.3                                                                                             # Transport velocity in x.
+    b = 0.2                                                                                             # Transport velocity in y.
+    t = 2000                                                                                            # Number of time steps.
+    f = lambda x, y, t, coef: (1 / (4 * t + 1)) * np.exp(                                               # Exact solution / forcing generator.
+        - (x - coef[1] * t - 0.5)**2 / (coef[0] * (4 * t + 1)) - (y - coef[2] * t - 0.5)**2 / (coef[0] * (4 * t + 1))
+                                                                                                        # Exponent of the advected Gaussian.
+    )                                                                                                   # Function matches run_AdvDif.py.
+    L = np.vstack([[-a], [-b], [2 * v], [0], [2 * v], [0]])                                             # Operator (matches run_AdvDif.py).
+    
+    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+        TimeDerivative1, p, f, t, [v, a, b], operator = L, implicit = False, lam = 0.5                  # Call transient solver (1st order).
+    )                                                                                                   # Unpack solution and measurements.
+    
+    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)                                                     # Per-node error metric across time.
+    avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
+    
+    return {                                                                                            # Return a structured metrics record for this run.
+        'equation': 'Advection-Diffusion',                                                              # Equation label.
+        'num_points': int(len(p)),                                                                      # Number of nodes in the cloud.
+        'diffusion_coefficient': float(v),                                                              # Diffusion parameter.
+        'transport_velocity_x': float(a),                                                               # Transport velocity x.
+        'transport_velocity_y': float(b),                                                               # Transport velocity y.
+        'time_steps': int(t),                                                                           # Time-step count.
+        'function': 'f = (1/(4*t+1))*exp(-(x-a*t-0.5)^2/(v*(4*t+1)) - (y-b*t-0.5)^2/(v*(4*t+1)))',      # Function description.
+        'operator': f'L = [{-a}, {-b}, {2 * v}, 0, {2 * v}, 0]',                                        # Operator coefficients string.
+        'implicit': False,                                                                              # Integration mode flag.
+        'lambda': 0.5,                                                                                  # Stabilization parameter used by the solver.
+        'execution_time_seconds': float(exec_time),                                                     # Measured time.
+        'memory_used_mb': float(memory_used),                                                           # Memory delta.
+        'peak_memory_mb': float(peak_memory),                                                           # Peak approximation.
+        'time_per_step_ms': float((exec_time * 1000) / t),                                              # Time per step (ms).
+        'avg_numerical_error': float(avg_error)                                                         # Mean error.
+    }                                                                                                   # Return metrics dict.
+
+def benchmark_wave_equation(p):                                                                         # Benchmark transient Wave problem on one point cloud.
+    """
+    benchmark_wave_equation
+    Benchmark the second-order transient Wave problem on a given point cloud.
+
+    The setup matches batches/run_Wave.py (explicit time integration).
+
+    Input:
+        p                           (m, 3) ndarray Point cloud [x, y, flag].
+
+    Output:
+        metrics                     dict            Performance and accuracy metrics for this run.
+    """
+    
+    c = float(np.sqrt(1 / 2))                                                                           # Wave propagation coefficient.
+    t = 2000                                                                                            # Number of time steps.
+    f = lambda x, y, t, coef: np.cos(np.pi * t) * np.sin(np.pi * (x + y))                               # Initial displacement / forcing generator.
+    g = lambda x, y, t, coef: -np.pi * np.sin(np.pi * t) * np.sin(np.pi * (x + y))                      # Initial velocity / forcing generator.
+    L = np.vstack([[0], [0], [2 * c**2], [0], [2 * c**2], [0]])                                         # Operator (matches run_Wave.py).
+    
+    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+        TimeDerivative2, p, f, g, t, [c], operator = L, implicit = False, lam = 1                       # Call transient solver (2nd order).
+    )                                                                                                   # Unpack solution and measurements.
+    
+    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)                                                     # Per-node error metric across time.
+    avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
+    
+    return {                                                                                            # Return a structured metrics record for this run.
+        'equation': 'Wave',                                                                             # Equation label.
+        'num_points': int(len(p)),                                                                      # Number of nodes in the cloud.
+        'wave_coefficient': float(c),                                                                   # Wave parameter.
+        'time_steps': int(t),                                                                           # Time-step count.
+        'function_f': 'f = cos(pi*t)*sin(pi*(x+y))',                                                    # Function f description.
+        'function_g': 'g = -pi*sin(pi*t)*sin(pi*(x+y))',                                                # Function g description.
+        'operator': f'L = [0, 0, {2 * c**2}, 0, {2 * c**2}, 0]',                                        # Operator coefficients string.
+        'implicit': False,                                                                              # Integration mode flag.
+        'lambda': 1,                                                                                    # Stabilization parameter used by the solver.
+        'execution_time_seconds': float(exec_time),                                                     # Measured time.
+        'memory_used_mb': float(memory_used),                                                           # Memory delta.
+        'peak_memory_mb': float(peak_memory),                                                           # Peak approximation.
+        'time_per_step_ms': float((exec_time * 1000) / t),                                              # Time per step (ms).
+        'avg_numerical_error': float(avg_error)                                                         # Mean error.
+    }                                                                                                   # Return metrics dict.
+
+def run_comprehensive_benchmark(equations=None, save_results=True, data_root=None):                     # Run the benchmark across all clouds and equations.
+    """
+    run_comprehensive_benchmark
+    Run the full benchmark suite across all point clouds and selected equations.
+
+    Input:
+        equations                    list[str]|None  Which equations to benchmark. Defaults to all.
+        save_results                 bool            Whether to write JSON/CSV/TXT outputs to disk.
+        data_root                    str|None        Root folder containing Data/; defaults to <repo>/Data.
+
+    Output:
+        results                      list[dict]      List with one entry per (cloud, equation) run.
+    """
+    _require_optional_deps()                                                                            # Ensure psutil/pandas are available for this workflow.
+
+    if equations is None:                                                                               # Default equation set when not provided.
+        equations = ['Poisson', 'Heat', 'AdvDif', 'Wave']                                               # Default: run all available benchmark cases.
+    
+    equation_functions = {                                                                              # Map equation labels to benchmark functions.
+        'Poisson': benchmark_poisson_equation,                                                          # Stationary Poisson benchmark.
+        'Heat': benchmark_heat_equation,                                                                # Transient heat benchmark.
+        'AdvDif': benchmark_advdif_equation,                                                            # Transient advection–diffusion benchmark.
+        'Wave': benchmark_wave_equation                                                                 # Transient wave benchmark.
+    }                                                                                                   # Mapping from label to benchmark function.
+    
+    results = []                                                                                        # Accumulator for per-run results.
+    
+    print("Iniciando benchmark completo...")                                                            # Console header.
+    print(f"Ecuaciones: {equations}")                                                                   # Report selected equation set.
+    
+    if data_root is None:                                                                               # Default data root when not provided.
+        data_root = os.path.join(BASE_DIR, 'Data')                                                      # Default to <repo_root>/Data.
+    clouds = list(iter_clouds(data_root))                                                                  # Enumerate all cloud CSV files.
+    total_combinations = int(len(clouds) * len(equations))                                              # Total runs expected.
+    current = 0                                                                                         # Progress counter.
+    
+    benchmark_start_time = time.time()                                                                  # Start total benchmark timer.
+    
+    for dataset, scale, variant, cloud_path in clouds:                                                  # Iterate all discovered cloud CSVs.
+        p = load_points(cloud_path)                                                                     # Load point cloud (m, 3).
+        region_id = f"{dataset}/{scale}/{variant}"                                                      # Human-readable region identifier.
+        for equation in equations:                                                                      # Run selected equation benchmarks for each cloud.
+            current += 1                                                                                # Increment progress.
+            print(f"\nProcesando {current}/{total_combinations}: {region_id} - {equation}")             # Report progress line.
+
+            try:                                                                                        # Protect the benchmark loop from single-run failures.
+                benchmark_func = equation_functions[equation]                                           # Resolve benchmark function.
+                result = benchmark_func(p)                                                              # Execute benchmark on this cloud.
+                if result:                                                                              # Only record successful results.
+                    result['region_id'] = region_id                                                     # Attach region identifier to output record.
+                    result['cloud_file'] = os.path.basename(cloud_path)                                 # Attach source CSV name.
+                    results.append(result)                                                              # Store record.
+                    print(f"  Error promedio: {result['avg_numerical_error']:.2e}")                     # Print error summary.
+                    print(f"  Tiempo: {result['execution_time_seconds']:.3f}s")                         # Print time summary.
+                    print(f"  Memoria: {result['memory_used_mb']:.1f}MB (pico: {result['peak_memory_mb']:.1f}MB)")
+                                                                                                        # Print memory summary.
+                    if 'time_per_step_ms' in result:                                                    # Per-step timing exists only for transient cases.
+                        print(f"  Tiempo por paso: {result['time_per_step_ms']:.3f}ms")                 # Print per-step time when applicable.
+            except Exception as e:                                                                      # Catch solver or post-processing failures.
+                print(f"  Error en {equation}: {e}")                                                    # Report failure for this run.
+    
+    benchmark_end_time = time.time()                                                                    # Stop total benchmark timer.
+    total_benchmark_time = float(benchmark_end_time - benchmark_start_time)                             # Total wall time.
+    
+    if save_results and results:                                                                        # Write output artifacts when requested and results exist.
+        os.makedirs('benchmark_results', exist_ok = True)                                               # Create output directory if needed.
         
-        # Guardar los nombres de las ecuaciones
-        equation_names = {
-            'Poisson': 'Poisson',
-            'Heat': 'Heat',
-            'AdvDif': 'Advection-Diffusion',
-            'Wave': 'Wave'
-        }
+        equation_names = {                                                                              # Display names used in summary grouping.
+            'Poisson': 'Poisson',                                                                       # Display name for Poisson.
+            'Heat': 'Heat',                                                                             # Display name for Heat.
+            'AdvDif': 'Advection-Diffusion',                                                            # Display name for AdvDif.
+            'Wave': 'Wave'                                                                              # Display name for Wave.
+        }                                                                                               # Used to group results in summary.
 
-        # Agregar estadísticas del benchmark
-        benchmark_stats = {
-            'total_benchmark_time_seconds': total_benchmark_time,
-            'total_tests': len(results),
-            'successful_tests': len([r for r in results if r is not None]),
-            'timestamp': datetime.now().isoformat(),
-            'regions_tested': regions,
-            'data_types_tested': data_types,
-            'equations_tested': equations
-        }
+        benchmark_stats = {                                                                             # Global benchmark metadata saved alongside raw results.
+            'total_benchmark_time_seconds': float(total_benchmark_time),                                # Total elapsed time.
+            'total_tests': int(len(results)),                                                           # Total collected results.
+            'successful_tests': int(len([r for r in results if r is not None])),                        # Count of non-null records.
+            'timestamp': datetime.now().isoformat(),                                                    # ISO timestamp.
+            'data_root': data_root,                                                                     # Data root used for discovery.
+            'equations_tested': list(equations)                                                    # Equations included in this run.
+        }                                                                                               # Metadata stored alongside results.
         
-        # Guardar como JSON
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_file = f'benchmark_results/benchmark_{timestamp}.json'
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")                                            # Timestamp used in output filenames.
+        json_file = f'benchmark_results/benchmark_{timestamp}.json'                                     # JSON output path.
         
-        output_data = {
-            'benchmark_stats': benchmark_stats,
-            'results': results
-        }
+        output_data = {                                                                                 # JSON payload containing metadata + raw results.
+            'benchmark_stats': benchmark_stats,                                                         # Global benchmark metadata.
+            'results': results                                                                          # Raw per-run results.
+        }                                                                                               # JSON payload.
         
-        with open(json_file, 'w') as f:
-            json.dump(output_data, f, indent=2)
+        with open(json_file, 'w') as f:                                                                 # Write JSON output file.
+            json.dump(output_data, f, indent = 2)                                                       # Write pretty-printed JSON.
         
-        # Guardar como CSV
-        csv_file = f'benchmark_results/benchmark_{timestamp}.csv'
-        df = pd.DataFrame(results)
-        df.to_csv(csv_file, index=False)
+        csv_file = f'benchmark_results/benchmark_{timestamp}.csv'                                       # CSV output path.
+        df = pd.DataFrame(results)                                                                      # Convert to DataFrame.
+        df.to_csv(csv_file, index = False)                                                              # Write CSV table.
         
-        # Crear resumen estadístico
-        summary_file = f'benchmark_results/benchmark_summary_{timestamp}.txt'
-        with open(summary_file, 'w') as f:
-            f.write(f"RESUMEN DEL BENCHMARK\n")
-            f.write(f"=====================\n\n")
-            f.write(f"Tiempo total del benchmark: {total_benchmark_time:.2f} segundos\n")
-            f.write(f"Pruebas exitosas: {len(results)} de {total_combinations}\n\n")
+        summary_file = f'benchmark_results/benchmark_summary_{timestamp}.txt'                           # TXT summary output path.
+        with open(summary_file, 'w') as f:                                                              # Write human-readable summary file.
+            f.write("RESUMEN DEL BENCHMARK\n")                                                          # Summary header.
+            f.write("=====================\n\n")                                                        # Separator.
+            f.write(f"Tiempo total del benchmark: {total_benchmark_time:.2f} segundos\n")               # Total benchmark wall time.
+            f.write(f"Pruebas exitosas: {len(results)} de {total_combinations}\n\n")                    # Success count for expected runs.
             
-            if results:
-                df = pd.DataFrame(results)
-                f.write(f"ESTADÍSTICAS POR ECUACIÓN:\n")
-                for eq in equations:
-                    eq_name = equation_names.get(eq, eq)
-                    eq_results = df[df['equation'] == eq_name]
-                    if not eq_results.empty:
-                        f.write(f"\n{eq_name}:\n")
+            if results:                                                                                 # Only aggregate statistics when results exist.
+                df = pd.DataFrame(results)                                                              # Build DataFrame for aggregation.
+                f.write("ESTADÍSTICAS POR ECUACIÓN:\n")                                                 # Group header.
+                for eq in equations:                                                                    # Aggregate by equation label.
+                    eq_name = equation_names.get(eq, eq)                                                # Display name mapping.
+                    eq_results = df[df['equation'] == eq_name]                                          # Filter results by equation.
+                    if not eq_results.empty:                                                            # Only write section when data is available.
+                        f.write(f"\n{eq_name}:\n")                                                      # Equation section header.
                         f.write(f"  Tiempo promedio: {eq_results['execution_time_seconds'].mean():.3f}s\n")
-                        f.write(f"  Memoria promedio: {eq_results['memory_used_mb'].mean():.1f}MB\n")
-                        f.write(f"  Error promedio: {eq_results['avg_numerical_error'].mean():.2e}\n")
+                                                                                                        # Mean time across clouds.
+                        f.write(f"  Memoria promedio: {eq_results['memory_used_mb'].mean():.1f}MB\n")   # Mean memory delta across clouds.
+                        f.write(f"  Error promedio: {eq_results['avg_numerical_error'].mean():.2e}\n")  # Mean error across clouds.
         
-        print(f"\nResultados guardados en:")
-        print(f"  JSON: {json_file}")
-        print(f"  CSV: {csv_file}")
-        print(f"  Resumen: {summary_file}")
+        print("\nResultados guardados en:")                                                             # Output location header.
+        print(f"  JSON: {json_file}")                                                                   # JSON path.
+        print(f"  CSV: {csv_file}")                                                                     # CSV path.
+        print(f"  Resumen: {summary_file}")                                                             # TXT summary path.
     
-    print(f"\nBenchmark completado en {total_benchmark_time:.2f} segundos")
-    print(f"Total de resultados: {len(results)}")
-    return results
+    print(f"\nBenchmark completado en {total_benchmark_time:.2f} segundos")                             # Total time report.
+    print(f"Total de resultados: {len(results)}")                                                       # Results count report.
+    return results                                                                                      # Return results list.
 
-if __name__ == "__main__":
-    # Verificar que psutil esté disponible
-    try:
-        import psutil
-    except ImportError:
-        print("Error: psutil no está instalado. Instálalo con: pip install psutil")
-        exit(1)
-    
-    # Ejecutar benchmark con todas las ecuaciones
-    results = run_comprehensive_benchmark()
+if __name__ == "__main__":                                                                              # Script entry point.
+    try:                                                                                                # Validate optional dependencies before running.
+        _require_optional_deps()                                                                        # Ensure psutil and pandas are available.
+    except ImportError as e:                                                                            # Missing dependencies.
+        print(f"Error: {e}")                                                                            # Print actionable error message.
+        raise                                                                                           # Propagate error for non-zero exit.
+
+    results = run_comprehensive_benchmark()                                                             # Execute benchmark with default settings.
