@@ -189,7 +189,7 @@ def load_points(file_path):
     return p                                                                                            # Return parsed point array.
 
 
-def iter_clouds(data_root=None, scales=('2x', '3x')):
+def iter_clouds(data_root=None, scales=('0.50x', '1.00x', '1.50x')):
     """
     iter_clouds
     Iterate over cloud CSV files under the repository Data/ folder structure.
@@ -199,12 +199,12 @@ def iter_clouds(data_root=None, scales=('2x', '3x')):
     
     Input:
         data_root                    str|None       Root directory to search. Defaults to <project_root>/Data.
-        scales                       tuple|list|str Scale folders to traverse (e.g., '2x', '3x').
+        scales                       tuple|list|str Scale folders to traverse (e.g., '1.00x', '2.00x').
     
     Output:
         dataset                      str            Dataset folder name.
         scale                        str            Scale folder name.
-        variant                      str            'cloud' or 'cloud_exterior' based on filename suffix.
+        variant                      str            'cloud', 'clouds', or 'cloud_exterior' based on filename suffix.
         cloud_path                   str            Path to the cloud CSV file.
     
     Notes:
@@ -232,6 +232,8 @@ def iter_clouds(data_root=None, scales=('2x', '3x')):
                     continue                                                                            # Skip to next file.
                 if base.endswith('_cloud_exterior.csv') or base.endswith('_exterior.csv'):              # Exterior cloud variant.
                     variant = 'cloud_exterior'                                                          # Mark variant name.
+                elif base.endswith('_clouds.csv'):                                                      # Plural clouds variant (multiple regions).
+                    variant = 'clouds'                                                                  # Mark variant name.
                 elif base.endswith('_cloud.csv') or base.endswith('.csv'):                              # Standard cloud variant.
                     variant = 'cloud'                                                                   # Mark variant name.
                 else:                                                                                   # Unknown file naming convention.

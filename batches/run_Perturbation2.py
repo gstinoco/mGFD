@@ -7,7 +7,7 @@ Overview:
     (both Clouds and Holes datasets).
 
 Workflow:
-    - Discover input clouds under Data/*/(2x|3x)/*.csv
+    - Discover input clouds under Data/*/(0.50x|1.00x|1.50x)/*.csv
     - Load point clouds into the (m, 3) format [x, y, flag]
     - Load neighbor caches when available (or compute + save them)
     - Validate the neighbor cache for interior nodes and recompute if insufficient neighbors exist
@@ -52,7 +52,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
     Input:
         dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
-        scale                       str             Cloud scale folder (e.g., '2x', '3x').
+        scale                       str             Cloud scale folder (e.g., '1.00x', '2.00x').
         variant                     str             Variant label emitted by iter_clouds (e.g., 'cloud', 'cloud_exterior').
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
@@ -99,7 +99,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('2x', '3x', '4x')                                                                             # Scales to process under each dataset.
+SCALES = ('0.50x', '1.00x', '1.50x')                                                                    # Scales to process under each dataset.
 NVEC = 8                                                                                                # Neighbor count used by the solver.
 
 ## Variables for the problem.

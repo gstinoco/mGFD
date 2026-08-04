@@ -193,17 +193,19 @@ def Cloud_Transient(p, u_ap, u_ex, save = False, nom = ''):
             
             return fig,                                                                                 # Return artists (blit=False, but keep signature).
     
-        ani = FuncAnimation(fig, update_plot, frames = np.arange(0, t + 1, step), blit = False)         # Build animation over selected frames.
-        try:                                                                                            # Prefer ffmpeg when available.
-            ani.save(nom, writer = 'ffmpeg', fps = 10)                                                  # Save video (e.g., .mp4).
-        except Exception as e:                                                                          # Fall back when ffmpeg is not available.
-            print(f"Warning: ffmpeg not available, using pillow writer instead. Error: {e}")            # Inform the user about the fallback.
-            if nom.endswith('.mp4'):                                                                    # If filename suggests mp4, produce a gif instead.
-                nom_gif = nom.replace('.mp4', '.gif')                                                   # Replace extension for pillow writer.
-                ani.save(nom_gif, writer = 'pillow', fps = 10)                                          # Save as GIF.
-                print(f"Video saved as {nom_gif} instead of {nom}")                                     # Inform about the actual saved file.
-            else:                                                                                       # Keep the requested name/extension.
-                ani.save(nom, writer = 'pillow', fps = 10)                                              # Save using pillow writer.
+        if nom.endswith('.gif'):                                                                        # If GIF is explicitly requested.
+            ani.save(nom, writer = 'pillow', fps = 10)                                                  # Save directly using pillow writer.
+        else:
+            try:                                                                                            # Prefer ffmpeg when available.
+                ani.save(nom, writer = 'ffmpeg', fps = 10)                                                  # Save video (e.g., .mp4).
+            except Exception as e:                                                                          # Fall back when ffmpeg is not available.
+                print(f"Warning: ffmpeg not available, using pillow writer instead. Error: {e}")            # Inform the user about the fallback.
+                if nom.endswith('.mp4'):                                                                    # If filename suggests mp4, produce a gif instead.
+                    nom_gif = nom.replace('.mp4', '.gif')                                                   # Replace extension for pillow writer.
+                    ani.save(nom_gif, writer = 'pillow', fps = 10)                                          # Save as GIF.
+                    print(f"Video saved as {nom_gif} instead of {nom}")                                     # Inform about the actual saved file.
+                else:                                                                                       # Keep the requested name/extension.
+                    ani.save(nom, writer = 'pillow', fps = 10)                                              # Save using pillow writer.
         plt.close()                                                                                     # Close figure after saving.
 
     else:
@@ -331,17 +333,19 @@ def Cloud_Transient_1(p, u_ap, save = False, nom = ''):
 
             return fig,                                                                                 # Return artists (blit=False, but keep signature).
     
-        ani = FuncAnimation(fig, update_plot, frames = np.arange(0, t + 1, step), blit = False)         # Build animation over selected frames.
-        try:                                                                                            # Prefer ffmpeg when available.
-            ani.save(nom, writer = 'ffmpeg', fps = 10)                                                  # Save video (e.g., .mp4).
-        except Exception as e:                                                                          # Fall back when ffmpeg is not available.
-            print(f"Warning: ffmpeg not available, using pillow writer instead. Error: {e}")            # Inform the user about the fallback.
-            if nom.endswith('.mp4'):                                                                    # If filename suggests mp4, produce a gif instead.
-                nom_gif = nom.replace('.mp4', '.gif')                                                   # Replace extension for pillow writer.
-                ani.save(nom_gif, writer = 'pillow', fps = 10)                                          # Save as GIF.
-                print(f"Video saved as {nom_gif} instead of {nom}")                                     # Inform about the actual saved file.
-            else:                                                                                       # Keep the requested name/extension.
-                ani.save(nom, writer = 'pillow', fps = 10)                                              # Save using pillow writer.
+        if nom.endswith('.gif'):                                                                        # If GIF is explicitly requested.
+            ani.save(nom, writer = 'pillow', fps = 10)                                                  # Save directly using pillow writer.
+        else:
+            try:                                                                                            # Prefer ffmpeg when available.
+                ani.save(nom, writer = 'ffmpeg', fps = 10)                                                  # Save video (e.g., .mp4).
+            except Exception as e:                                                                          # Fall back when ffmpeg is not available.
+                print(f"Warning: ffmpeg not available, using pillow writer instead. Error: {e}")            # Inform the user about the fallback.
+                if nom.endswith('.mp4'):                                                                    # If filename suggests mp4, produce a gif instead.
+                    nom_gif = nom.replace('.mp4', '.gif')                                                   # Replace extension for pillow writer.
+                    ani.save(nom_gif, writer = 'pillow', fps = 10)                                          # Save as GIF.
+                    print(f"Video saved as {nom_gif} instead of {nom}")                                     # Inform about the actual saved file.
+                else:                                                                                       # Keep the requested name/extension.
+                    ani.save(nom, writer = 'pillow', fps = 10)                                              # Save using pillow writer.
         plt.close()                                                                                     # Close figure after saving.
 
     else:

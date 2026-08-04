@@ -6,7 +6,7 @@ Overview:
     (both Clouds and Holes datasets), using the meshless mGFD stationary solver.
 
 Workflow:
-    - Discover input clouds under Data/*/(2x|3x)/*.csv (or any configured scales)
+    - Discover input clouds under Data/*/(0.50x|1.00x|1.50x)/*.csv (or any configured scales)
     - Load point clouds into the (m, 3) format [x, y, flag]
     - Load cached neighbor lists when available (or compute + save them)
     - Solve the PDE with Stationary
@@ -51,7 +51,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
     Input:
         dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
-        scale                       str             Cloud scale folder (e.g., '2x', '3x').
+        scale                       str             Cloud scale folder (e.g., '1.00x', '2.00x').
         variant                     str             Variant label emitted by iter_clouds (e.g., 'cloud', 'cloud_exterior').
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
@@ -92,7 +92,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('2x', '3x', '4x')                                                                             # Scales to process under each dataset.
+SCALES = ('0.50x', '1.00x', '1.50x')                                                                    # Scales to process under each dataset.
 NVEC = 8                                                                                                # Neighbor count used by the solver.
 
 ## Functions for the problem.

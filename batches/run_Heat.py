@@ -6,7 +6,7 @@ Overview:
     Data/ (both Clouds and Holes datasets), using the meshless mGFD solver.
 
 Workflow:
-    - Discover input clouds under Data/*/(2x|3x)/*.csv
+    - Discover input clouds under Data/*/(0.50x|1.00x|1.50x)/*.csv
     - Load point clouds into the (m, 3) format [x, y, flag]
     - Load cached neighbor lists when available (or compute + save them)
     - Solve the PDE with TimeDerivative1 (explicit scheme by default)
@@ -52,7 +52,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
     Input:
         dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
-        scale                       str             Cloud scale folder (e.g., '2x', '3x').
+        scale                       str             Cloud scale folder (e.g., '1.00x', '2.00x').
         variant                     str             Variant label emitted by iter_clouds (e.g., 'cloud', 'cloud_exterior').
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
@@ -91,13 +91,13 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
     with open(error_path, 'w') as file:                                                                 # Open error report file.
         file.write(str(np.mean(er)))                                                                    # Write mean error as text.
 
-    plot_path = os.path.join(out_dir, 'Solution.mp4')                                                   # Output path for transient animation.
+    plot_path = os.path.join(out_dir, 'Solution.gif')                                                   # Output path for transient animation.
     Graph.Cloud_Transient(p, u_ap, u_ex, save = True, nom = plot_path)                                  # Save transient animation (mp4/gif depending on system).
 
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('2x', '3x', '4x')                                                                             # Scales to process under each dataset.
+SCALES = ('0.50x', '1.00x', '1.50x')                                                                    # Scales to process under each dataset.
 NVEC = 8                                                                                                # Neighbor count used by the solver.
 
 ## Problem parameters.

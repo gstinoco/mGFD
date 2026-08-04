@@ -76,7 +76,7 @@
 - **Error evaluation** utilities for stationary and transient problems.
 
 ### :world_map: Domain & Data Handling
-- **Point-cloud datasets** packaged under `Data/<Region>/<scale>/` with two main variants: `*_cloud.csv` (no holes) and `*_cloud_exterior.csv` (with holes).
+- **Point-cloud datasets** packaged under `Data/<Region>/<scale>/` with three main variants: `*_cloud.csv` (single region with holes), `*_clouds.csv` (multiple distinct regions/islands) and `*_cloud_exterior.csv` (exterior boundary only).
 - **Region catalog** with 2D domains used for consistent comparisons.
 - **CSV-based interchange** for easy inspection and external tooling.
 
@@ -126,11 +126,10 @@ cd mGFD
 python -m venv mgfd_env
 source mgfd_env/bin/activate  # On Windows: mgfd_env\Scripts\activate
 
-pip install -U numpy scipy matplotlib joblib
-pip install -U pandas psutil  # optional (benchmarks)
+pip install -r requirements.txt
 ```
 
-> Note: For reproducible runs across machines, pin your dependency versions in your environment (this repository does not ship a `requirements.txt`).
+> Note: For reproducible runs across machines, you can install the dependencies using the provided [requirements.txt](requirements.txt).
 
 ### :white_check_mark: Installation Verification
 
@@ -160,7 +159,7 @@ python batches/run_Poisson.py
     <tr>
       <td><b>2) Inspect outputs</b></td>
       <td>
-        Check <code>Results/Poisson/&lt;Region&gt;/&lt;scale&gt;/&lt;variant&gt;/</code> (e.g., <code>Results/Poisson/Poopo/2x/cloud/</code>).
+        Check <code>Results/Poisson/&lt;Region&gt;/&lt;scale&gt;/&lt;variant&gt;/</code> (e.g., <code>Results/Poisson/Poopo/1.00x/cloud/</code>).
       </td>
     </tr>
     <tr>
@@ -463,15 +462,15 @@ Data/
 ├── <Region>/
 │   ├── <Region>.png
 │   ├── <Region>_contours.csv
-│   ├── 2x/
-│   │   ├── <Region>_cloud.csv
+│   ├── 0.50x/
+│   │   ├── <Region>_cloud.csv                   # Single region with holes
 │   │   ├── <Region>_cloud.png
 │   │   ├── <Region>_cloud.svg
-│   │   ├── <Region>_cloud_exterior.csv          # optional
-│   │   ├── <Region>_cloud_exterior.png          # optional
-│   │   └── <Region>_cloud_exterior.svg          # optional
-│   ├── 3x/
-│   └── 4x/
+│   │   ├── <Region>_clouds.csv                  # Multiple regions (optional)
+│   │   ├── <Region>_cloud_exterior.csv          # Exterior boundary only (optional)
+│   │   └── ...
+│   ├── 1.00x/
+│   └── 1.50x/
 └── ...
 ```
 
