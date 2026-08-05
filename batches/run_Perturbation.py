@@ -101,7 +101,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('0.50x', '1.00x', '1.50x')                                                                    # Scales to process under each dataset.
+SCALES = ('0.25x', '0.50x', '1.00x', '1.50x', '2.00x', '3.00x')                                         # Scales to process under each dataset.
 NVEC = 12                                                                                               # Neighbor count used by the solver.
 
 
