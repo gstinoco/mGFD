@@ -41,11 +41,13 @@ Last Modification:
 
 ## Library importation.
 import numpy as np
+
 from Scripts import Gammas
 from Scripts.Solvers.Utils import *
+
 try:
-    from scipy.sparse.linalg import LinearOperator, bicgstab, spsolve, splu
     from scipy.sparse import coo_matrix, eye
+    from scipy.sparse.linalg import LinearOperator, bicgstab, spsolve, splu
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -298,4 +300,3 @@ def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], 
         u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], coef)                                                    # Evaluate exact solution at time T[k].
 
     return u_ap, u_ex, vec                                                                              # Return approximate/exact solutions and neighbor list.
-

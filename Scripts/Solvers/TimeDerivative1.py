@@ -41,11 +41,13 @@ Last Modification:
 
 ## Library importation.
 import numpy as np
+
 from Scripts import Gammas
 from Scripts.Solvers.Utils import *
+
 try:
-    from scipy.sparse.linalg import LinearOperator, bicgstab, spsolve, splu
     from scipy.sparse import coo_matrix, eye
+    from scipy.sparse.linalg import LinearOperator, bicgstab, spsolve, splu
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -87,7 +89,6 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
         When the explicit scheme becomes unstable (NaNs/infs or rapid growth), the routine switches to
         a fully implicit retry with an expanded neighbor stencil when available.
     """
-
     ## Variable initialization.
     m              = int(p.shape[0])                                                                    # Total number of nodes.
     nvec           = int(nvec)                                                                          # Requested maximum neighbors.
@@ -276,4 +277,3 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
         u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], coef)                                                    # Evaluate exact solution at time T[k].
 
     return u_ap, u_ex, vec                                                                              # Return approximate/exact solutions and neighbor list.
-

@@ -50,10 +50,8 @@ Credits:
 """
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
+
 from scipy.spatial import KDTree                                                                        # Spatial indexing for fast neighbor queries.
-
-
-
 
 def Cloud(p, nvec):
     """
@@ -70,9 +68,12 @@ def Cloud(p, nvec):
     Output:
         vec         m x nvec        ndarray[int]    Neighbor indices (global) for each node (padded with -1).
     """
-
     m    = int(p.shape[0])                                                                              # Total number of nodes.
     dist = find_distances(p, mode = 3)                                                                  # Search radius from nearest-neighbor spacing.
+    
+    if nvec > 12:                                                                                       # Scale dist if asking for expanded stencil.
+        dist = dist * np.sqrt(nvec / 12.0)                                                              # Area scales with r^2, so r scales with sqrt(n).
+
     vec  = find_neighbors(p, dist, nvec, mode = 3)                                                      # Build neighbor list using KDTree query.
 
     return vec                                                                                          # Return global neighbor list.
@@ -93,9 +94,12 @@ def CloudAdv(p, a, b, nvec):                                                    
     Output:
         vec             ndarray[int]    Neighbor indices (global) for each node (padded with -1).
     """
-
     m    = int(p.shape[0])                                                                              # Total number of nodes.
     dist = find_distances(p, mode = 3)                                                                  # Search radius from nearest-neighbor spacing.
+
+    if nvec > 12:                                                                                       # Scale dist if asking for expanded stencil.
+        dist = dist * np.sqrt(nvec / 12.0)                                                              # Area scales with r^2, so r scales with sqrt(n).
+
     vec  = find_neighbors_adv(p, dist, a, b, nvec)                                                      # Build neighbor list using upwind KDTree query.
 
     return vec                                                                                          # Return global neighbor list.
@@ -119,7 +123,6 @@ def find_distances(p, mode = 3):                                                
     Output:
         dist                        float           Search radius used to collect candidate neighbors.
     """
-
     ## Variable initialization.
     m = int(len(p[:, 0]))                                                                               # Total number of nodes.
 
@@ -175,7 +178,6 @@ def find_neighbors(p, dist, nvec, mode = 2):                                    
     Output:
         vec         m x nvec        ndarray[int]    Neighbor indices per node (padded with -1).
     """
-
     ## Variable initialization.
     m   = int(len(p[:, 0]))                                                                             # Total number of nodes.
     vec = np.zeros([m, nvec], dtype = int) - 1                                                          # Initialize neighbor matrix with padding -1.
@@ -325,4 +327,5 @@ def find_neighbors_brute_force(i, p, a, b, dist, nvec):                         
     neighbors = np.array([j for _, j in temp_neighbors[:nvec]])                                         # Extract up to nvec neighbor indices.
     vec_row   = np.zeros(nvec, dtype = int) - 1                                                         # Initialize padded row with -1.
     vec_row[:len(neighbors)] = neighbors                                                                # Store selected neighbors.
+    
     return vec_row                                                                                      # Return one vec row.

@@ -46,115 +46,31 @@ Last Modification:
     August, 2026.
 """
 ## Library importation.
+import os                                                                                               # OS interfaces for file/directory paths.
 import numpy as np                                                                                      # Array utilities (min/max, linspace, arange).
 import matplotlib.pyplot as plt                                                                         # Plotting interface.
+import matplotlib.gridspec as gridspec                                                                  # Grid layout for subplots.
+
 from matplotlib import cm                                                                               # Colormaps.
-from matplotlib import animation
+from matplotlib import animation                                                                        # Animation framework.
 from matplotlib.animation import FuncAnimation                                                          # Animation helper.
-import os
-import pandas as pd
-from scipy.spatial import Delaunay
-from Scripts.Neighbors import find_distances
-import matplotlib.gridspec as gridspec
-
-
-def _get_valid_triangulation(p, nom):                                                                   # Internal triangulation helper.
-    """
-    Compute a valid triangulation for the point cloud p by filtering out Delaunay
-    triangles whose baricenters lie outside the water domain (defined in *_contours.csv).
-    It processes regions (islands/disconnected bodies) independently to prevent triangles
-    from crossing between them, and uses a local cache file to optimize performance.
-    """
-
-    if not nom:                                                                                         # Check if a valid filename was provided.
-        return None                                                                                     # Return None.
-
-    parts = nom.split(os.sep)                                                                           # Split path to parse dataset details.
-    dataset = None                                                                                      # Initialize dataset variable.
-    scale = None                                                                                        # Initialize scale variable.
-    workspace_root = None                                                                               # Initialize workspace root variable.
-
-    if len(parts) >= 4:                                                                                 # Check if path has enough components.
-        scale = parts[-2]                                                                               # Extract scale name.
-        dataset = parts[-3]                                                                             # Extract dataset name.
-
-        temp = nom                                                                                      # Initialize temp path for workspace search.
-        for _ in range(10):                                                                             # Climb up directory tree.
-            temp = os.path.dirname(temp)                                                                # Go up one directory level.
-            if os.path.exists(os.path.join(temp, 'Data')):                                              # Check if Data folder exists.
-                workspace_root = temp                                                                   # Set workspace root.
-                break                                                                                   # Stop climbing directory tree.
-
-    cache_path = None                                                                                   # Initialize cache path.
-    cloud_path = None                                                                                   # Initialize cloud path.
-    if workspace_root and dataset and scale:                                                            # Check if path info was successfully parsed.
-        cloud_file = f"{dataset}_cloud.csv"                                                             # Format cloud filename.
-        cloud_path = os.path.join(workspace_root, 'Data', dataset, scale, cloud_file)                   # Construct cloud path.
-        if not os.path.exists(cloud_path):                                                              # Check if cloud file exists.
-            lake_scale_dir = os.path.join(workspace_root, 'Data', dataset, scale)                       # Construct fallback directory.
-            if os.path.exists(lake_scale_dir):                                                          # Check if fallback directory exists.
-                for f in os.listdir(lake_scale_dir):                                                    # Iterate over fallback directory files.
-                    if f.endswith('.csv') and not f.endswith('neighbors.csv') and not f.endswith('triangulation.csv'):
-                        cloud_path = os.path.join(lake_scale_dir, f)                                    # Construct cloud path.
-                        break                                                                           # Stop climbing directory tree.
-        
-        if cloud_path and os.path.exists(cloud_path):                                                   # Check if valid cloud path was found.
-            cache_path = cloud_path.replace('.csv', '_triangulation.csv')                               # Set cache path based on cloud path.
-
-    if cache_path and os.path.exists(cache_path):                                                       # Check if cache file exists.
-        try:                                                                                            # Attempt operation.
-            triangles = np.loadtxt(cache_path, dtype=np.int32, delimiter=',')                           # Load triangulation from cache.
-            if triangles.ndim == 1:                                                                     # Check if triangles is 1D.
-                triangles = triangles.reshape(1, -1)                                                    # Reshape triangles to 2D.
-            return triangles                                                                            # Return cached triangulation.
-        except Exception:                                                                               # Ignore exceptions.
-            pass                                                                                        # Do nothing.
-
-    if not cloud_path or not os.path.exists(cloud_path):                                                # Check if cloud path is missing.
-        return None                                                                                     # Return None.
-
-    try:                                                                                                # Attempt operation.
-        data = pd.read_csv(cloud_path)                                                                  # Read point cloud data from CSV.
-        x = data['x'].values                                                                            # Extract X coordinates.
-        y = data['y'].values                                                                            # Extract Y coordinates.
-    except Exception:                                                                                   # Ignore exceptions.
-        return None                                                                                     # Return None.
-
-    dist = find_distances(np.column_stack([x, y, np.zeros_like(x)]), mode=3)                            # Estimate typical point spacing.
-    mean_spacing = np.mean(dist)                                                                        # Calculate average spacing.
-    threshold = 2.5 * mean_spacing                                                                      # Max allowed edge length
-
-    global_triangles = []                                                                               # Initialize empty list for valid triangles.
-    xy = np.column_stack([x, y])                                                                        # Create 2D coordinate array.
-    
-    try:                                                                                                # Attempt operation.
-        tri = Delaunay(xy)                                                                              # Compute Delaunay triangulation.
-        simplices = tri.simplices                                                                       # Extract Delaunay simplices.
-        
-        for t in simplices:                                                                             # Iterate over all triangles.
-            pts = xy[t]                                                                                 # Get vertices of current triangle.
-            L1 = np.linalg.norm(pts[0] - pts[1])                                                        # Calculate edge length.
-            L2 = np.linalg.norm(pts[1] - pts[2])                                                        # Calculate edge length.
-            L3 = np.linalg.norm(pts[2] - pts[0])                                                        # Calculate edge length.
-            if max(L1, L2, L3) < threshold:                                                             # Filter out large boundary triangles.
-                global_triangles.append(t)                                                              # Store valid triangle.
-    except Exception:                                                                                   # Ignore exceptions.
-        pass                                                                                            # Do nothing.
-
-    if len(global_triangles) > 0:                                                                       # Check if any valid triangles were found.
-        global_triangles = np.array(global_triangles, dtype=np.int32)                                   # Convert list to NumPy array.
-        if cache_path:                                                                                  # Check if cache path is defined.
-            try:                                                                                        # Attempt operation.
-                np.savetxt(cache_path, global_triangles, delimiter=',', fmt='%d')                       # Save triangulation to cache.
-            except Exception:                                                                           # Ignore exceptions.
-                pass                                                                                    # Do nothing.
-        return global_triangles                                                                         # Return computed triangulation.
-
-    return None                                                                                         # Return None.
-
+from Scripts.Utils import get_valid_triangulation, get_aspect_and_bounds                                # Geometry utilities.
 
 def _setup_3d_axes(ax, angle_view, box_aspect, x_bounds, y_bounds, z_bounds, z_label, title):
-    """Helper to standardize 3D axes formatting."""
+    '''
+    _setup_3d_axes
+    Helper function to standardize the formatting and limits of 3D axes in Matplotlib.
+    
+    Input:
+        ax                          Axes3D          The 3D axes object to format.
+        angle_view                  bool            If True, sets a perspective view; if False, sets a top-down view.
+        box_aspect                  tuple           Physical aspect ratio scaling for the axes box.
+        x_bounds                    list            [x_min, x_max] physical bounds.
+        y_bounds                    list            [y_min, y_max] physical bounds.
+        z_bounds                    list            [z_min, z_max] physical bounds.
+        z_label                     str             Label for the Z-axis.
+        title                       str             Title for the subplot.
+    '''
     ax.set_box_aspect(box_aspect)                                                                       # Apply physical aspect ratio to axes.
     ax.xaxis.pane.fill = False                                                                          # Make X pane transparent.
     ax.yaxis.pane.fill = False                                                                          # Make Y pane transparent.
@@ -185,7 +101,23 @@ def _setup_3d_axes(ax, angle_view, box_aspect, x_bounds, y_bounds, z_bounds, z_l
 
 
 def _render_surface(ax, p, data, triangles, cmap, vmin, vmax):
-    """Helper to render trisurf or fallback to scatter."""
+    '''
+    _render_surface
+    Helper function to render a 3D surface plot using a valid Delaunay triangulation, 
+    or fallback to a 3D scatter plot if the triangulation is unavailable.
+    
+    Input:
+        ax                          Axes3D          The 3D axes object to draw on.
+        p                           ndarray         Point cloud [x, y] coordinates.
+        data                        ndarray         Z-values (e.g., solution amplitude or error) at each point.
+        triangles                   ndarray[int]    Valid Delaunay simplices (or None for fallback).
+        cmap                        Colormap        Matplotlib colormap.
+        vmin                        float           Minimum value for color scaling.
+        vmax                        float           Maximum value for color scaling.
+        
+    Output:
+        artist                      Artist          The created Matplotlib Poly3DCollection or PathCollection.
+    '''
     if triangles is not None:                                                                           # Check if triangulation is available.
         return ax.plot_trisurf(p[:, 0], p[:, 1], data, triangles=triangles, cmap=cmap, vmin=vmin, vmax=vmax, edgecolors='none', linewidth=0, antialiased=False) # Plot surface using valid triangulation.
     else:
@@ -193,7 +125,18 @@ def _render_surface(ax, p, data, triangles, cmap, vmin, vmax):
 
 
 def _create_colorbars(fig_obj, min_val, max_val, min_err, max_err, min_log, max_log):
-    """Helper to attach static colorbars in Top View layout."""
+    '''
+    _create_colorbars
+    Helper function to attach multiple static colorbars to a figure with a Top View layout.
+    
+    This attaches colorbars for the approximation amplitude, the absolute error, and the log error.
+    
+    Input:
+        fig_obj                     Figure          The Matplotlib figure object.
+        min_val, max_val            float           Color scale bounds for the solution amplitude.
+        min_err, max_err            float           Color scale bounds for the absolute error.
+        min_log, max_log            float           Color scale bounds for the log10 absolute error.
+    '''
     sm2 = cm.ScalarMappable(cmap=cm.coolwarm, norm=plt.Normalize(vmin=min_val, vmax=max_val))           # Create static ScalarMappable for approximation.
     sm2.set_array([])                                                                                   # Initialize empty array for colorbar.
     cax2 = fig_obj.add_axes([0.90, 0.55, 0.015, 0.35])                                                  # Absolute positioning for approximation colorbar.
@@ -211,22 +154,20 @@ def _create_colorbars(fig_obj, min_val, max_val, min_err, max_err, min_log, max_
 
 
 def _create_colorbar_1(fig_obj, min_val, max_val):
-    """Helper to attach a single colorbar for single-plot modes."""
+    '''
+    _create_colorbar_1
+    Helper function to attach a single colorbar to a figure containing only one subplot.
+    
+    Input:
+        fig_obj                     Figure          The Matplotlib figure object.
+        min_val                     float           Minimum color scale value.
+        max_val                     float           Maximum color scale value.
+    '''
     fig_obj.subplots_adjust(right=0.82)                                                                 # Adjust subplot margins and spacing.
-    cbar_ax = fig_obj.add_axes([0.85, 0.15, 0.04, 0.7])
-    sm = cm.ScalarMappable(cmap=cm.coolwarm, norm=plt.Normalize(vmin=min_val, vmax=max_val))
-    sm.set_array([])
-    fig_obj.colorbar(sm, cax=cbar_ax, label='Solution Amplitude')
-
-
-def _get_aspect_and_bounds(p):
-    """Helper to extract physical aspect ratio and bounds."""
-    x_min, x_max = p[:, 0].min(), p[:, 0].max()                                                         # Extract global X bounds.
-    y_min, y_max = p[:, 1].min(), p[:, 1].max()                                                         # Extract global Y bounds.
-    x_range, y_range = x_max - x_min, y_max - y_min                                                     # Calculate physical X and Y ranges.
-    max_range = max(x_range, y_range) if max(x_range, y_range) > 0 else 1.0                             # Determine maximum range for isometric scaling.
-    box_aspect = (x_range, y_range, 0.4 * max_range)                                                    # Set 3D box aspect ratio to preserve geometry.
-    return box_aspect, [x_min, x_max], [y_min, y_max]                                                   # Return layout parameters.
+    cbar_ax = fig_obj.add_axes([0.85, 0.15, 0.04, 0.7])                                                 # Add axis specifically for the colorbar.
+    sm = cm.ScalarMappable(cmap=cm.coolwarm, norm=plt.Normalize(vmin=min_val, vmax=max_val))            # Create ScalarMappable for color mapping.
+    sm.set_array([])                                                                                    # Initialize empty array for colorbar.
+    fig_obj.colorbar(sm, cax=cbar_ax, label='Solution Amplitude')                                       # Attach colorbar to the created axis.
 
 
 def Cloud_Stationary(p, u_ap, u_ex, save=False, nom=''):
@@ -249,14 +190,14 @@ def Cloud_Stationary(p, u_ap, u_ex, save=False, nom=''):
     log_err = np.log10(err + 1e-15)                                                                     # Calculate base-10 logarithm of error.
     min_log, max_log = log_err.min(), log_err.max()                                                     # Set log error color scale bounds.
 
-    box_aspect, x_bounds, y_bounds = _get_aspect_and_bounds(p)
-    triangles = _get_valid_triangulation(p, nom)                                                        # Attempt to compute/load valid triangulation.
+    box_aspect, x_bounds, y_bounds = get_aspect_and_bounds(p)                                           # Compute bounds and aspect ratio.
+    triangles = get_valid_triangulation(p, nom)                                                         # Attempt to compute/load valid triangulation.
 
     def draw_plot(fig_obj, ax1, ax2, ax3, ax4, angle_view=True):
-        _render_surface(ax1, p, u_ap, triangles, cm.coolwarm, min_val, max_val)
-        _render_surface(ax2, p, u_ex, triangles, cm.coolwarm, min_val, max_val)
-        _render_surface(ax3, p, err, triangles, cm.viridis, min_err, max_err)
-        _render_surface(ax4, p, log_err, triangles, cm.plasma, min_log, max_log)
+        _render_surface(ax1, p, u_ap, triangles, cm.coolwarm, min_val, max_val)                         # Render approximation surface.
+        _render_surface(ax2, p, u_ex, triangles, cm.coolwarm, min_val, max_val)                         # Render exact solution surface.
+        _render_surface(ax3, p, err, triangles, cm.viridis, min_err, max_err)                           # Render error surface.
+        _render_surface(ax4, p, log_err, triangles, cm.plasma, min_log, max_log)                        # Render log error surface.
 
         _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', 'Approximation') # Format axes for approximation.
         _setup_3d_axes(ax2, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', 'Theoretical Solution') # Format axes for exact solution.
@@ -281,7 +222,7 @@ def Cloud_Stationary(p, u_ap, u_ex, save=False, nom=''):
         fig_top = plt.figure(figsize=(13, 8))                                                           # Create new figure for top view.
         gs_t = gridspec.GridSpec(2, 2, height_ratios=[1, 1], width_ratios=[1, 1])                       # Set up grid layout for top view subplots.
         ax1_t, ax2_t, ax3_t, ax4_t = fig_top.add_subplot(gs_t[0, 0], projection='3d'), fig_top.add_subplot(gs_t[0, 1], projection='3d'), fig_top.add_subplot(gs_t[1, 0], projection='3d'), fig_top.add_subplot(gs_t[1, 1], projection='3d') # Initialize 3D subplots for top view.
-        draw_plot(fig_top, ax1_t, ax2_t, ax3_t, ax4_t, angle_view=False)
+        draw_plot(fig_top, ax1_t, ax2_t, ax3_t, ax4_t, angle_view=False)                                # Render top view subplots.
         fig_top.suptitle('Stationary Solution Comparison (Top View)', y=0.98, fontsize=14, fontweight='bold') # Set main title for the top view figure.
         plt.savefig(nom + '_top.png', bbox_inches='tight')                                              # Save figure to disk.
         plt.close(fig_top)                                                                              # Close figure to release memory.
@@ -295,7 +236,7 @@ def Cloud_Stationary(p, u_ap, u_ex, save=False, nom=''):
         fig_top = plt.figure(figsize=(13, 8))                                                           # Create new figure for top view.
         gs_t = gridspec.GridSpec(2, 2, height_ratios=[1, 1], width_ratios=[1, 1])                       # Set up grid layout for top view subplots.
         ax1_t, ax2_t, ax3_t, ax4_t = fig_top.add_subplot(gs_t[0, 0], projection='3d'), fig_top.add_subplot(gs_t[0, 1], projection='3d'), fig_top.add_subplot(gs_t[1, 0], projection='3d'), fig_top.add_subplot(gs_t[1, 1], projection='3d') # Initialize 3D subplots for top view.
-        draw_plot(fig_top, ax1_t, ax2_t, ax3_t, ax4_t, angle_view=False)
+        draw_plot(fig_top, ax1_t, ax2_t, ax3_t, ax4_t, angle_view=False)                                # Render top view subplots.
         fig_top.suptitle('Stationary Solution Comparison (Top View)', y=0.98, fontsize=14, fontweight='bold') # Set main title for the top view figure.
         plt.show()                                                                                      # Display the interactive plot window.
 
@@ -313,11 +254,11 @@ def Cloud_Stationary_1(p, u_ap, save=False, nom=''):
     """
     min_val, max_val = u_ap.min(), u_ap.max()                                                           # Shared color scale from approximation.
     if min_val == max_val: max_val += 1e-6                                                              # Prevent zero-range error in matplotlib.
-    box_aspect, x_bounds, y_bounds = _get_aspect_and_bounds(p)
-    triangles = _get_valid_triangulation(p, nom)                                                        # Attempt to compute/load valid triangulation.
+    box_aspect, x_bounds, y_bounds = get_aspect_and_bounds(p)                                           # Compute bounds and aspect ratio.
+    triangles = get_valid_triangulation(p, nom)                                                         # Attempt to compute/load valid triangulation.
 
     def draw_plot(fig_obj, ax1, angle_view=True):
-        _render_surface(ax1, p, u_ap, triangles, cm.coolwarm, min_val, max_val)
+        _render_surface(ax1, p, u_ap, triangles, cm.coolwarm, min_val, max_val)                         # Render approximation surface.
         _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', 'Approximation') # Format axes for approximation.
         if not angle_view:
             _create_colorbar_1(fig_obj, min_val, max_val)                                               # Attach single static colorbar.
@@ -330,7 +271,7 @@ def Cloud_Stationary_1(p, u_ap, save=False, nom=''):
         plt.close(fig)                                                                                  # Close figure to release memory.
 
         fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))
-        draw_plot(fig_top, ax1_t, angle_view=False)
+        draw_plot(fig_top, ax1_t, angle_view=False)                                                     # Render top view subplots.
         fig_top.suptitle('Stationary Approximation (Top View)')                                         # Set main title for the top view figure.
         plt.savefig(nom + '_top.png', bbox_inches='tight')                                              # Save figure to disk.
         plt.close(fig_top)                                                                              # Close figure to release memory.
@@ -340,7 +281,7 @@ def Cloud_Stationary_1(p, u_ap, save=False, nom=''):
         fig.suptitle('Stationary Approximation (Perspective)')                                          # Set main title for the figure.
 
         fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))
-        draw_plot(fig_top, ax1_t, angle_view=False)
+        draw_plot(fig_top, ax1_t, angle_view=False)                                                     # Render top view subplots.
         fig_top.suptitle('Stationary Approximation (Top View)')                                         # Set main title for the top view figure.
         plt.show()                                                                                      # Display the interactive plot window.
 
@@ -368,8 +309,8 @@ def Cloud_Transient(p, u_ap, u_ex, save=False, nom=''):
     global_log_err = np.log10(global_err + 1e-15)                                                       # Calculate base-10 logarithm of global error.
     min_log, max_log = global_log_err.min(), global_log_err.max()                                       # Set log error color scale bounds.
 
-    box_aspect, x_bounds, y_bounds = _get_aspect_and_bounds(p)
-    triangles = _get_valid_triangulation(p, nom)                                                        # Attempt to compute/load valid triangulation.
+    box_aspect, x_bounds, y_bounds = get_aspect_and_bounds(p)                                           # Compute bounds and aspect ratio.
+    triangles = get_valid_triangulation(p, nom)                                                         # Attempt to compute/load valid triangulation.
 
     def draw_frame(fig_obj, ax1, ax2, ax3, ax4, k, angle_view=True):
         err_k = np.abs(u_ap[:, k] - u_ex[:, k])                                                         # Calculate error for the current time step.
@@ -489,17 +430,17 @@ def Cloud_Transient_Steps(p, u_ap, u_ex, nom):
     global_log_err = np.log10(global_err + 1e-15)                                                       # Calculate base-10 logarithm of global error.
     min_log, max_log = global_log_err.min(), global_log_err.max()                                       # Set log error color scale bounds.
 
-    box_aspect, x_bounds, y_bounds = _get_aspect_and_bounds(p)
-    triangles = _get_valid_triangulation(p, nom)                                                        # Attempt to compute/load valid triangulation.
+    box_aspect, x_bounds, y_bounds = get_aspect_and_bounds(p)                                           # Compute bounds and aspect ratio.
+    triangles = get_valid_triangulation(p, nom)                                                         # Attempt to compute/load valid triangulation.
 
     def draw_snapshot(fig_obj, ax1, ax2, ax3, ax4, k, angle_view=True):
         err_k = np.abs(u_ap[:, k] - u_ex[:, k])                                                         # Calculate error for the current time step.
         log_err_k = np.log10(err_k + 1e-15)                                                             # Calculate log error for the current time step.
         
-        _render_surface(ax1, p, u_ap[:, k], triangles, cm.coolwarm, min_val, max_val)
-        _render_surface(ax2, p, u_ex[:, k], triangles, cm.coolwarm, min_val, max_val)
-        _render_surface(ax3, p, err_k, triangles, cm.viridis, min_err, max_err)
-        _render_surface(ax4, p, log_err_k, triangles, cm.plasma, min_log, max_log)
+        _render_surface(ax1, p, u_ap[:, k], triangles, cm.coolwarm, min_val, max_val)                   # Render approximation surface.
+        _render_surface(ax2, p, u_ex[:, k], triangles, cm.coolwarm, min_val, max_val)                   # Render exact solution surface.
+        _render_surface(ax3, p, err_k, triangles, cm.viridis, min_err, max_err)                         # Render error surface.
+        _render_surface(ax4, p, log_err_k, triangles, cm.plasma, min_log, max_log)                      # Render log error surface.
 
         _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', 'Approximation') # Format axes for approximation.
         _setup_3d_axes(ax2, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', 'Theoretical Solution') # Format axes for exact solution.
@@ -552,8 +493,8 @@ def Cloud_Transient_1(p, u_ap, save=False, nom=''):
     min_val, max_val = u_ap.min(), u_ap.max()                                                           # Shared color scale from approximation.
     if min_val == max_val: max_val += 1e-6                                                              # Prevent zero-range error in matplotlib.
 
-    box_aspect, x_bounds, y_bounds = _get_aspect_and_bounds(p)
-    triangles = _get_valid_triangulation(p, nom)                                                        # Attempt to compute/load valid triangulation.
+    box_aspect, x_bounds, y_bounds = get_aspect_and_bounds(p)                                           # Compute bounds and aspect ratio.
+    triangles = get_valid_triangulation(p, nom)                                                         # Attempt to compute/load valid triangulation.
 
     def draw_frame(fig_obj, ax1, k, angle_view=True):
         if not hasattr(fig_obj, 'surf_artists'):
@@ -643,11 +584,11 @@ def Cloud_Transient_Steps_1(p, u_ap, nom):
     min_val, max_val = u_ap.min(), u_ap.max()                                                           # Shared color scale from approximation.
     if min_val == max_val: max_val += 1e-6                                                              # Prevent zero-range error in matplotlib.
 
-    box_aspect, x_bounds, y_bounds = _get_aspect_and_bounds(p)
-    triangles = _get_valid_triangulation(p, nom)                                                        # Attempt to compute/load valid triangulation.
+    box_aspect, x_bounds, y_bounds = get_aspect_and_bounds(p)                                           # Compute bounds and aspect ratio.
+    triangles = get_valid_triangulation(p, nom)                                                         # Attempt to compute/load valid triangulation.
 
     def draw_snapshot(fig_obj, ax1, k, angle_view=True):
-        _render_surface(ax1, p, u_ap[:, k], triangles, cm.coolwarm, min_val, max_val)
+        _render_surface(ax1, p, u_ap[:, k], triangles, cm.coolwarm, min_val, max_val)                   # Render approximation surface.
         _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', 'Approximation') # Format axes for approximation.
         if not angle_view:
             _create_colorbar_1(fig_obj, min_val, max_val)                                               # Attach single static colorbar.
@@ -665,6 +606,6 @@ def Cloud_Transient_Steps_1(p, u_ap, nom):
 
         fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))
         fig_top.suptitle('Approximation at t = %1.3f s (Top View)' % tin)                               # Set main title for the top view figure.
-        draw_snapshot(fig_top, ax1_t, k, angle_view=False)
+        draw_snapshot(fig_top, ax1_t, k, angle_view=False)                                              # Render the current snapshot in top view.
         plt.savefig(nok + 's_top.png', bbox_inches='tight')                                             # Save figure to disk.
         plt.close(fig_top)                                                                              # Close figure to release memory.

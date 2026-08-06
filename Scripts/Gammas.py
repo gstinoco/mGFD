@@ -52,10 +52,8 @@ Last Modification:
 """
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
-from scipy.sparse.linalg import LinearOperator, bicgstab                                        # SciPy iterative solver interface.
 
-
-
+from scipy.sparse.linalg import LinearOperator, bicgstab                                                # SciPy iterative solver interface.
 
 def Cloud(p, vec, L):
     """

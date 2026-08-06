@@ -52,10 +52,6 @@ import os                                                                       
 import glob                                                                                             # Globbing for dataset traversal.
 import numpy as np                                                                                      # CSV loading and array utilities.
 
-
-
-
-
 def project_root():
     """
     project_root
@@ -89,6 +85,7 @@ def neighbors_path(cloud_path, nvec, tag=None):
     base, ext = os.path.splitext(cloud_path)                                                            # Split input path into base name and extension.
     if tag:                                                                                             # Optional disambiguation tag (e.g. 'adv', 'cloud_exterior').
         return f'{base}_{tag}_neighbors_{int(nvec)}{ext}'                                               # Insert tag and neighbor count before extension.
+    
     return f'{base}_neighbors_{int(nvec)}{ext}'                                                         # Insert neighbor count before extension.
 
 
@@ -120,6 +117,7 @@ def load_neighbors(cloud_path, nvec, tag=None):
         vec = vec.reshape(1, -1)                                                                        # Promote to (1, nvec).
     if vec.shape[1] != int(nvec):                                                                       # Validate expected neighbor count.
         return None                                                                                     # Reject cache with wrong width.
+    
     return vec                                                                                          # Return loaded neighbor list.
 
 
@@ -147,6 +145,7 @@ def save_neighbors(cloud_path, nvec, vec, tag=None):
     if vec.shape[1] != int(nvec):                                                                       # Validate expected neighbor count.
         raise ValueError('vec has incorrect number of columns')                                         # Reject mismatched width.
     np.savetxt(path, vec, delimiter = ',', fmt = '%d')                                                  # Save as comma-separated integers.
+    
     return path                                                                                         # Return the saved file path.
 
 
@@ -196,6 +195,7 @@ def load_points(file_path):
         p = np.vstack([p])                                                                              # Promote to (1, ncols).
     if p.shape[1] == 2:                                                                                 # If only x,y provided, append flag=0.
         p = np.column_stack([p, np.zeros(p.shape[0])])                                                  # Add default flag column.
+    
     return p                                                                                            # Return parsed point array.
 
 

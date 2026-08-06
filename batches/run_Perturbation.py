@@ -43,6 +43,7 @@ Last Modification:
 ## Library importation.
 import os                                                                                               # Filesystem and path utilities.
 import sys                                                                                              # sys.path manipulation so this script can import project modules.
+import time                                                                                             # Time tracking for execution performance.
 import numpy as np                                                                                      # Numerical arrays and math.
 import json                                                                                             # JSON serialization for metrics.
 
@@ -76,19 +77,17 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
     p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
 
     vec0 = load_neighbors(cloud_path, NVEC, tag = TAG)                                                  # Load tagged cached neighbor list if present.
-    if vec0 is not None:                                                                                # Validate cache consistency for interior nodes.
-        inne_n = p[:, 2] == 0                                                                           # Interior node mask (flag==0).
-        if np.any(inne_n):                                                                              # Only validate when interior nodes exist.
-            counts = np.sum(vec0[inne_n] != -1, axis = 1)                                               # Count valid neighbors per interior node.
-            if int(np.min(counts)) < int(NVEC):                                                         # If any interior node has insufficient neighbors, recompute.
-                vec0 = None                                                                             # Force neighbor recomputation in the solver.
+    
+    start_time = time.time()                                                                            # Start execution timer.
     u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary advection-dominated problem.
         p, phi, f, operator = L, Adv = True, vec = vec0, nvec = NVEC                                    # Use cached neighbors when valid.
     )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    comp_time = time.time() - start_time                                                                # Compute execution duration.
+    
     if vec0 is None:                                                                                    # If we recomputed neighbors, persist them to disk.
         save_neighbors(cloud_path, NVEC, vec, tag = TAG)                                                # Save tagged neighbor cache for future runs.
 
-    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex)                                     # Compute comprehensive stationary error metrics.
+    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time=comp_time)             # Compute comprehensive stationary error metrics.
     print(f'\tError (RMSE): {metrics["RMSE"]}')                                                         # Print RMSE error for quick inspection.
 
     out_dir = os.path.join(results_path, 'Perturbation', dataset, scale)                                # Output directory for this region.
@@ -98,7 +97,7 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         json.dump(metrics, file, indent=4)                                                              # Write structured metrics as JSON.
 
     if save:                                                                                            # Save solution to VTK format if requested.
-        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Perturbation_Solution")       # Save VTK data to disk.
+        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Perturbation_Solution", cloud_path=cloud_path) # Save VTK data to disk.
 
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.

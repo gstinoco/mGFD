@@ -39,32 +39,7 @@ Credits:
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
 
-
-
-
-def PolyArea(x,y):
-    '''
-    PolyArea
-    Compute the area of a polygon defined by its ordered vertices (x, y).
-    
-    This function uses the shoelace formula and returns the absolute area.
-    
-    Input:
-        x                           array-like      x-coordinates of polygon vertices (1D).
-        y                           array-like      y-coordinates of polygon vertices (1D).
-    
-    Output:
-        area                        float           Area of the polygon.
-    
-    Notes:
-        The vertices must be ordered along the polygon boundary (clockwise or counterclockwise).
-        If the polygon is self-intersecting or the vertex order is arbitrary, the result may be incorrect.
-    '''
-    ## Area computation.
-    x    = np.asarray(x, dtype = float)                                                                 # Normalize x to ndarray.
-    y    = np.asarray(y, dtype = float)                                                                 # Normalize y to ndarray.
-    area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))                            # Shoelace formula (absolute area).
-    return float(area)                                                                                  # Return scalar area.
+from Scripts.Utils import poly_area
 
 def Cloud_Transient(p, vec, u_ap, u_ex):
     '''
@@ -88,7 +63,6 @@ def Cloud_Transient(p, vec, u_ap, u_ex):
         The neighbor list vec is assumed to define a valid polygonal ring around each node. If vec
         is unordered, PolyArea may compute an inaccurate area and the weighting becomes unreliable.
     '''
-
     ## Variable initialization.
     p     = np.asarray(p)                                                                               # Normalize coordinates to ndarray.
     vec   = np.asarray(vec)                                                                             # Normalize neighbors to ndarray.
@@ -104,7 +78,7 @@ def Cloud_Transient(p, vec, u_ap, u_ex):
         nindex   = vec[i, :nvec_i].astype(int)                                                          # Neighbor indices for node i.
         polix    = p[nindex, 0]                                                                         # x-coordinates of polygon vertices.
         poliy    = p[nindex, 1]                                                                         # y-coordinates of polygon vertices.
-        area[i]  = PolyArea(polix, poliy)                                                               # Local area weight for node i.
+        area[i]  = poly_area(polix, poliy)                                                              # Local area weight for node i.
 
     ## Error computation.
     for k in np.arange(t):                                                                              # For each time step.
@@ -134,7 +108,6 @@ def Cloud_Stationary(p, vec, u_ap, u_ex):
         The neighbor list vec is assumed to define a valid polygonal ring around each node. If vec
         is unordered, PolyArea may compute an inaccurate area and the weighting becomes unreliable.
     '''
-
     ## Variable initialization.
     p     = np.asarray(p)                                                                               # Normalize coordinates to ndarray.
     vec   = np.asarray(vec)                                                                             # Normalize neighbors to ndarray.
@@ -149,7 +122,7 @@ def Cloud_Stationary(p, vec, u_ap, u_ex):
         nindex   = vec[i, :nvec_i].astype(int)                                                          # Neighbor indices for node i.
         polix    = p[nindex, 0]                                                                         # x-coordinates of polygon vertices.
         poliy    = p[nindex, 1]                                                                         # y-coordinates of polygon vertices.
-        area[i]  = PolyArea(polix, poliy)                                                               # Local area weight for node i.
+        area[i]  = poly_area(polix, poliy)                                                              # Local area weight for node i.
 
     ## Error computation.
     diff2 = np.square(u_ap[:] - u_ex[:])                                                                # Pointwise squared difference.
@@ -158,41 +131,63 @@ def Cloud_Stationary(p, vec, u_ap, u_ex):
     
     return float(er)                                                                                    # Return scalar RMSE.
 
-def Compute_Metrics_Stationary(p, vec, u_ap, u_ex):
+def Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time=None):
     '''
     Compute_Metrics_Stationary
     Compute comprehensive error metrics for a stationary solution.
     
+    This function computes the area-weighted RMSE as well as the maximum and mean
+    absolute errors. It optionally includes the computation time.
+    
     Input:
-        p, vec, u_ap, u_ex          Same as Cloud_Stationary.
+        p                           ndarray         Node coordinates [x, y].
+        vec                         ndarray[int]    Neighbor indices per node (unused slots padded with -1).
+        u_ap                        ndarray         Approximate solution values on nodes.
+        u_ex                        ndarray         Reference/exact solution values on nodes.
+        compute_time                float           (Optional) Time spent computing the solution in seconds.
         
     Output:
-        metrics                     dict            Dictionary with RMSE, Max_Abs_Error, Mean_Abs_Error.
+        metrics                     dict            Dictionary containing 'RMSE', 'Max_Abs_Error', 'Mean_Abs_Error', and optionally 'Compute_Time_Secs'.
     '''
-    rmse = Cloud_Stationary(p, vec, u_ap, u_ex)
-    abs_diff = np.abs(u_ap[:] - u_ex[:])
-    return {
-        "RMSE": float(rmse),
-        "Max_Abs_Error": float(np.max(abs_diff)),
-        "Mean_Abs_Error": float(np.mean(abs_diff))
+    rmse = Cloud_Stationary(p, vec, u_ap, u_ex)                                                         # Compute RMSE for the stationary solution.
+    abs_diff = np.abs(u_ap[:] - u_ex[:])                                                                # Pointwise absolute difference.
+    metrics = {                                                                                         # Dictionary to store the metrics.
+        "RMSE": float(rmse),                                                                            # Store Area-weighted RMSE.
+        "Max_Abs_Error": float(np.max(abs_diff)),                                                       # Store maximum absolute error.
+        "Mean_Abs_Error": float(np.mean(abs_diff))                                                      # Store mean absolute error.
     }
+    if compute_time is not None:                                                                        # If computation time is provided.
+        metrics["Compute_Time_Secs"] = float(compute_time)                                              # Store computation time in seconds.
+    
+    return metrics                                                                                      # Return the populated metrics dictionary.
 
-def Compute_Metrics_Transient(p, vec, u_ap, u_ex):
+def Compute_Metrics_Transient(p, vec, u_ap, u_ex, compute_time=None):
     '''
     Compute_Metrics_Transient
     Compute comprehensive error metrics for a transient solution.
     
+    This function computes the area-weighted RMSE for the entire time domain, as well
+    as the maximum absolute error across all nodes and time steps, and the RMSE of the final step.
+    It optionally includes the computation time.
+    
     Input:
-        p, vec, u_ap, u_ex          Same as Cloud_Transient.
+        p                           ndarray         Node coordinates [x, y].
+        vec                         ndarray[int]    Neighbor indices per node (unused slots padded with -1).
+        u_ap                        ndarray         Approximate solution values on nodes over time.
+        u_ex                        ndarray         Reference/exact solution values on nodes over time.
+        compute_time                float           (Optional) Time spent computing the solution in seconds.
         
     Output:
-        metrics                     dict            Dictionary with Time_Mean_RMSE, Max_Abs_Error, Final_Step_RMSE.
+        metrics                     dict            Dictionary containing 'Time_Mean_RMSE', 'Max_Abs_Error', 'Final_Step_RMSE', and optionally 'Compute_Time_Secs'.
     '''
-    rmse_array = Cloud_Transient(p, vec, u_ap, u_ex)
-    abs_diff = np.abs(u_ap - u_ex)
-    return {
-        "Time_Mean_RMSE": float(np.mean(rmse_array)),
-        "Max_Abs_Error": float(np.max(abs_diff)),
-        "Final_Step_RMSE": float(rmse_array[-1]) if len(rmse_array) > 0 else 0.0
+    rmse_array = Cloud_Transient(p, vec, u_ap, u_ex)                                                    # Compute array of RMSE values across time steps.
+    abs_diff = np.abs(u_ap - u_ex)                                                                      # Pointwise absolute difference over time and space.
+    metrics = {                                                                                         # Dictionary to store the metrics.
+        "Time_Mean_RMSE": float(np.mean(rmse_array)),                                                   # Store mean RMSE over all time steps.
+        "Max_Abs_Error": float(np.max(abs_diff)),                                                       # Store absolute error peak.
+        "Final_Step_RMSE": float(rmse_array[-1]) if len(rmse_array) > 0 else 0.0                        # Store RMSE at the very last step.
     }
-
+    if compute_time is not None:                                                                        # If computation time is provided.
+        metrics["Compute_Time_Secs"] = float(compute_time)                                              # Store computation time in seconds.
+    
+    return metrics                                                                                      # Return the populated metrics dictionary.

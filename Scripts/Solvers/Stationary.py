@@ -38,14 +38,15 @@ Date:
 Last Modification:
     August, 2026.
 """
-
 ## Library importation.
 import numpy as np
+
 from Scripts import Gammas
 from Scripts.Solvers.Utils import *
+
 try:
-    from scipy.sparse.linalg import LinearOperator, bicgstab, spsolve, splu
     from scipy.sparse import coo_matrix, eye
+    from scipy.sparse.linalg import LinearOperator, bicgstab, spsolve, splu
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
@@ -80,7 +81,6 @@ def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), Adv =
         If SciPy is available, the routine attempts a matrix-free BiCGStab solve first; otherwise it
         falls back to a custom BiCGStab implementation.
     """
-
     ## Variable initialization.
     m              = int(p.shape[0])                                                                    # Total number of nodes.
     nvec           = int(nvec)                                                                          # Requested maximum neighbors.
@@ -171,4 +171,3 @@ def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), Adv =
     u_ex = phi(p[:, 0], p[:, 1])                                                                        # Evaluate exact/boundary function.
 
     return u_ap, u_ex, vec                                                                              # Return approximate/exact solutions and neighbor list.
-

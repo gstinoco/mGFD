@@ -42,6 +42,7 @@ Last Modification:
 ## Library importation.
 import os                                                                                               # Filesystem and path utilities.
 import sys                                                                                              # sys.path manipulation so this script can import project modules.
+import time                                                                                             # Time tracking for execution performance.
 import numpy as np                                                                                      # Numerical arrays and math.
 import json                                                                                             # JSON serialization for metrics.
 
@@ -75,13 +76,17 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
     p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
 
     vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
+    
+    start_time = time.time()                                                                            # Start execution timer.
     u_ap, u_ex, vec = TimeDerivative1(                                                                  # Solve Heat with implicit time stepping.
         p, f, t, [v], operator = L, implicit = True, lam = 0.5, vec = vec0, nvec = NVEC                 # Solve with cached neighbors when available.
     )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    comp_time = time.time() - start_time                                                                # Compute execution duration.
+    
     if vec0 is None:                                                                                    # If there was no cache, persist computed neighbors.
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.
 
-    metrics = Errors.Compute_Metrics_Transient(p, vec, u_ap, u_ex)                                      # Compute comprehensive transient error metrics.
+    metrics = Errors.Compute_Metrics_Transient(p, vec, u_ap, u_ex, compute_time=comp_time)              # Compute comprehensive transient error metrics.
     print(f'\tError (Mean RMSE): {metrics["Time_Mean_RMSE"]}')                                          # Print average error for quick inspection.
 
     out_dir = os.path.join(results_path, 'Heat', dataset, scale)                                        # Output directory for this region.
@@ -92,7 +97,7 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
 
     if save:                                                                                            # Save solution to VTK format if requested.
         T = np.linspace(0, 1, t)                                                                        # Reconstruct time vector.
-        ExportVTK.export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Heat_Solution")          # Save VTK time series to disk.
+        ExportVTK.export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Heat_Solution", cloud_path=cloud_path) # Save VTK time series to disk.
 
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.

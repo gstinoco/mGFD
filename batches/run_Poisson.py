@@ -42,6 +42,7 @@ Last Modification:
 ## Library importation.
 import os                                                                                               # Filesystem and path utilities.
 import sys                                                                                              # sys.path manipulation so this script can import project modules.
+import time                                                                                             # Time tracking for execution performance.
 import numpy as np                                                                                      # Numerical arrays and math.
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
@@ -75,13 +76,17 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
     p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
 
     vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
+    
+    start_time = time.time()                                                                            # Start execution timer.
     u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary Poisson problem.
         p, phi, f, operator = L, vec = vec0, nvec = NVEC                                                # Use cached neighbors when available.
     )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    comp_time = time.time() - start_time                                                                # Compute execution duration.
+    
     if vec0 is None:                                                                                    # If there was no cache, persist computed neighbors.
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.
 
-    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex)                                     # Compute comprehensive stationary error metrics.
+    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time=comp_time)             # Compute comprehensive stationary error metrics.
     print(f'\tError (RMSE): {metrics["RMSE"]}')                                                         # Print RMSE error for quick inspection.
 
     out_dir = os.path.join(results_path, 'Poisson', dataset, scale)                                     # Output directory for this region.
@@ -91,7 +96,7 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         json.dump(metrics, file, indent=4)                                                              # Write structured metrics as JSON.
 
     if save:                                                                                            # Save solution to VTK format if requested.
-        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Poisson_Solution")            # Save VTK data to disk.
+        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Poisson_Solution", cloud_path=cloud_path) # Save VTK data to disk.
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.

@@ -37,8 +37,9 @@ Last Modification:
 
 ## Library importation.
 import os                                                                                               # Filesystem and path utilities.
-import importlib.util                                                                                   # Dynamic module import from a file path.
 import sys                                                                                              # sys.modules access for imported modules.
+import importlib.util                                                                                   # Dynamic module import from a file path.
+
 from time import time                                                                                   # Wall-clock timing for runtimes.
 
 
