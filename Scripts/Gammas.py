@@ -179,7 +179,7 @@ def CloudStencil(p, vec, L):
             try:                                                                                        # Prefer a stable 5x5 solve on normal equations.
                 G   = M @ M.T                                                                           # Gram matrix (5,5).
                 tr  = float(np.trace(G))                                                                # Trace used to scale regularization.
-                reg = (1e-12 + 1e-8 * tr) if tr > 0.0 else 1e-12                                        # Diagonal regularization magnitude.
+                reg = (1e-12 + 1e-5 * tr) if tr > 0.0 else 1e-12                                        # Diagonal regularization magnitude.
                 c   = np.linalg.solve(G + reg * np.eye(5), L)                                           # Solve for coefficients in the span of M.
                 YY  = (M.T @ c).reshape(-1)                                                             # Map coefficients back to neighbor weights.
             except Exception:                                                                           # Any numerical failure triggers fallback.

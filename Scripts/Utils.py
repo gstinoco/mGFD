@@ -107,7 +107,7 @@ def get_valid_triangulation(p, nom):
                 lake_scale_dir = os.path.join(workspace_root, 'Data', dataset, scale)                   # Construct fallback directory.
                 if os.path.exists(lake_scale_dir):                                                      # Check if fallback directory exists.
                     for f in os.listdir(lake_scale_dir):                                                # Iterate over fallback directory files.
-                        if f.endswith('.csv') and not f.endswith('neighbors.csv') and not f.endswith('triangulation.csv'):
+                        if f.endswith('.csv') and '_neighbors' not in f and '_triangulation' not in f:
                             cloud_path = os.path.join(lake_scale_dir, f)                                # Construct cloud path.
                             break                                                                       # Stop climbing directory tree.
             
