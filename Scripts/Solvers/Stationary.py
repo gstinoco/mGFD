@@ -1,6 +1,19 @@
 """
 Stationary — Stationary PDEs solver
 
+Overview:
+    Numerical solver for stationary PDEs (no time derivatives) using a Meshless Generalized Finite
+    Difference scheme on a 2D cloud of points.
+
+Data conventions:
+    p       (m, 3) ndarray
+            Point cloud with columns [x, y, flag]. flag = 0 for interior; flag = 1/2 for boundary.
+    vec     (m, nvec) ndarray[int]
+            Neighbor list. Each row contains neighbor indices; unused slots are padded with -1.
+
+Public API:
+    Stationary          Main solver function for stationary problems.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco Guerrero
@@ -108,7 +121,15 @@ def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), Adv =
     try:                                                                                                # Prefer SciPy sparse solvers when available.
         if not HAS_SCIPY:
             raise ImportError("SciPy is required for this operation")                                   # Load SciPy operators/solvers lazily.
-        Aop = LinearOperator((inn_idx.size, inn_idx.size), matvec=matvec_int, dtype=float)              # Matrix-free linear operator on interior nodes.
+        
+        class MatrixFreeOp(LinearOperator):                                                             # Define a custom LinearOperator subclass.
+            def __init__(self):                                                                         # Initialize operator.
+                self.shape = (inn_idx.size, inn_idx.size)                                               # Set operator shape.
+                self.dtype = np.dtype(float)                                                            # Set operator data type.
+            def _matvec(self, x):                                                                       # Matrix-vector multiplication method.
+                return matvec_int(x)                                                                    # Delegate to the closure function.
+        
+        Aop = MatrixFreeOp()                                                                            # Matrix-free linear operator on interior nodes.
         try:                                                                                            # Attempt solve with SciPy BiCGStab.
             x_it, info = bicgstab(Aop, rhs, tol=1e-10, maxiter=5000)                                    # Older SciPy API.
         except TypeError:                                                                               # Newer SciPy API uses rtol/atol.
@@ -122,11 +143,11 @@ def Stationary(p, phi, f, operator = np.vstack([[0], [0], [2], [0], [2]]), Adv =
             rows = []                                                                                   # Sparse COO rows.
             cols = []                                                                                   # Sparse COO cols.
             data = []                                                                                   # Sparse COO data.
-            for row_k, gi in enumerate(inn_idx):                                                   # For each interior equation row.
+            for row_k, gi in enumerate(inn_idx):                                                        # For each interior equation row.
                 rows.append(row_k)                                                                      # Diagonal entry row.
                 cols.append(row_k)                                                                      # Diagonal entry col.
                 data.append(diag[gi])                                                                   # Diagonal weight.
-                for t, gj in enumerate(vec[gi]):                                                   # Iterate neighbors of this node.
+                for t, gj in enumerate(vec[gi]):                                                        # Iterate neighbors of this node.
                     if gj == -1:                                                                        # Missing neighbor slot.
                         continue                                                                        # Skip missing neighbors.
                     j     = int(gj)                                                                     # Neighbor global index.

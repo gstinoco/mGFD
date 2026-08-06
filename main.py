@@ -8,6 +8,31 @@ Overview:
 Notes:
     - Each batch script is executed by importing it as a module, which triggers its top-level code.
     - This is intended for batch-style scripts that run immediately on import.
+
+Credits:
+    All the codes presented below were developed by:
+        Dr. Gerardo Tinoco Guerrero
+        Universidad Michoacana de San Nicolás de Hidalgo
+        gerardo.tinoco@umich.mx
+
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
+
+Date:
+    May, 2024.
+Last Modification:
+    August, 2026.
 """
 
 ## Library importation.
@@ -49,12 +74,12 @@ def main():
         None
     """
     run_files = [                                                                                       # List of files to execute in order.
-#       'run_Poisson.py',                                                                               # Stationary Poisson reference.
+        'run_Poisson.py',                                                                               # Stationary Poisson reference.
         'run_Heat.py',                                                                                  # Transient Heat reference.
         'run_Wave.py',                                                                                  # Transient Wave reference.
         'run_AdvDif.py',                                                                                # Transient Advection–Diffusion reference.
-#        'run_Perturbation.py',                                                                          # Stationary perturbation case (Adv=True).
-#        'run_Perturbation2.py'                                                                          # Stationary perturbation case (Adv=False).
+        'run_Perturbation.py',                                                                          # Stationary perturbation case (Adv=True).
+        'run_Perturbation2.py'                                                                          # Stationary perturbation case (Adv=False).
     ]                                                                                                   # End of run list.
 
     current_dir = os.path.dirname(os.path.abspath(__file__))                                            # Directory where this script is located (repo root).

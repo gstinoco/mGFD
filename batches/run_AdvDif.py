@@ -13,39 +13,49 @@ Workflow:
     - Compute error metrics and save outputs to Results/
     - Plot/save static step snapshots (optional) and a transient animation (always)
 
-All the codes presented below were developed by:
-    Dr. Gerardo Tinoco Guerrero
-    Universidad Michoacana de San Nicolás de Hidalgo
-    gerardo.tinoco@umich.mx
+Credits:
+    All the codes presented below were developed by:
+        Dr. Gerardo Tinoco Guerrero
+        Universidad Michoacana de San Nicolás de Hidalgo
+        gerardo.tinoco@umich.mx
 
-With the funding of:
-    Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
-    Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México
-    Aula CIMNE-Morelia. México
-    SIIIA-MATH: Soluciones de Ingeniería. México
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
 
 Date:
     May, 2024.
-
 Last Modification:
-    April, 2026.
+    August, 2026.
 """
 
 ## Library importation.
 import os                                                                                               # Filesystem and path utilities.
 import sys                                                                                              # sys.path manipulation so this script can import project modules.
 import numpy as np                                                                                      # Numerical arrays and math.
+import json                                                                                             # JSON serialization for metrics.
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
 sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import TimeDerivative1".
 
 import Scripts.Graph as Graph                                                                           # Plotting helpers for stationary/transient solutions.
 import Scripts.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
+import Scripts.ExportVTK as ExportVTK                                                                   # VTK export utilities for ParaView.
 from mGFD import TimeDerivative1                                                                        # First-order transient solver to run the reference case.
 from Scripts.IO import load_points, iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
 
 
-def process_cloud(dataset, scale, cloud_path, results_path, save):                             # Run one cloud case and write outputs to Results/.
+def process_cloud(dataset, scale, cloud_path, results_path, save):                                      # Run one cloud case and write outputs to Results/.
     """
     process_cloud
     Run the Advection–Diffusion benchmark on a single point cloud file.
@@ -60,7 +70,7 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
     Output:
         None
     """
-    region_id = f'{dataset}/{scale}'                                                                    # Human-readable region identifier.
+    region_id = f'{dataset}/{scale}'                                                                    # Region identifier.
     print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
 
     p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
@@ -72,32 +82,23 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
     if vec0 is None:                                                                                    # If there was no cache, persist computed neighbors.
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.
 
-    er = Errors.Cloud_Transient(p, vec, u_ap, u_ex)                                                     # Compute per-node transient error metric.
-    print(f'\tError: {np.mean(er)}')                                                                    # Print average error for quick inspection.
+    metrics = Errors.Compute_Metrics_Transient(p, vec, u_ap, u_ex)                                      # Compute comprehensive transient error metrics.
+    print(f'\tError (Mean RMSE): {metrics["Time_Mean_RMSE"]}')                                          # Print average error for quick inspection.
 
     out_dir = os.path.join(results_path, 'Advection-Diffusion', dataset, scale)                         # Output directory for this region.
     os.makedirs(out_dir, exist_ok = True)                                                               # Ensure output directory exists (even if save=False).
-    if save:                                                                                            # Save solution CSVs and step visualization if requested.
-        computed_solution_path = os.path.join(out_dir, 'Computed Solution.csv')                         # Output path for numerical solution.
-        np.savetxt(computed_solution_path, u_ap, delimiter = ',', fmt = '%.8f')                         # Save computed solution (all time steps).
+    metrics_path = os.path.join(out_dir, 'Metrics.json')                                                # Output path for JSON metrics report.
+    with open(metrics_path, 'w') as file:                                                               # Open metrics report file.
+        json.dump(metrics, file, indent=4)                                                              # Write structured metrics as JSON.
 
-        theoretical_solution_path = os.path.join(out_dir, 'Theoretical Solution.csv')                   # Output path for exact/theoretical solution.
-        np.savetxt(theoretical_solution_path, u_ex, delimiter = ',', fmt = '%.8f')                      # Save exact solution (all time steps).
-
-        plot_path = os.path.join(out_dir, 'Solution')                                                   # Base path used by plotting helper.
-        Graph.Cloud_Transient_Steps(p, u_ap, u_ex, nom = plot_path)                                     # Save a subset of transient snapshots.
-
-    error_path = os.path.join(out_dir, 'Error.txt')                                                     # Output path for scalar error report.
-    with open(error_path, 'w') as file:                                                                 # Open error report file.
-        file.write(str(np.mean(er)))                                                                    # Write mean error as text.
-
-    plot_path = os.path.join(out_dir, 'Solution.gif')                                                   # Output path for transient animation.
-    Graph.Cloud_Transient(p, u_ap, u_ex, save = True, nom = plot_path)                                  # Save transient animation (mp4/gif depending on system).
+    if save:                                                                                            # Save solution to VTK format if requested.
+        T = np.linspace(0, 1, t)                                                                        # Reconstruct time vector.
+        ExportVTK.export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="AdvDif_Solution")        # Save VTK time series to disk.
 
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('0.25x', '0.50x', '1.00x', '1.50x', '2.00x')                                                  # Scales to process under each dataset.
+SCALES = ('0.25x', '0.50x', '1.00x', '1.50x')                                                           # Scales to process under each dataset.
 NVEC = 12                                                                                               # Neighbor count used by the solver.
 
 
@@ -116,7 +117,7 @@ f = lambda x, y, t, coef: (1 / (4 * t + 1)) * np.exp(
 L = np.vstack([[-a], [-b], [2 * v], [0], [2 * v], [0]])                                                 # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
 
 ## Save policy.
-Save = False                                                                                            # Choose whether CSVs and step plots must be saved.
+Save = True                                                                                             # Choose whether VTK outputs must be saved.
 
 ## Solve the problem using a meshless Generalized Finite Difference approach.
 print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.

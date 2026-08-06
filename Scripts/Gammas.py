@@ -21,8 +21,8 @@ Data conventions:
 Public API:
     Cloud               Build a full dense stencil matrix K (mainly for small problems / debugging).
     RHS                 Build RHS vector with Dirichlet boundary values and interior forcing.
-    CloudStencil         Build stencil in a sparse-like form: diagonal + neighbor weights.
-    ApplyCloudStencil    Apply a CloudStencil (diag, w) to a vector u with vec neighbor indexing.
+    CloudStencil        Build stencil in a sparse-like form: diagonal + neighbor weights.
+    ApplyCloudStencil   Apply a CloudStencil (diag, w) to a vector u with vec neighbor indexing.
     BiCGStab            Matrix-free BiCGStab solver with optional SciPy acceleration.
 
 Credits:
@@ -33,14 +33,22 @@ Credits:
 
     With the funding of:
         Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
-        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México
-        Aula CIMNE-Morelia. México
-        SIIIA-MATH: Soluciones de Ingeniería. México
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
 
-    Date:
-        May, 2024.
-    Last Modification:
-        August, 2026.
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
+
+Date:
+    May, 2024.
+Last Modification:
+    August, 2026.
 """
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
@@ -239,7 +247,15 @@ def BiCGStab(matvec, b, x0=None, tol=1e-10, max_iter=2000):
 
         b_np = np.asarray(b, dtype = float)                                                             # Normalize RHS to float array.
         n    = int(b_np.shape[0])                                                                       # System size.
-        A    = LinearOperator((n, n), matvec = matvec, dtype = float)                                   # Matrix-free linear operator.
+
+        class MatrixFreeOp(LinearOperator):                                                             # Define a custom LinearOperator subclass.
+            def __init__(self):                                                                         # Initialize operator.
+                self.shape = (n, n)                                                                     # Set operator shape.
+                self.dtype = np.dtype(float)                                                            # Set operator data type.
+            def _matvec(self, x):                                                                       # Matrix-vector multiplication method.
+                return matvec(x)                                                                        # Delegate to the closure function.
+
+        A    = MatrixFreeOp()                                                                           # Matrix-free linear operator.
         if x0 is None:                                                                                  # Optional initial guess handling.
             x0_np = None                                                                                # No initial guess passed to SciPy.
         else:                                                                                           # Initial guess provided by caller.

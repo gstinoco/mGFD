@@ -1,6 +1,19 @@
 """
 TimeDerivative1 — First-order transient PDEs solver
 
+Overview:
+    Numerical solver for PDEs with a first-order time derivative using a Meshless Generalized Finite
+    Difference scheme on a 2D cloud of points.
+
+Data conventions:
+    p       (m, 3) ndarray
+            Point cloud with columns [x, y, flag]. flag = 0 for interior; flag = 1/2 for boundary.
+    vec     (m, nvec) ndarray[int]
+            Neighbor list. Each row contains neighbor indices; unused slots are padded with -1.
+
+Public API:
+    TimeDerivative1     Main solver function for first-order transient problems.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco Guerrero
@@ -122,7 +135,7 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
     if use_implicit:                                                                                    # Implicit path (stable for stiff operators).
         try:                                                                                            # Import SciPy only when the implicit branch is taken.
             if not HAS_SCIPY:
-                raise ImportError("SciPy is required for implicit schemes")                         # Sparse assembly + solvers for implicit step.
+                raise ImportError("SciPy is required for implicit schemes")                             # Sparse assembly + solvers for implicit step.
         except ImportError as e:                                                                        # If SciPy is missing, implicit stepping is not available.
             raise ImportError('TimeDerivative1: implicit scheme requires SciPy (pip install scipy)') from e
                                                                                                         # Explain dependency to the user.
@@ -226,6 +239,8 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
                 if nvec_retry is not None:                                                              # Retry only if there is a larger stencil available.
                     expand_neighbors = True                                                             # Trigger a full retry with the larger stencil.
                     break                                                                               # Exit time loop to rebuild with more neighbors.
+                else:
+                    raise FloatingPointError(f'TimeDerivative1 became unstable and no neighbor expansion was possible (max nvec={nvec} reached)')
             u_ap[inn_idx, k] = x                                                                        # Save interior update at time k.
             u_ap[boun_n, k]  = u_b_next                                                                 # Save boundary update at time k.
         if expand_neighbors:                                                                            # Re-run with expanded stencil if instability detected.
@@ -243,7 +258,8 @@ def TimeDerivative1(p, f, t, coef, operator = np.vstack([[0], [0], [2], [0], [2]
                 u_curr[inne_n]  = u_curr[inne_n] + dt_sub * Ku[inne_n]                                  # Explicit Euler update on interior nodes.
                 t_new           = T[k - 1] + (s + 1) * dt_sub                                           # Substep time for boundary evaluation.
                 u_curr[boun_n]  = f(p[boun_n, 0], p[boun_n, 1], t_new, coef)                            # Re-impose boundary at substep time.
-                if not np.all(np.isfinite(u_curr[inne_n])):                                             # Detect NaNs/Infs during explicit stepping.
+                maxabs = float(np.max(np.abs(u_curr[inne_n]))) if np.any(inne_n) else 0.0               # Max absolute value in interior.
+                if (not np.isfinite(maxabs)) or (maxabs > 1e12):                                        # Detect NaNs/Infs or extreme blow-up during explicit stepping.
                     use_implicit = True                                                                 # Detect numerical blow-up and switch.
                     break                                                                               # Abort sub-stepping.
             if use_implicit:                                                                            # If explicit blew up, leave time loop to retry implicit.

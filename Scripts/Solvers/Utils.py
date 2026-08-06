@@ -1,6 +1,22 @@
 """
 Utils — Utility functions for mGFD solvers
 
+Overview:
+    Helper functions shared across the solver modules. Includes masking and neighbor validation.
+
+Data conventions:
+    p       (m, 3) ndarray
+            Point cloud with columns [x, y, flag]. flag = 0 for interior; flag = 1/2 for boundary.
+    vec     (m, nvec) ndarray[int]
+            Neighbor list. Each row contains neighbor indices; unused slots are padded with -1.
+
+Public API:
+    _import_scipy_stationary     Safe import for stationary solvers.
+    _import_scipy_implicit       Safe import for transient implicit solvers.
+    _node_masks                  Split nodes into boundary and interior based on flags.
+    _prepare_neighbors           Load or build neighbor lists dynamically.
+    _next_nvec                   Provide incremental bounds for stencil search.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco Guerrero

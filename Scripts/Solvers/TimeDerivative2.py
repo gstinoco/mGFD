@@ -1,6 +1,19 @@
 """
 TimeDerivative2 — Second-order transient PDEs solver
 
+Overview:
+    Numerical solver for PDEs with a second-order time derivative using a Meshless Generalized Finite
+    Difference scheme on a 2D cloud of points.
+
+Data conventions:
+    p       (m, 3) ndarray
+            Point cloud with columns [x, y, flag]. flag = 0 for interior; flag = 1/2 for boundary.
+    vec     (m, nvec) ndarray[int]
+            Neighbor list. Each row contains neighbor indices; unused slots are padded with -1.
+
+Public API:
+    TimeDerivative2     Main solver function for second-order transient problems.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco Guerrero
@@ -165,7 +178,7 @@ def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], 
             rows = []                                                                                   # Sparse COO rows.
             cols = []                                                                                   # Sparse COO cols.
             data = []                                                                                   # Sparse COO data.
-            for r, i in enumerate(inn_idx):                                                        # Loop over interior rows for assembly.
+            for r, i in enumerate(inn_idx):                                                             # Loop over interior rows for assembly.
                 rows.append(r)                                                                          # Row index in interior system.
                 cols.append(r)                                                                          # Column index for diagonal entry.
                 data.append(1.0 - float(alpha) * float(diag[i]))                                        # Diagonal: I - alpha * L.
@@ -265,8 +278,11 @@ def TimeDerivative2(p, f, g, t, coef, operator = np.vstack([[0], [0], [2], [0], 
             ref_scale = float(np.max(np.abs(u_ap[boun_n, k]))) if np.any(boun_n) else float(np.max(np.abs(u_ap[inn_idx, k - 1]))) # Reference scale.
             if unstable_state(x, ref_scale):                                                            # Detect instability of the implicit solve result.
                 nvec_retry       = _next_nvec(nvec)                                                     # Request a larger stencil size.
-                expand_neighbors = nvec_retry is not None                                               # Retry only if there is a larger stencil available.
-                break                                                                                   # Exit time loop to retry with a larger stencil.
+                if nvec_retry is not None:
+                    expand_neighbors = True                                                             # Retry only if there is a larger stencil available.
+                    break                                                                               # Exit time loop to retry with a larger stencil.
+                else:
+                    raise FloatingPointError(f'TimeDerivative2 became unstable and no neighbor expansion was possible (max nvec={nvec} reached)')
 
             u_ap[inn_idx, k] = x                                                                        # Commit interior update at time k.
 

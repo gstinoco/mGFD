@@ -308,7 +308,7 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
     
     if data_root is None:                                                                               # Default data root when not provided.
         data_root = os.path.join(BASE_DIR, 'Data')                                                      # Default to <repo_root>/Data.
-    clouds = list(iter_clouds(data_root))                                                                  # Enumerate all cloud CSV files.
+    clouds = list(iter_clouds(data_root))                                                               # Enumerate all cloud CSV files.
     total_combinations = int(len(clouds) * len(equations))                                              # Total runs expected.
     current = 0                                                                                         # Progress counter.
     
@@ -316,7 +316,7 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
     
     for dataset, scale, cloud_path in clouds:                                                           # Iterate all discovered cloud CSVs.
         p = load_points(cloud_path)                                                                     # Load point cloud (m, 3).
-        region_id = f"{dataset}/{scale}"                                                                # Human-readable region identifier.
+        region_id = f"{dataset}/{scale}"                                                                # Region identifier.
         for equation in equations:                                                                      # Run selected equation benchmarks for each cloud.
             current += 1                                                                                # Increment progress.
             print(f"\nProcesando {current}/{total_combinations}: {region_id} - {equation}")             # Report progress line.
@@ -356,7 +356,7 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
             'successful_tests': int(len([r for r in results if r is not None])),                        # Count of non-null records.
             'timestamp': datetime.now().isoformat(),                                                    # ISO timestamp.
             'data_root': data_root,                                                                     # Data root used for discovery.
-            'equations_tested': list(equations)                                                    # Equations included in this run.
+            'equations_tested': list(equations)                                                         # Equations included in this run.
         }                                                                                               # Metadata stored alongside results.
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")                                            # Timestamp used in output filenames.
@@ -375,7 +375,7 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
         df.to_csv(csv_file, index = False)                                                              # Write CSV table.
         
         summary_file = f'benchmark_results/benchmark_summary_{timestamp}.txt'                           # TXT summary output path.
-        with open(summary_file, 'w') as f:                                                              # Write human-readable summary file.
+        with open(summary_file, 'w') as f:                                                              # Write summary file.
             f.write("RESUMEN DEL BENCHMARK\n")                                                          # Summary header.
             f.write("=====================\n\n")                                                        # Separator.
             f.write(f"Tiempo total del benchmark: {total_benchmark_time:.2f} segundos\n")               # Total benchmark wall time.

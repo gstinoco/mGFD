@@ -157,3 +157,42 @@ def Cloud_Stationary(p, vec, u_ap, u_ex):
     er    = np.sqrt(np.mean(err))                                                                       # Area-weighted RMSE.
     
     return float(er)                                                                                    # Return scalar RMSE.
+
+def Compute_Metrics_Stationary(p, vec, u_ap, u_ex):
+    '''
+    Compute_Metrics_Stationary
+    Compute comprehensive error metrics for a stationary solution.
+    
+    Input:
+        p, vec, u_ap, u_ex          Same as Cloud_Stationary.
+        
+    Output:
+        metrics                     dict            Dictionary with RMSE, Max_Abs_Error, Mean_Abs_Error.
+    '''
+    rmse = Cloud_Stationary(p, vec, u_ap, u_ex)
+    abs_diff = np.abs(u_ap[:] - u_ex[:])
+    return {
+        "RMSE": float(rmse),
+        "Max_Abs_Error": float(np.max(abs_diff)),
+        "Mean_Abs_Error": float(np.mean(abs_diff))
+    }
+
+def Compute_Metrics_Transient(p, vec, u_ap, u_ex):
+    '''
+    Compute_Metrics_Transient
+    Compute comprehensive error metrics for a transient solution.
+    
+    Input:
+        p, vec, u_ap, u_ex          Same as Cloud_Transient.
+        
+    Output:
+        metrics                     dict            Dictionary with Time_Mean_RMSE, Max_Abs_Error, Final_Step_RMSE.
+    '''
+    rmse_array = Cloud_Transient(p, vec, u_ap, u_ex)
+    abs_diff = np.abs(u_ap - u_ex)
+    return {
+        "Time_Mean_RMSE": float(np.mean(rmse_array)),
+        "Max_Abs_Error": float(np.max(abs_diff)),
+        "Final_Step_RMSE": float(rmse_array[-1]) if len(rmse_array) > 0 else 0.0
+    }
+
