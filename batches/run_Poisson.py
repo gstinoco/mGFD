@@ -44,7 +44,7 @@ import Scripts.Errors as Errors                                                 
 from mGFD import Stationary                                                                             # Stationary solver for the reference Poisson problem.
 from Scripts.IO import load_points, iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
 
-def process_cloud(dataset, scale, variant, cloud_path, results_path, save):                             # Run one cloud case and write outputs to Results/.
+def process_cloud(dataset, scale, cloud_path, results_path, save):                             # Run one cloud case and write outputs to Results/.
     """
     process_cloud
     Run the Poisson benchmark on a single point cloud file.
@@ -52,7 +52,6 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
     Input:
         dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
         scale                       str             Cloud scale folder (e.g., '1.00x', '2.00x').
-        variant                     str             Variant label emitted by iter_clouds (e.g., 'cloud', 'cloud_exterior').
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
         save                        bool            Whether to save the solution arrays.
@@ -60,10 +59,11 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
     Output:
         None
     """
-    region_id = f'{dataset}/{scale}/{variant}'                                                          # Human-readable region identifier.
+    region_id = f'{dataset}/{scale}'                                                          # Human-readable region identifier.
     print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
 
     p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
+
     vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
     u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary Poisson problem.
         p, phi, f, operator = L, vec = vec0, nvec = NVEC                                                # Use cached neighbors when available.
@@ -74,7 +74,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
     er = Errors.Cloud_Stationary(p, vec, u_ap, u_ex)                                                    # Compute per-node stationary error metric.
     print(f'\tError: {np.mean(er)}')                                                                    # Print average error for quick inspection.
 
-    out_dir = os.path.join(results_path, 'Poisson', dataset, scale, variant)                            # Output directory for this region.
+    out_dir = os.path.join(results_path, 'Poisson', dataset, scale)                            # Output directory for this region.
     os.makedirs(out_dir, exist_ok = True)                                                               # Ensure output directory exists.
     if save:                                                                                            # Save solution arrays if requested.
         computed_solution_path = os.path.join(out_dir, 'Computed Solution.csv')                         # Output path for numerical solution.
@@ -92,7 +92,7 @@ def process_cloud(dataset, scale, variant, cloud_path, results_path, save):     
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('0.25x', '0.50x', '1.00x', '1.50x', '2.00x', '3.00x')                                         # Scales to process under each dataset.
+SCALES = ('0.25x', '0.50x', '1.00x', '1.50x', '2.00x')                                                  # Scales to process under each dataset.
 NVEC = 12                                                                                               # Neighbor count used by the solver.
 
 
@@ -109,8 +109,8 @@ Save = False                                                                    
 ## Solve the problem using a meshless Generalized Finite Difference approach.
 print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
 found = 0                                                                                               # Counter to detect empty runs.
-for dataset, scale, variant, cloud_path in iter_clouds(DATA_ROOT, SCALES):                              # Iterate all discovered cloud CSVs.
+for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, SCALES):                              # Iterate all discovered cloud CSVs.
     found += 1                                                                                          # Count discovered inputs.
-    process_cloud(dataset, scale, variant, cloud_path, RESULTS_ROOT, Save)                              # Run one case and write outputs.
+    process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save)                              # Run one case and write outputs.
 if found == 0:                                                                                          # Provide a clear message when no inputs are found.
     print(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')                              # Report empty discovery outcome.

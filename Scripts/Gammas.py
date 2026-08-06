@@ -40,11 +40,14 @@ Credits:
     Date:
         May, 2024.
     Last Modification:
-        April, 2026.
+        August, 2026.
 """
-
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
+from scipy.sparse.linalg import LinearOperator, bicgstab                                        # SciPy iterative solver interface.
+
+
+
 
 def Cloud(p, vec, L):
     """
@@ -233,7 +236,6 @@ def BiCGStab(matvec, b, x0=None, tol=1e-10, max_iter=2000):
         is unavailable or the SciPy call fails, it falls back to a pure NumPy implementation.
     """
     try:                                                                                                # Prefer SciPy when available (faster/robust).
-        from scipy.sparse.linalg import LinearOperator, bicgstab                                        # SciPy iterative solver interface.
 
         b_np = np.asarray(b, dtype = float)                                                             # Normalize RHS to float array.
         n    = int(b_np.shape[0])                                                                       # System size.

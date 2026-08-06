@@ -9,7 +9,7 @@ Overview:
 
 Data conventions:
     p       (m, 3) ndarray
-            Point cloud with columns [x, y, flag]. Only x and y are used here.
+            Point cloud with columns [x, y, flag].
     vec     (m, nvec) ndarray[int]
             Neighbor list. Each row contains neighbor indices; unused slots are padded with -1.
     nvec    int
@@ -46,13 +46,14 @@ Credits:
     Date:
         May, 2024.
     Last Modification:
-        April, 2026.
+        August, 2026.
 """
-
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
 from scipy.spatial import KDTree                                                                        # Spatial indexing for fast neighbor queries.
-from joblib import Parallel, delayed                                                                    # Optional parallel backend (legacy / compatibility).
+
+
+
 
 def Cloud(p, nvec):
     """
@@ -63,20 +64,18 @@ def Cloud(p, nvec):
     and then calls find_neighbors() in KDTree mode.
     
     Input:
-        p           m x 3           ndarray         Point cloud [x, y, flag] (only x,y are used).
+        p           m x 3           ndarray         Point cloud [x, y, flag].
         nvec                        int             Maximum number of neighbors per node.
     
     Output:
-        vec         m x nvec        ndarray[int]    Neighbor indices for each node (padded with -1).
+        vec         m x nvec        ndarray[int]    Neighbor indices (global) for each node (padded with -1).
     """
 
-    ## Delta computation.
-    dist = find_distances(p, mode = 3)                                                                  # Compute search radius from nearest-neighbor spacing.
+    m    = int(p.shape[0])                                                                              # Total number of nodes.
+    dist = find_distances(p, mode = 3)                                                                  # Search radius from nearest-neighbor spacing.
+    vec  = find_neighbors(p, dist, nvec, mode = 3)                                                      # Build neighbor list using KDTree query.
 
-    ## Neighbor search.
-    vec = find_neighbors(p, dist, nvec, mode = 3)                                                       # Build neighbor list using KDTree query.
-
-    return vec                                                                                          # Return neighbor list.
+    return vec                                                                                          # Return global neighbor list.
 
 def CloudAdv(p, a, b, nvec):                                                                            # Compute an upwind-biased neighbor list for advection problems.
     """
@@ -92,16 +91,14 @@ def CloudAdv(p, a, b, nvec):                                                    
         nvec            int             Maximum number of neighbors per node.
     
     Output:
-        vec             ndarray[int]    Neighbor indices for each node (padded with -1).
+        vec             ndarray[int]    Neighbor indices (global) for each node (padded with -1).
     """
 
-    ## Delta computation.
-    dist = find_distances(p, mode = 3)                                                                  # Compute search radius from nearest-neighbor spacing.
+    m    = int(p.shape[0])                                                                              # Total number of nodes.
+    dist = find_distances(p, mode = 3)                                                                  # Search radius from nearest-neighbor spacing.
+    vec  = find_neighbors_adv(p, dist, a, b, nvec)                                                      # Build neighbor list using upwind KDTree query.
 
-    ## Neighbor search.
-    vec = find_neighbors_adv(p, dist, a, b, nvec)                                                       # Build upwind neighbor list.
-
-    return vec                                                                                          # Return neighbor list.
+    return vec                                                                                          # Return global neighbor list.
 
 def find_distances(p, mode = 3):                                                                        # Estimate a search radius dist from point spacing.
     """
@@ -142,8 +139,9 @@ def find_distances(p, mode = 3):                                                
 
     if mode == 2:                                                                                       # Vectorized O(m^2) method (memory heavy).
         ## Optimized.
-        p_expanded  = np.expand_dims(p, axis = 1)                                                       # Expand p for broadcasting.
-        differences = p_expanded - p                                                                    # Pairwise differences p_i - p_j.
+        xy          = p[:, :2]                                                                          # Use only (x, y) coordinates for distance computation.
+        p_expanded  = np.expand_dims(xy, axis = 1)                                                      # Expand xy for broadcasting.
+        differences = p_expanded - xy                                                                   # Pairwise differences p_i - p_j.
         distances   = np.sum(differences**2, axis = 2)                                                  # Squared distances.
         np.fill_diagonal(distances, np.inf)                                                             # Ignore self distances.
         min_distances = np.sqrt(np.min(distances, axis = 1))                                            # Nearest-neighbor distance for each node.
@@ -194,7 +192,7 @@ def find_neighbors(p, dist, nvec, mode = 2):                                    
                     if d < dist:                                                                        # Keep only candidates inside the radius.
                         temp_neighbors.append((d, j))                                                   # Store candidate neighbor and its distance.
             temp_neighbors.sort()                                                                       # Sort by increasing distance.
-            for idx, (d, j) in enumerate(temp_neighbors[:nvec]):                                   # Keep at most the closest nvec neighbors.
+            for idx, (d, j) in enumerate(temp_neighbors[:nvec]):                                        # Keep at most the closest nvec neighbors.
                 vec[i, idx] = j                                                                         # Store neighbor index.
     
     elif mode == 2:                                                                                     # Vectorized all-pairs distances (memory heavy).

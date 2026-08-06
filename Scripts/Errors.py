@@ -34,11 +34,13 @@ Credits:
     Date:
         May, 2024.
     Last Modification:
-        April, 2026.
+        August, 2026.
 """
-
 ## Library importation.
 import numpy as np                                                                                      # Core numerical operations.
+
+
+
 
 def PolyArea(x,y):
     '''

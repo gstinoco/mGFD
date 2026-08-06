@@ -314,9 +314,9 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
     
     benchmark_start_time = time.time()                                                                  # Start total benchmark timer.
     
-    for dataset, scale, variant, cloud_path in clouds:                                                  # Iterate all discovered cloud CSVs.
+    for dataset, scale, cloud_path in clouds:                                                           # Iterate all discovered cloud CSVs.
         p = load_points(cloud_path)                                                                     # Load point cloud (m, 3).
-        region_id = f"{dataset}/{scale}/{variant}"                                                      # Human-readable region identifier.
+        region_id = f"{dataset}/{scale}"                                                                # Human-readable region identifier.
         for equation in equations:                                                                      # Run selected equation benchmarks for each cloud.
             current += 1                                                                                # Increment progress.
             print(f"\nProcesando {current}/{total_combinations}: {region_id} - {equation}")             # Report progress line.

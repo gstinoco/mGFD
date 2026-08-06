@@ -20,7 +20,7 @@ Public API:
     load_neighbors      Load a cached vec from disk (returns None if unavailable/invalid).
     save_neighbors      Save vec to disk after basic shape validation.
     load_points         Load a point cloud from CSV into the (m, 3) format used by the solvers.
-    iter_clouds         Yield (dataset, scale, variant, cloud_path) for available input CSVs under Data/.
+    iter_clouds         Yield (dataset, scale, cloud_path) for available input CSVs under Data/.
 
 Credits:
     All the codes presented below were developed by:
@@ -37,13 +37,15 @@ Credits:
     Date:
         May, 2024.
     Last Modification:
-        April, 2026.
+        August, 2026.
 """
-
 ## Library importation.
 import os                                                                                               # Filesystem path utilities.
 import glob                                                                                             # Globbing for dataset traversal.
 import numpy as np                                                                                      # CSV loading and array utilities.
+
+
+
 
 
 def project_root():
@@ -195,7 +197,7 @@ def iter_clouds(data_root=None, scales=('0.50x', '1.00x', '1.50x')):
     Iterate over cloud CSV files under the repository Data/ folder structure.
     
     This generator yields tuples:
-        (dataset, scale, variant, cloud_path)
+        (dataset, scale, cloud_path)
     
     Input:
         data_root                    str|None       Root directory to search. Defaults to <project_root>/Data.
@@ -204,7 +206,6 @@ def iter_clouds(data_root=None, scales=('0.50x', '1.00x', '1.50x')):
     Output:
         dataset                      str            Dataset folder name.
         scale                        str            Scale folder name.
-        variant                      str            'cloud', 'clouds', or 'cloud_exterior' based on filename suffix.
         cloud_path                   str            Path to the cloud CSV file.
     
     Notes:
@@ -216,8 +217,6 @@ def iter_clouds(data_root=None, scales=('0.50x', '1.00x', '1.50x')):
         scales = [scales]                                                                               # Normalize to list for iteration.
 
     for dataset in sorted(os.listdir(data_root)):                                                       # Iterate dataset folders under Data/.
-        if dataset in ('Clouds', 'Holes'):                                                              # Skip special folders not containing datasets.
-            continue                                                                                    # Skip to next dataset.
         dataset_path = os.path.join(data_root, dataset)                                                 # Full path to dataset directory.
         if not os.path.isdir(dataset_path):                                                             # Guard against non-directory entries.
             continue                                                                                    # Skip invalid dataset entry.
@@ -228,14 +227,7 @@ def iter_clouds(data_root=None, scales=('0.50x', '1.00x', '1.50x')):
             csv_paths = sorted(glob.glob(os.path.join(scale_path, '*.csv')))                            # Collect CSV files in scale folder.
             for cloud_path in csv_paths:                                                                # Iterate CSV candidates.
                 base = os.path.basename(cloud_path)                                                     # File name for filtering.
-                if 'neighbors' in base:                                                                 # Skip cached neighbor CSV files.
+                if base.endswith('_cloud.csv'):
+                    yield dataset, scale, cloud_path                                                    # Yield tuple for downstream processing.
+                else:
                     continue                                                                            # Skip to next file.
-                if base.endswith('_cloud_exterior.csv') or base.endswith('_exterior.csv'):              # Exterior cloud variant.
-                    variant = 'cloud_exterior'                                                          # Mark variant name.
-                elif base.endswith('_clouds.csv'):                                                      # Plural clouds variant (multiple regions).
-                    variant = 'clouds'                                                                  # Mark variant name.
-                elif base.endswith('_cloud.csv') or base.endswith('.csv'):                              # Standard cloud variant.
-                    variant = 'cloud'                                                                   # Mark variant name.
-                else:                                                                                   # Unknown file naming convention.
-                    continue                                                                            # Skip file.
-                yield dataset, scale, variant, cloud_path                                               # Yield tuple for downstream processing.

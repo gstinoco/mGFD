@@ -49,12 +49,12 @@ def main():
         None
     """
     run_files = [                                                                                       # List of files to execute in order.
-        'run_Poisson.py',                                                                               # Stationary Poisson reference.
+#       'run_Poisson.py',                                                                               # Stationary Poisson reference.
         'run_Heat.py',                                                                                  # Transient Heat reference.
         'run_Wave.py',                                                                                  # Transient Wave reference.
         'run_AdvDif.py',                                                                                # Transient Advection–Diffusion reference.
-        'run_Perturbation.py',                                                                          # Stationary perturbation case (Adv=True).
-        'run_Perturbation2.py'                                                                          # Stationary perturbation case (Adv=False).
+#        'run_Perturbation.py',                                                                          # Stationary perturbation case (Adv=True).
+#        'run_Perturbation2.py'                                                                          # Stationary perturbation case (Adv=False).
     ]                                                                                                   # End of run list.
 
     current_dir = os.path.dirname(os.path.abspath(__file__))                                            # Directory where this script is located (repo root).
