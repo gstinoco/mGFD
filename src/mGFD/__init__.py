@@ -33,7 +33,9 @@ Notes:
 
 Credits:
     All the codes presented below were developed by:
-        Dr. Gerardo Tinoco Guerrero
+        Dr. Gerardo Tinoco-Guerrero
+        Dr. Francisco Javier Domínguez-Mota
+        Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
     With the funding of:
@@ -57,8 +59,15 @@ Last Modification:
 """
 
 ## Library importation.
-from mGFD.Solvers.Stationary import Stationary
-from mGFD.Solvers.TimeDerivative1 import TimeDerivative1
-from mGFD.Solvers.TimeDerivative2 import TimeDerivative2
+from mGFD.solvers.stationary import Stationary
+from mGFD.solvers.time_derivative1 import TimeDerivative1
+from mGFD.solvers.time_derivative2 import TimeDerivative2
+from mGFD.core.neighbors import compute_neighbors
+from mGFD.core.gammas import compute_sparse_matrix, Cloud
+from mGFD.cloud_generator import generate_cloud_natural, generate_cloud_regular, reduce_points_by_region
 
-__all__ = ['Stationary', 'TimeDerivative1', 'TimeDerivative2']
+__all__ = [
+    'Stationary', 'TimeDerivative1', 'TimeDerivative2',
+    'compute_neighbors', 'compute_sparse_matrix', 'Cloud',
+    'generate_cloud_natural', 'generate_cloud_regular', 'reduce_points_by_region'
+]

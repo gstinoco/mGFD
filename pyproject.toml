@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Gerardo Tinoco Guerrero", email = "gerardo.tinoco@umich.mx" },
+    { name = "Gerardo Tinoco-Guerrero", email = "gerardo.tinoco@umich.mx" },
+    { name = "Francisco Javier Domínguez-Mota" },
+    { name = "José Alberto Guzmán-Torres" },
 ]
 
 
@@ -27,6 +29,8 @@ dependencies = [
     "pandas",
     "psutil",
     "pyvista",
+    "shapely",
+    "opencv-python-headless",
 ]
 
 [project.urls]
@@ -38,13 +42,9 @@ Issues = "https://github.com/gstinoco/mGFD/issues"
 test = [
     "pytest",
 ]
-cloud = [
-    "shapely",
-    "opencv-python-headless",
-]
 
 [project.scripts]
-mgfd-cloud = "mGFD.CloudGenerator.cli:main"
+mgfd-cloud = "mGFD.cloud_generator.cli.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
