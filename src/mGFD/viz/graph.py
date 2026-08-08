@@ -66,7 +66,6 @@ def _setup_3d_axes(ax, angle_view, box_aspect, x_bounds, y_bounds, z_bounds, z_l
         y_bounds                    list            [y_min, y_max] physical bounds.
         z_bounds                    list            [z_min, z_max] physical bounds.
         z_label                     str             Label for the Z-axis.
-        title                       str             Title for the subplot.
     '''
     ax.set_box_aspect(box_aspect)                                                                               # Apply physical aspect ratio to axes.
     ax.xaxis.pane.fill = False                                                                                  # Make X pane transparent.
@@ -75,9 +74,9 @@ def _setup_3d_axes(ax, angle_view, box_aspect, x_bounds, y_bounds, z_bounds, z_l
     ax.xaxis.pane.set_edgecolor('w')                                                                            # Set X pane edge color to white.
     ax.yaxis.pane.set_edgecolor('w')                                                                            # Set Y pane edge color to white.
     ax.zaxis.pane.set_edgecolor('w')                                                                            # Set Z pane edge color to white.
-    ax.grid(True, linestyle='--', alpha=0.5)                                                                    # Enable grid lines with transparency.
-    ax.set_xlabel('X')                                                                                          # Set X-axis label.
-    ax.set_ylabel('Y')                                                                                          # Set Y-axis label.
+    ax.grid(True, linestyle=':', alpha=0.6, color='gray')                                                       # Enable grid lines with transparency.
+    ax.set_xlabel('X', labelpad=10)                                                                             # Set X-axis label with padding.
+    ax.set_ylabel('Y', labelpad=10)                                                                             # Set Y-axis label with padding.
     
     ax.set_xlim(x_bounds)                                                                                       # Set X-axis limits.
     ax.set_ylim(y_bounds)                                                                                       # Set Y-axis limits.
@@ -87,14 +86,11 @@ def _setup_3d_axes(ax, angle_view, box_aspect, x_bounds, y_bounds, z_bounds, z_l
     if angle_view:
         ax.dist = 6.2                                                                                           # Adjust camera zoom for perspective.
         ax.view_init(elev=20, azim=-45)                                                                         # Set perspective viewing angle.
-        ax.set_zlabel(z_label)                                                                                  # Set Z-axis label.
+        ax.set_zlabel(z_label, labelpad=10)                                                                     # Set Z-axis label with padding.
     else:
         ax.dist = 5.2                                                                                           # Adjust camera zoom for top view.
         ax.set_zticks([])                                                                                       # Remove Z-axis ticks for top view.
         ax.view_init(elev=90, azim=270)                                                                         # Set top-down viewing angle.
-        
-    if title:
-        ax.set_title(title, y=0.94)                                                                             # Set title for subplot.
 
 
 def _render_surface(ax, p, data, triangles, cmap, vmin, vmax):
@@ -163,8 +159,8 @@ def _generate_static_views(render_func, title, save_path=None, show=False, verbo
     views = [(True, 'Perspective', ''), (False, 'Top View', '_top')]
     
     for angle_view, view_name, suffix in views:
-        fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))                           # Create figure and 3D axis.
-        fig.suptitle(f'{title} ({view_name})')                                                                  # Set main title for the figure.
+        fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                          # Create figure and 3D axis with larger size.
+        fig.suptitle(f'{title} ({view_name})', fontsize=16, fontweight='bold', y=0.95)                          # Set main title for the figure centered and bold.
         render_func(fig, ax, angle_view)                                                                        # Execute the rendering callback.
         
         if save_path:
@@ -203,7 +199,7 @@ def plot_stationary(p, u, save=False, nom='', title='Solution', verbose=True):
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
         surf = _render_surface(ax1, p, u, triangles, cm.coolwarm, min_val, max_val)                             # Render solution surface.
-        _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', title)   # Format axes for the solution.
+        _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')          # Format axes for the solution.
         
         if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
             fig_obj.colorbar(surf, ax=ax1, fraction=0.046, pad=0.04)
@@ -248,7 +244,7 @@ def plot_transient(p, u, save=False, nom='', title='Solution', verbose=True):
         if not hasattr(fig_obj, 'surf_artists'):
             s1 = _render_surface(ax1, p, u[:, k], triangles, cm.coolwarm, min_val, max_val)                     # Render solution surface.
             fig_obj.surf_artists = {'s1': s1}                                                                   # Cache surface artists for animation updates.
-            _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', title) # Format axes for the solution.
+            _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')      # Format axes for the solution.
             
             if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
                 fig_obj.colorbar(s1, ax=ax1, fraction=0.046, pad=0.04)
@@ -278,11 +274,11 @@ def plot_transient(p, u, save=False, nom='', title='Solution', verbose=True):
                 suffix              str             Filename suffix for saving (e.g. '_top').
                 verbose             bool            If True, prints confirmation of saved animations.
             """
-            fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))                       # Create figure and 3D axis for animation.
+            fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                      # Create figure and 3D axis for animation.
             
             def update(frame):
                 tin = float(T[frame])
-                fig.suptitle(f'{title} at t = {tin:1.3f} s ({view_name})')                                      # Set main title for the figure.
+                fig.suptitle(f'{title} at t = {tin:1.3f} s ({view_name})', fontsize=16, fontweight='bold', y=0.95) # Set main title for the figure.
                 draw_frame(fig, ax, frame, angle_view=angle_view)                                               # Render the current frame.
 
             ani = FuncAnimation(fig, update, frames=np.arange(0, t, step), blit=False)                          # Initialize animation object.
@@ -307,20 +303,20 @@ def plot_transient(p, u, save=False, nom='', title='Solution', verbose=True):
         save_animation(False, 'Top View', '_top', verbose=verbose)
 
     else:
-        fig, ax1 = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))
-        fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(7, 6))
+        fig, ax1 = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                         # Larger figsize.
+        fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))
         
         for k in np.arange(0, t, step):
             tin = float(T[k])
-            fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)')                                          # Set main title for the figure.
-            fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)')                                         # Set main title for the top view figure.
+            fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)  # Set main title for the figure.
+            fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95) # Set main title for the top view figure.
             draw_frame(fig, ax1, k, angle_view=True)                                                            # Render the current frame.
             draw_frame(fig_top, ax1_t, k, angle_view=False)
             plt.pause(0.01)                                                                                     # Pause to allow UI to update.
             
         tin = float(T[-1])
-        fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)')                                              # Set main title for the figure.
-        fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)')                                             # Set main title for the top view figure.
+        fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)      # Set main title for the figure.
+        fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)     # Set main title for the top view figure.
         draw_frame(fig, ax1, t - 1, angle_view=True)                                                            # Render the current frame.
         draw_frame(fig_top, ax1_t, t - 1, angle_view=False)
         plt.pause(0.1)                                                                                          # Pause to allow UI to update.
@@ -358,7 +354,7 @@ def plot_transient_steps(p, u, nom, title='Solution', verbose=True):
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
         surf = _render_surface(ax1, p, u[:, k], triangles, cm.coolwarm, min_val, max_val)                       # Render solution surface.
-        _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)', title)   # Format axes for the solution.
+        _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')          # Format axes for the solution.
         if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
             fig_obj.colorbar(surf, ax=ax1, fraction=0.046, pad=0.04)
             fig_obj.colorbar_added = True
