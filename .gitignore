@@ -163,3 +163,5 @@ cython_debug/
 *.m
 *.mat
 test_*.py
+test/*.egg-info/
+tests/

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mGFD"
+version = "0.9.1"
+description = "A meshless generalized finite difference method for solving stationary and transient PDEs"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Gerardo Tinoco Guerrero", email = "gerardo.tinoco@umich.mx" },
+]
+
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pandas",
+    "psutil",
+    "pyvista",
+]
+
+[project.urls]
+Homepage = "https://github.com/gstinoco/mGFD"
+Repository = "https://github.com/gstinoco/mGFD.git"
+Issues = "https://github.com/gstinoco/mGFD/issues"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+cloud = [
+    "shapely",
+    "opencv-python-headless",
+]
+
+[project.scripts]
+mgfd-cloud = "mGFD.CloudGenerator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
