@@ -76,8 +76,8 @@ mgfd-cloud --help
 # Generate a point cloud (Poisson-Disk)
 mgfd-cloud generate --input contours.csv --output my_cloud.csv --method natural --density 0.1
 
-# Reduce the density of an existing cloud (useful for multi-grid approaches)
-mgfd-cloud reduce --input high_density.csv --output low_density.csv --factor 0.5
+# Reduce the density of an existing cloud silently
+mgfd-cloud -q reduce --input high_density.csv --output low_density.csv --factor 0.5
 ```
 </details>
 
@@ -105,8 +105,8 @@ f_stat = lambda x, y: 2 * np.exp(x + y)
 # 4. Define the differential operator [D, E, A, B, C, F]
 L_stat = np.vstack([[0], [0], [2], [0], [2], [0]])
 
-# 5. Solve the equation!
-u_ap, u_ex, vec = Stationary(p, phi, f_stat, operator=L_stat)
+# 5. Solve the equation! (Verbose mode on by default in scripts, but off in the core library)
+u_ap, u_ex, vec = Stationary(p, phi, f_stat, operator=L_stat, verbose=True)
 ```
 </details>
 
@@ -124,7 +124,7 @@ v, t1 = 0.01, 100
 f_heat = lambda x, y, t, coef: np.exp(-2 * np.pi**2 * coef[0] * t) * np.cos(np.pi * x) * np.cos(np.pi * y)
 L_heat = np.vstack([[0], [0], [2*v], [0], [2*v], [0]])
 
-u_ap, u_ex, vec = TimeDerivative1(p, f_heat, t1, [v], operator=L_heat, implicit=True, lam=0.5)
+u_ap, u_ex, vec = TimeDerivative1(p, f_heat, t1, [v], operator=L_heat, implicit=True, lam=0.5, verbose=True)
 ```
 </details>
 
@@ -143,7 +143,7 @@ f_wave = lambda x, y, t, coef: np.cos(np.sqrt(2) * np.pi * coef[0] * t) * np.sin
 g_wave = lambda x, y, t, coef: 0.0 * x  # Initial velocity
 L_wave = np.vstack([[0], [0], [2*c**2], [0], [2*c**2], [0]])
 
-u_ap, u_ex, vec = TimeDerivative2(p, f_wave, g_wave, t2, [c], operator=L_wave, implicit=True, lam=0.5)
+u_ap, u_ex, vec = TimeDerivative2(p, f_wave, g_wave, t2, [c], operator=L_wave, implicit=True, lam=0.5, verbose=True)
 ```
 </details>
 

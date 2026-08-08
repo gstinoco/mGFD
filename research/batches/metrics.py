@@ -1,5 +1,5 @@
 """
-Errors — Area-weighted error metrics on point clouds
+Metrics — Area-weighted error metrics on point clouds
 
 Overview:
     Utilities to compute an area-weighted RMSE between an approximate solution (u_ap) and a reference
@@ -15,9 +15,10 @@ Notes:
     be inaccurate (including self-intersections).
 
 Public API:
-    PolyArea             Polygon area by the shoelace formula.
     compute_rmse_transient      Area-weighted RMSE per time step.
     compute_rmse_stationary     Area-weighted RMSE for a single snapshot.
+    Compute_Metrics_Stationary  Comprehensive error metrics for a single snapshot.
+    Compute_Metrics_Transient   Comprehensive error metrics for transient solutions.
 
 Credits:
     All the codes presented below were developed by:

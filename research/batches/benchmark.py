@@ -52,9 +52,10 @@ except ImportError:                                                             
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
 sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import Stationary".
 
-import mGFD.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
+import metrics as Errors                                                                       # Error metrics for stationary/transient runs.
 from mGFD import Stationary, TimeDerivative1, TimeDerivative2                                           # Core solvers to benchmark.
-from mGFD.IO import load_points, iter_clouds                                                         # Dataset loading and traversal.
+from mGFD.io.io import load_points
+from batch_utils import iter_clouds                                                         # Dataset loading and traversal.
 
 
 def _require_optional_deps():                                                                           # Validate optional dependencies for benchmarking/reporting.
@@ -125,7 +126,7 @@ def benchmark_poisson_equation(p):                                              
         Stationary, p, phi, f, operator = L                                                             # Call stationary solver.
     )                                                                                                   # Unpack solution and measurements.
     
-    er = Errors.compute_rmse_stationary(p, vec, u_ap, u_ex)                                                    # Per-node error metric.
+    er = Errors.compute_rmse_stationary(p, vec, u_ap, u_ex)                                             # Per-node error metric.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
     return {                                                                                            # Return a structured metrics record for this run.
@@ -165,7 +166,7 @@ def benchmark_heat_equation(p):                                                 
                         # Call transient solver (1st order).
     )                                                                                                   # Unpack solution and measurements.
     
-    er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                                     # Per-node error metric across time.
+    er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
     return {                                                                                            # Return a structured metrics record for this run.
@@ -209,10 +210,10 @@ def benchmark_advdif_equation(p):                                               
     L = np.vstack([[-a], [-b], [2 * v], [0], [2 * v], [0]])                                             # Operator (matches run_AdvDif.py).
     
     (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
-        TimeDerivative1, p, f, t, [v, a, b], operator = L, implicit = True, lam = 0.5, upwind = True   # Call transient solver (1st order).
+        TimeDerivative1, p, f, t, [v, a, b], operator = L, implicit = True, lam = 0.5, upwind = True    # Call transient solver (1st order).
     )                                                                                                   # Unpack solution and measurements.
     
-    er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                                     # Per-node error metric across time.
+    er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
     return {                                                                                            # Return a structured metrics record for this run.
@@ -296,10 +297,10 @@ def benchmark_wave_equation(p):                                                 
     L = np.vstack([[0], [0], [2 * c**2], [0], [2 * c**2], [0]])                                         # Operator (matches run_Wave.py).
     
     (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
-        TimeDerivative2, p, f, g, t, [c], operator = L, implicit = True, lam = 1                       # Call transient solver (2nd order).
+        TimeDerivative2, p, f, g, t, [c], operator = L, implicit = True, lam = 1                        # Call transient solver (2nd order).
     )                                                                                                   # Unpack solution and measurements.
     
-    er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                                     # Per-node error metric across time.
+    er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
     return {                                                                                            # Return a structured metrics record for this run.
@@ -335,7 +336,7 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
     _require_optional_deps()                                                                            # Ensure psutil/pandas are available for this workflow.
 
     if equations is None:                                                                               # Default equation set when not provided.
-        equations = ['Poisson', 'Heat', 'Adv', 'AdvDif', 'Wave']                                               # Default: run all available benchmark cases.
+        equations = ['Poisson', 'Heat', 'Adv', 'AdvDif', 'Wave']                                        # Default: run all available benchmark cases.
     
     equation_functions = {                                                                              # Map equation labels to benchmark functions.
         'Poisson': benchmark_poisson_equation,                                                          # Stationary Poisson benchmark.
@@ -352,7 +353,8 @@ def run_comprehensive_benchmark(equations=None, save_results=True, data_root=Non
     
     if data_root is None:                                                                               # Default data root when not provided.
         data_root = os.path.join(BASE_DIR, 'Data')                                                      # Default to <repo_root>/Data.
-    clouds = list(iter_clouds(data_root))                                                               # Enumerate all cloud CSV files.
+    SCALES = ('1', '2', '3', '4', '5')
+    clouds = list(iter_clouds(data_root, scales=SCALES))                                                # Enumerate all cloud CSV files.
     total_combinations = int(len(clouds) * len(equations))                                              # Total runs expected.
     current = 0                                                                                         # Progress counter.
     

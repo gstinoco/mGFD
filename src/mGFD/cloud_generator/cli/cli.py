@@ -67,13 +67,14 @@ def handle_generate(args: argparse.Namespace):
         print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)      # Print an error message to standard error.
         sys.exit(1)                                                                 # Exit with an error code.
         
-    print(f"mGFD CloudGenerator - Generate")                                        # Print header text for generation.
-    print(f"==============================")                                        # Print separator line.
-    print(f"Input:    {args.input}")                                                # Print the input file path.
-    print(f"Output:   {args.output}")                                               # Print the output file path.
-    print(f"Method:   {args.method}")                                               # Print the selected method.
-    print(f"Density:  {args.density}x")                                             # Print the density multiplier.
-    print("Generating point cloud, please wait...")                                 # Print wait message.
+    if not args.quiet:
+        print(f"mGFD CloudGenerator - Generate")                                        # Print header text for generation.
+        print(f"==============================")                                        # Print separator line.
+        print(f"Input:    {args.input}")                                                # Print the input file path.
+        print(f"Output:   {args.output}")                                               # Print the output file path.
+        print(f"Method:   {args.method}")                                               # Print the selected method.
+        print(f"Density:  {args.density}x")                                             # Print the density multiplier.
+        print("Generating point cloud, please wait...")                                 # Print wait message.
 
     try:                                                                            # Start generation process inside a try-except block.
         if args.method == "natural":                                                # Check if the selected method is 'natural'.
@@ -91,11 +92,12 @@ def handle_generate(args: argparse.Namespace):
                 density_multiplier=args.density                                     # Pass the density multiplier.
             )
             
-        print("\nSuccess!")                                                         # Print success message.
-        print(f"Total points generated: {result.get('total_nodes', 'Unknown')}")    # Print total generated nodes.
-        print(f"Regions generated:      {result.get('regions_generated', 'Unknown')}") # Print number of generated regions.
-        print(f"Main region points:     {result.get('main_region_nodes', 'Unknown')}") # Print points in the main region.
-        print(f"Visualizations saved to {result.get('visualization_file', '')} and {result.get('visualization_svg_file', '')}") # Print visualization paths.
+        if not args.quiet:
+            print("\nSuccess!")                                                         # Print success message.
+            print(f"Total points generated: {result.get('total_nodes', 'Unknown')}")    # Print total generated nodes.
+            print(f"Regions generated:      {result.get('regions_generated', 'Unknown')}") # Print number of generated regions.
+            print(f"Main region points:     {result.get('main_region_nodes', 'Unknown')}") # Print points in the main region.
+            print(f"Visualizations saved to {result.get('visualization_file', '')} and {result.get('visualization_svg_file', '')}") # Print visualization paths.
         
     except Exception as e:                                                          # Handle general exceptions.
         print(f"\nError generating cloud: {e}", file=sys.stderr)                    # Print error details to standard error.
@@ -118,12 +120,13 @@ def handle_reduce(args: argparse.Namespace):
         print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)      # Print an error message to standard error.
         sys.exit(1)                                                                 # Exit with an error code.
         
-    print(f"mGFD CloudGenerator - Reduce")                                          # Print header text for reduction.
-    print(f"============================")                                          # Print separator line.
-    print(f"Input:      {args.input}")                                              # Print the input file path.
-    print(f"Output:     {args.output}")                                             # Print the output file path.
-    print(f"Multiplier: {args.multiplier}")                                         # Print the reduction multiplier.
-    print("Reducing point cloud, please wait...")                                   # Print wait message.
+    if not args.quiet:
+        print(f"mGFD CloudGenerator - Reduce")                                          # Print header text for reduction.
+        print(f"============================")                                          # Print separator line.
+        print(f"Input:      {args.input}")                                              # Print the input file path.
+        print(f"Output:     {args.output}")                                             # Print the output file path.
+        print(f"Multiplier: {args.multiplier}")                                         # Print the reduction multiplier.
+        print("Reducing point cloud, please wait...")                                   # Print wait message.
 
     try:                                                                            # Start reduction process inside a try-except block.
         result = reduce_points_by_region(                                           # Call the point reduction function.
@@ -133,8 +136,9 @@ def handle_reduce(args: argparse.Namespace):
         )
         
         if result is not None:                                                      # Check if the reduction was successful.
-            print("\nSuccess!")                                                     # Print success message.
-            print(f"Total points after reduction: {len(result)}")                   # Print the new total number of points.
+            if not args.quiet:
+                print("\nSuccess!")                                                     # Print success message.
+                print(f"Total points after reduction: {len(result)}")                   # Print the new total number of points.
             
             # 1. Generate visualization
             points = np.array([(row['x'], row['y']) for row in result])             # Extract point coordinates.
@@ -143,7 +147,8 @@ def handle_reduce(args: argparse.Namespace):
             
             output_base = os.path.splitext(args.output)[0]                          # Get output path without extension.
             create_visualization(points, regions_list, output_base, classifications) # Generate visual plots.
-            print(f"Visualizations saved to {output_base}.png and {output_base}.svg") # Inform the user about saved visual plots.
+            if not args.quiet:
+                print(f"Visualizations saved to {output_base}.png and {output_base}.svg") # Inform the user about saved visual plots.
             
         else:                                                                       # If reduction returned None (failed).
             print(f"\nError: Failed to reduce cloud. Check logs for details.", file=sys.stderr) # Print error message.
@@ -169,6 +174,7 @@ def main():
     parser = argparse.ArgumentParser(                                               # Instantiate an ArgumentParser.
         description="mGFD CloudGenerator - Point cloud generation and optimization suite." # Define program description.
     )
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress non-error console output.") # Add quiet flag globally.
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")   # Add sub-command parsers.
     subparsers.required = True                                                      # Ensure a sub-command is always provided.

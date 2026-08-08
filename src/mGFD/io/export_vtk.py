@@ -79,7 +79,7 @@ def _create_mesh(p, cloud_path=None):
     mesh.point_data['Flag'] = p[:, 2]                                                                   # Store boundary flag in the mesh.
     return mesh                                                                                         # Return created mesh.
 
-def export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Stationary_Solution", cloud_path=None):
+def export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Stationary_Solution", cloud_path=None, verbose=True):
     '''
     export_stationary_vtk
     Export a stationary PDE solution to a VTK (.vtp) file.
@@ -94,6 +94,7 @@ def export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Stationary_Solution"
         out_dir                     str             Directory where the VTK file will be saved.
         basename                    str             Base filename for the output file.
         cloud_path                  str             (Optional) Path to the point cloud CSV, used to load cached boundary-aware triangulations.
+        verbose                     bool            (Optional) If True, prints status messages to standard output.
     '''
     os.makedirs(out_dir, exist_ok=True)                                                                 # Ensure output directory exists.
     mesh = _create_mesh(p, cloud_path=cloud_path)                                                       # Create base mesh for the geometry.
@@ -104,9 +105,11 @@ def export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Stationary_Solution"
     
     filepath = os.path.join(out_dir, f"{basename}.vtp")                                                 # Assemble full output path.
     mesh.save(filepath)                                                                                 # Save VTP file to disk.
-    print(f"\tSaved VTK to {filepath}")                                                                 # Report successful save.
+    
+    if verbose:
+        print(f"\tSaved VTK to {filepath}")                                                                 # Report successful save.
 
-def export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Transient_Solution", cloud_path=None):
+def export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Transient_Solution", cloud_path=None, verbose=True):
     '''
     export_transient_vtk
     Export a transient PDE solution to a time-series VTK (.pvd + .vtp) format.
@@ -123,6 +126,7 @@ def export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Transient_Solut
         out_dir                     str             Directory where the VTK files will be saved.
         basename                    str             Base filename for the output PVD and VTP files.
         cloud_path                  str             (Optional) Path to the point cloud CSV, used to load cached boundary-aware triangulations.
+        verbose                     bool            (Optional) If True, prints status messages to standard output.
     '''
     os.makedirs(out_dir, exist_ok=True)                                                                 # Ensure output directory exists.
     mesh = _create_mesh(p, cloud_path=cloud_path)                                                       # Create base mesh for the geometry.
@@ -160,4 +164,5 @@ def export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Transient_Solut
     with open(pvd_filepath, "w") as f:                                                                  # Open PVD file for writing.
         f.write("\n".join(pvd_content))                                                                 # Write all lines to PVD.
         
-    print(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                              # Report successful save.
+    if verbose:
+        print(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                          # Report successful save.

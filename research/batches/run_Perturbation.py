@@ -50,13 +50,15 @@ import json                                                                     
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
 sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import Stationary".
 
-import mGFD.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
-import mGFD.ExportVTK as ExportVTK                                                                   # VTK export utilities for ParaView.
+import metrics as Errors                                                                         # Error metrics for stationary/transient runs.
+import mGFD.io.export_vtk as ExportVTK                                                                   # VTK export utilities for ParaView.
 from mGFD import Stationary                                                                             # Core solver to run the reference case.rturbation problem.
-from mGFD.IO import load_points, iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
+from mGFD.viz.graph import plot_stationary
+from mGFD.io.io import load_points
+from batch_utils import iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
 
 
-def process_cloud(dataset, scale, cloud_path, results_path, save):                                      # Run one cloud case and write outputs to Results/.
+def process_cloud(dataset, scale, cloud_path, results_path, save, verbose=True):                      # Run one cloud case and write outputs to Results/.
     """
     process_cloud
     Run the perturbation stationary problem (upwind=True) on a single point cloud file.
@@ -67,20 +69,22 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
         save                        bool            Whether to save the solution arrays.
+        verbose                     bool            If True, prints progress and errors to console.
 
     Output:
         None
     """
     region_id = f'{dataset}/{scale}'                                                                    # Region identifier.
-    print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
+    if verbose:
+        print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
 
-    p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
+    p = load_points(cloud_path, verbose=verbose)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
 
     vec0 = load_neighbors(cloud_path, NVEC, tag = TAG)                                                  # Load tagged cached neighbor list if present.
     
     start_time = time.time()                                                                            # Start execution timer.
     u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary advection-dominated problem.
-        p, phi, f, operator = L, upwind = True, vec = vec0, nvec = NVEC                                    # Use cached neighbors when valid.
+        p, phi, f, operator = L, upwind = True, vec = vec0, nvec = NVEC, verbose = verbose                                    # Use cached neighbors when valid.
     )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
     comp_time = time.time() - start_time                                                                # Compute execution duration.
     
@@ -88,7 +92,8 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         save_neighbors(cloud_path, NVEC, vec, tag = TAG)                                                # Save tagged neighbor cache for future runs.
 
     metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time=comp_time)             # Compute comprehensive stationary error metrics.
-    print(f'\tError (RMSE): {metrics["RMSE"]}')                                                         # Print RMSE error for quick inspection.
+    if verbose:
+        print(f'\tError (RMSE): {metrics["RMSE"]}')                                                         # Print RMSE error for quick inspection.
 
     out_dir = os.path.join(results_path, 'Perturbation', dataset, scale)                                # Output directory for this region.
     os.makedirs(out_dir, exist_ok = True)                                                               # Ensure output directory exists.
@@ -97,12 +102,17 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         json.dump(metrics, file, indent=4)                                                              # Write structured metrics as JSON.
 
     if save:                                                                                            # Save solution to VTK format if requested.
-        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Perturbation_Solution", cloud_path=cloud_path) # Save VTK data to disk.
+        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Perturbation_Solution", cloud_path=cloud_path, verbose=verbose) # Save VTK data to disk.
+        
+        plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Perturbation_Approximation'), title='Stationary Approximation', verbose=verbose)
+        
+        if scale == '5':                                                                                # Only for scale 5, create an independent plot of the exact solution.
+            plot_stationary(p, u_ex, save=True, nom=os.path.join(out_dir, 'Perturbation_Exact'), title='Theoretical Solution', verbose=verbose)
 
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('0.25x', '0.50x', '1.00x', '1.50x', '2.00x', '3.00x')                                         # Scales to process under each dataset.
+SCALES = ('1', '2', '3', '4', '5')                                         # Scales to process under each dataset.
 NVEC = 12                                                                                               # Neighbor count used by the solver.
 
 
@@ -122,8 +132,15 @@ L = np.vstack([[vx], [vy], [-D], [0], [-D], [0]])                               
 
 ## Save policy.
 Save = True                                                                                             # Choose whether VTK outputs must be saved.
+Verbose = True                                                                                          # Choose whether prints should be visible.
 
 ## Solve the problem using a meshless Generalized Finite Difference approach.
-print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
-for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, scales = SCALES):                              # Iterate all discovered cloud CSVs.
-    process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save)                                       # Run one case and write outputs.
+if Verbose:
+    print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
+found = 0                                                                                               # Counter to detect empty runs.
+for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, SCALES):                              # Iterate all discovered cloud CSVs.
+    found += 1
+    process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save, verbose=Verbose)                      # Run one case and write outputs.
+if found == 0:
+    if Verbose:
+        print(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')

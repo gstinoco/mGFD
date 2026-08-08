@@ -51,7 +51,7 @@ from typing import Callable, Optional, Tuple, List
 import mGFD.core.gammas as Gammas
 import mGFD.core.neighbors as Neighbors
 
-def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), implicit: bool = False, lam: float = 0.5, upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), implicit: bool = False, lam: float = 0.5, upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Numerical solution of partial differential equations with first-order time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -72,6 +72,7 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
         upwind                      bool            If an Upwind stencil is requested.
         vec         m x nvec        ndarray         Cached neighbor list (optional).
         nvec                        int             Maximum number of neighbors for each node.
+        verbose                     bool            If True, prints solver progress.
     
     Output:
         u_ap        m x t           ndarray         Array with the approximation computed by the routine.
@@ -81,6 +82,8 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
 
     # 1. Variable initialization
     m      = p.shape[0]                                                             # Total number of nodes.
+    if verbose:
+        print(f"Solving Transient problem ({t} steps) for {m} nodes...")
     T      = np.linspace(0, 1, t)                                                   # Time discretization array.
     dt     = T[1] - T[0]                                                            # Time step size.
     u_ap   = np.zeros([m, t])                                                       # Numerical approximation matrix.
@@ -139,4 +142,6 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
     for k in np.arange(t):
         u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], coef)
 
+    if verbose:
+        print(f"\tSolver finished successfully.")
     return u_ap, u_ex, vec

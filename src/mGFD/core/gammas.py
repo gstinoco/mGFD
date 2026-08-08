@@ -55,9 +55,9 @@ Last Modification:
 ## Library importation.
 import numpy as np
 from scipy.sparse import csr_matrix
-from scipy.optimize import nnls                                                                                      # Core numerical operations.
+from scipy.optimize import nnls                                                                                     # Core numerical operations.
 
-from scipy.sparse.linalg import LinearOperator, bicgstab                                                # SciPy iterative solver interface.
+from scipy.sparse.linalg import LinearOperator, bicgstab                                                            # SciPy iterative solver interface.
 
 def Cloud(p, vec, L):
     """

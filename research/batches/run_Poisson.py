@@ -41,21 +41,21 @@ Last Modification:
 
 ## Library importation.
 import os                                                                                               # Filesystem and path utilities.
-import sys                                                                                              # sys.path manipulation so this script can import project modules.
 import time                                                                                             # Time tracking for execution performance.
 import numpy as np                                                                                      # Numerical arrays and math.
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Repository root from batches/ folder.
-sys.path.append(BASE_DIR)                                                                               # Enable imports like "from mGFD import Stationary".
-
 import json                                                                                             # JSON serialization for metrics.
+import matplotlib.pyplot as plt                                                                         # Matplotlib for generating comparison figures.
 
-import mGFD.Errors as Errors                                                                         # Error metrics for stationary/transient runs.
-import mGFD.ExportVTK as ExportVTK                                                                   # VTK export utilities for ParaView.
+import metrics as Errors                                                                                # Error metrics for stationary/transient runs.
+import mGFD.io.export_vtk as ExportVTK                                                                  # VTK export utilities for ParaView.
 from mGFD import Stationary                                                                             # Core solver to run the reference case.Poisson problem.
-from mGFD.IO import load_points, iter_clouds, load_neighbors, save_neighbors                         # Dataset loading + neighbor cache helpers.
+from mGFD.viz.graph import plot_stationary                                                              # Plotting utilities for the results.
+from mGFD.io.io import load_points
+from batch_utils import iter_clouds, load_neighbors, save_neighbors                                     # Dataset loading + neighbor cache helpers.
 
-def process_cloud(dataset, scale, cloud_path, results_path, save):                                      # Run one cloud case and write outputs to Results/.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                  # Research root directory.
+
+def process_cloud(dataset, scale, cloud_path, results_path, save, verbose=True):                        # Run one cloud case and write outputs to Results/.
     """
     process_cloud
     Run the Poisson benchmark on a single point cloud file.
@@ -66,12 +66,14 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
         save                        bool            Whether to save the solution arrays.
+        verbose                     bool            If True, prints progress and errors to console.
 
     Output:
         None
     """
     region_id = f'{dataset}/{scale}'                                                                    # Region identifier.
-    print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
+    if verbose:
+        print(f'Working on region: {region_id}')                                                            # Progress message for the batch run.
 
     p = load_points(cloud_path)                                                                         # Load point cloud into (m, 3) array [x, y, flag].
 
@@ -87,7 +89,8 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.
 
     metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time=comp_time)             # Compute comprehensive stationary error metrics.
-    print(f'\tError (RMSE): {metrics["RMSE"]}')                                                         # Print RMSE error for quick inspection.
+    if verbose:
+        print(f'\tError (RMSE): {metrics["RMSE"]}')                                                         # Print RMSE error for quick inspection.
 
     out_dir = os.path.join(results_path, 'Poisson', dataset, scale)                                     # Output directory for this region.
     os.makedirs(out_dir, exist_ok = True)                                                               # Ensure output directory exists.
@@ -97,10 +100,16 @@ def process_cloud(dataset, scale, cloud_path, results_path, save):              
 
     if save:                                                                                            # Save solution to VTK format if requested.
         ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Poisson_Solution", cloud_path=cloud_path) # Save VTK data to disk.
+        
+        # Save only the approximation to avoid 3D rendering bottlenecks on 4-subplot figures.
+        plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Poisson_Approximation'), title='Stationary Approximation')
+        
+        if scale == '5':                                                                                # Only for scale 5, create an independent plot of the exact solution.
+            plot_stationary(p, u_ex, save=True, nom=os.path.join(out_dir, 'Poisson_Exact'), title='Theoretical Solution')
 
 DATA_ROOT = os.path.join(BASE_DIR, 'Data')                                                              # Input dataset root directory.
 RESULTS_ROOT = os.path.join(BASE_DIR, 'Results')                                                        # Output results root directory.
-SCALES = ('0.25x', '0.50x', '1.00x', '1.50x', '2.00x', '3.00x')                                         # Scales to process under each dataset.
+SCALES = ('1', '2', '3', '4', '5')                                                                      # Scales to process under each dataset.
 NVEC = 12                                                                                               # Neighbor count used by the solver.
 
 
@@ -113,12 +122,15 @@ L = np.vstack([[0], [0], [2], [0], [2], [0]])                                   
 
 ## Save policy.
 Save = True                                                                                             # Choose whether VTK outputs must be saved.
+Verbose = True                                                                                          # Choose whether prints should be visible.
 
 ## Solve the problem using a meshless Generalized Finite Difference approach.
-print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
+if Verbose:
+    print(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                   # Print batch discovery info.
 found = 0                                                                                               # Counter to detect empty runs.
 for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, SCALES):                                       # Iterate all discovered cloud CSVs.
     found += 1                                                                                          # Count discovered inputs.
-    process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save)                                       # Run one case and write outputs.
+    process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save, verbose=Verbose)                      # Run one case and write outputs.
 if found == 0:                                                                                          # Provide a clear message when no inputs are found.
-    print(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')                              # Report empty discovery outcome.
+    if Verbose:
+        print(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')                              # Report empty discovery outcome.
