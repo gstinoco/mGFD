@@ -46,15 +46,19 @@ Last Modification:
 """
 
 ## Library importation.
+import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
-import matplotlib.pyplot as plt                                                                                                         # Plotting interface.
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib                                                                                                         # Plotting interface.
 
-from matplotlib import cm                                                                                                               # Colormaps.
 from matplotlib import animation                                                                                                        # Animation framework.
 from matplotlib.animation import FuncAnimation                                                                                          # Animation helper.
 from typing import Callable, Optional, Tuple, List, Any                                                                                 # Type hinting.
 
 from mGFD.core.utils import get_valid_triangulation, get_aspect_and_bounds                                                              # Geometry utilities.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, float], x_bounds: List[float], y_bounds: List[float], z_bounds: List[float], z_label: str) -> None:
     """
@@ -93,7 +97,7 @@ def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, fl
         ax.dist = 6.2                                                                                                                   # Adjust camera zoom for perspective.
         ax.view_init(elev=20, azim=-45)                                                                                                 # Set perspective viewing angle.
         ax.set_zlabel(z_label, labelpad=10)                                                                                             # Set Z-axis label with padding.
-    else:
+    else:                                                                                                                               # Interactive mode.
         ax.dist = 5.2                                                                                                                   # Adjust camera zoom for top view.
         ax.set_zticks([])                                                                                                               # Remove Z-axis ticks for top view.
         ax.view_init(elev=90, azim=270)                                                                                                 # Set top-down viewing angle.
@@ -119,10 +123,10 @@ def _render_surface(ax: Any, p: np.ndarray, data: np.ndarray, triangles: Optiona
     """
     # 1. Rendering
     if triangles is not None:                                                                                                           # Check if triangulation is available.
-        return ax.plot_trisurf(p[:, 0], p[:, 1], data, triangles=triangles, cmap=cmap, \
-                                vmin=vmin, vmax=vmax, edgecolors='none', \
+        return ax.plot_trisurf(p[:, 0], p[:, 1], data, triangles=triangles, cmap=cmap,
+                                vmin=vmin, vmax=vmax, edgecolors='none',
                                 linewidth=0, antialiased=False)                                                                         # Plot surface using valid triangulation.
-    else:
+    else:                                                                                                                               # Interactive mode.
         return ax.scatter(p[:, 0], p[:, 1], zs=data, c=data, cmap=cmap, s=1, vmin=vmin, vmax=vmax)                                      # Fallback to plotting scattered points.
 
 
@@ -182,7 +186,7 @@ def _generate_static_views(render_func: Callable, title: str, save_path: Optiona
             plt.savefig(f'{save_path}{suffix}.png', bbox_inches='tight')                                                                # Save figure to disk.
             
             if verbose:                                                                                                                 # Check verbosity flag.
-                print(f'\tSaved figure to {save_path}{suffix}.png')                                                                     # Print confirmation of save.
+                logger.info(f'\tSaved figure to {save_path}{suffix}.png')                                                               # Print confirmation of save.
             
             plt.close(fig)                                                                                                              # Close figure to release memory.
             
@@ -218,18 +222,18 @@ def plot_stationary(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str =
             ax1                     Any             The 3D axes object to draw on.
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
-        surf = _render_surface(ax1, p, u, triangles, cm.coolwarm, min_val, max_val)                                                     # Render solution surface.
+        surf = _render_surface(ax1, p, u, triangles, matplotlib.colormaps['coolwarm'], min_val, max_val)                                # Render solution surface.
         _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')                                  # Format axes for the solution.
         
-        if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
-            fig_obj.colorbar(surf, ax=ax1, fraction=0.046, pad=0.04)
-            fig_obj.colorbar_added = True
+        if not angle_view and not hasattr(fig_obj, 'colorbar_added'):                                                                   # Check if a colorbar is needed.
+            fig_obj.colorbar(surf, ax=ax1, fraction=0.046, pad=0.04)                                                                    # Add colorbar to the plot.
+            fig_obj.colorbar_added = True                                                                                               # Mark colorbar as added.
 
     # 3. Render execution
-    if save:
-        _generate_static_views(draw_plot, title, save_path=nom, verbose=verbose)
-    else:
-        _generate_static_views(draw_plot, title, show=True, verbose=verbose)
+    if save:                                                                                                                            # Check if save flag is enabled.
+        _generate_static_views(draw_plot, title, save_path=nom, verbose=verbose)                                                        # Generate and save static views.
+    else:                                                                                                                               # Interactive mode.
+        _generate_static_views(draw_plot, title, show=True, verbose=verbose)                                                            # Generate and show interactive views.
 
 
 def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
@@ -265,13 +269,13 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
         if not hasattr(fig_obj, 'surf_artists'):
-            s1 = _render_surface(ax1, p, u[:, k], triangles, cm.coolwarm, min_val, max_val)                                             # Render solution surface.
+            s1 = _render_surface(ax1, p, u[:, k], triangles, matplotlib.colormaps['coolwarm'], min_val, max_val)                        # Render solution surface.
             fig_obj.surf_artists = {'s1': s1}                                                                                           # Cache surface artists for animation updates.
             _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')                              # Format axes for the solution.
             
             if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
-                fig_obj.colorbar(s1, ax=ax1, fraction=0.046, pad=0.04)
-                fig_obj.colorbar_added = True
+                fig_obj.colorbar(s1, ax=ax1, fraction=0.046, pad=0.04)                                                                  # Add colorbar to the plot.
+                fig_obj.colorbar_added = True                                                                                           # Mark colorbar as added.
         else:
             if triangles is not None:                                                                                                   # Check if triangulation is available.
                 artist = fig_obj.surf_artists['s1']                                                                                     # Retrieve cached surface artist.
@@ -286,7 +290,7 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
                 artist.set_array(z_data)                                                                                                # Update scatter colors.
 
     # 3. Render execution
-    if save:
+    if save:                                                                                                                            # Check if save flag is enabled.
         def save_animation(angle_view: bool, view_name: str, suffix: str, verbose: bool = verbose) -> None:
             """
             save_animation
@@ -301,51 +305,51 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                              # Create figure and 3D axis for animation.
             
             def update(frame: int) -> None:
-                tin = float(T[frame])
+                tin = float(T[frame])                                                                                                   # Get the current time step value.
                 fig.suptitle(f'{title} at t = {tin:1.3f} s ({view_name})', fontsize=16, fontweight='bold', y=0.95)                      # Set main title for the figure.
                 draw_frame(fig, ax, frame, angle_view=angle_view)                                                                       # Render the current frame.
 
-            ani     = FuncAnimation(fig, update, frames=np.arange(0, t, step), blit=False)                                              # Initialize animation object.
-            out_nom = nom
+            ani     = FuncAnimation(fig, update, frames=np.arange(0, t, step), blit=False)  # type: ignore                              # Initialize animation object.
+            out_nom = nom                                                                                                               # Set initial output filename.
             
-            if suffix:
-                out_nom = nom.replace('.mp4', f'{suffix}.mp4').replace('.gif', f'{suffix}.gif')
-                if out_nom == nom: out_nom = nom + suffix
+            if suffix:                                                                                                                  # Check if suffix is provided.
+                out_nom = nom.replace('.mp4', f'{suffix}.mp4').replace('.gif', f'{suffix}.gif')                                         # Append suffix before extension.
+                if out_nom == nom: out_nom = nom + suffix                                                                               # Fallback suffix append.
                 
             if animation.writers.is_available('ffmpeg'):                                                                                # Check if FFmpeg is installed.
                 ani.save(out_nom.replace('.gif', '.mp4'), writer='ffmpeg', fps=10)                                                      # Save animation as high-quality MP4.
                 
                 if verbose:
-                    print(f'\tSaved animation to {out_nom.replace(".gif", ".mp4")}')                                                    # Print confirmation of save.
+                    logger.info(f'\tSaved animation to {out_nom.replace(".gif", ".mp4")}')                                              # Print confirmation of save.
             else:                                                                                                                       # Fallback to Pillow.
                 ani.save(out_nom, writer='pillow', fps=10)                                                                              # Save animation as GIF.
                 
                 if verbose:
-                    print(f'\tSaved animation to {out_nom}')                                                                            # Print confirmation of save.
+                    logger.info(f'\tSaved animation to {out_nom}')                                                                      # Print confirmation of save.
                 
             plt.close(fig)                                                                                                              # Close figure to release memory.
             
-        save_animation(True, 'Perspective', '', verbose=verbose)
-        save_animation(False, 'Top View', '_top', verbose=verbose)
+        save_animation(True, 'Perspective', '', verbose=verbose)                                                                        # Save perspective animation.
+        save_animation(False, 'Top View', '_top', verbose=verbose)                                                                      # Save top view animation.
 
     # 4. Interactive animation
-    else:
-        fig, ax1       = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Larger figsize.
-        fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))
+    else:                                                                                                                               # Interactive mode.
+        fig, ax1       = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Create figure for perspective view.
+        fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Create figure for top view.
         
         for k in np.arange(0, t, step):
-            tin = float(T[k])
+            tin = float(T[k])                                                                                                           # Get physical time value.
             fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)                          # Set main title for the figure.
             fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)                         # Set main title for the top view figure.
             draw_frame(fig, ax1, k, angle_view=True)                                                                                    # Render the current frame.
-            draw_frame(fig_top, ax1_t, k, angle_view=False)
+            draw_frame(fig_top, ax1_t, k, angle_view=False)                                                                             # Render top view frame.
             plt.pause(0.01)                                                                                                             # Pause to allow UI to update.
             
-        tin = float(T[-1])
+        tin = float(T[-1])                                                                                                              # Get final time value.
         fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)                              # Set main title for the figure.
         fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)                             # Set main title for the top view figure.
         draw_frame(fig, ax1, t - 1, angle_view=True)                                                                                    # Render the current frame.
-        draw_frame(fig_top, ax1_t, t - 1, angle_view=False)
+        draw_frame(fig_top, ax1_t, t - 1, angle_view=False)                                                                             # Render final top view frame.
         plt.pause(0.1)                                                                                                                  # Pause to allow UI to update.
         plt.close(fig)                                                                                                                  # Close figure to release memory.
         plt.close(fig_top)                                                                                                              # Close figure to release memory.
@@ -382,17 +386,17 @@ def plot_transient_steps(p: np.ndarray, u: np.ndarray, nom: str, title: str = 'S
             k                       int             Current time step index.
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
-        surf = _render_surface(ax1, p, u[:, k], triangles, cm.coolwarm, min_val, max_val)                                               # Render solution surface.
+        surf = _render_surface(ax1, p, u[:, k], triangles, matplotlib.colormaps['coolwarm'], min_val, max_val)                          # Render solution surface.
         _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')                                  # Format axes for the solution.
-        if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
-            fig_obj.colorbar(surf, ax=ax1, fraction=0.046, pad=0.04)
-            fig_obj.colorbar_added = True
+        if not angle_view and not hasattr(fig_obj, 'colorbar_added'):                                                                   # Check if a colorbar is needed.
+            fig_obj.colorbar(surf, ax=ax1, fraction=0.046, pad=0.04)                                                                    # Add colorbar to the plot.
+            fig_obj.colorbar_added = True                                                                                               # Mark colorbar as added.
 
     # 3. Snapshot iteration
-    for k in np.arange(0, t + 1, step):
-        if k >= t: k = t - 1
+    for k in np.arange(0, t + 1, step):                                                                                                 # Iterate through selected snapshots.
+        if k >= t: k = t - 1                                                                                                            # Ensure index does not exceed limits.
         tin = float(T[k])
-        nok = nom + '_' + str(format(T[k], '.2f'))
+        nok = nom + '_' + str(format(T[k], '.2f'))                                                                                      # Format snapshot filename.
 
         def render_cb(fig: Any, ax: Any, angle_view: bool) -> None:
             """
@@ -406,4 +410,4 @@ def plot_transient_steps(p: np.ndarray, u: np.ndarray, nom: str, title: str = 'S
             """
             draw_snapshot(fig, ax, k, angle_view)                                                                                       # Execute draw_snapshot with the captured step k.
             
-        _generate_static_views(render_cb, f'{title} at t = {tin:1.3f} s', save_path=nok + 's', verbose=verbose)
+        _generate_static_views(render_cb, f'{title} at t = {tin:1.3f} s', save_path=nok + 's', verbose=verbose)                         # Generate and save views.

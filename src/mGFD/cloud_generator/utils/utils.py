@@ -169,13 +169,13 @@ def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Option
         refinement_candidates.append(density_based_refinement * 0.1)                                                                    # Secondary: Density-based calculation.
         
         if cloud_size_based_refinement:                                                                                                 # If cloud size estimate exists.
-            refinement_candidates.append(cloud_size * 0.05)                                                                             # Tertiary: Cloud size based (if available).
+            refinement_candidates.append(float(cloud_size) * 0.05 if cloud_size else 0.0)                                               # Tertiary: Cloud size based (if available).
         
         # 7. Use a weighted approach or median
         if cloud_size:                                                                                                                  # Favor cloud size if provided.
             dynamic_refinement = cloud_size * 0.05                                                                                      # Set refinement relative to cloud size.
         else:                                                                                                                           # Otherwise use statistical approaches.
-             dynamic_refinement = np.median(refinement_candidates)                                                                      # Fallback to median of candidates.
+            dynamic_refinement = np.median(refinement_candidates)                                                                       # Fallback to median of candidates.
         
         # 8. Apply reasonable bounds
         min_refinement = 0.0001                                                                                                         # Minimum acceptable threshold.
@@ -188,8 +188,7 @@ def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Option
             max_refinement = max(max_refinement, cloud_size * 1.0)                                                                      # Cap max relative to cloud size.
         
         dynamic_refinement = np.clip(dynamic_refinement, min_refinement, max_refinement)                                                # Clamp the value within acceptable bounds.
-        
-        
+
         return dynamic_refinement                                                                                                       # Return the computed refinement.
         
     except Exception as e:                                                                                                              # Fallback for errors during calculation.

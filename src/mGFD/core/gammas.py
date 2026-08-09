@@ -46,7 +46,6 @@ Credits:
         Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
         https://doi.org/10.1016/j.camwa.2025.07.034
 
-
 Date:
     May, 2024.
 Last Modification:
@@ -148,7 +147,6 @@ def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Callable, f:
 
     return R                                                                                                                            # Return assembled RHS.
 
-
 def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float = 1e-8) -> Tuple[np.ndarray, np.ndarray]:
     """
     CloudStencil
@@ -232,7 +230,6 @@ def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: floa
 
     return diag, w                                                                                                                      # Return stencil representation (central + neighbor weights).
 
-
 def ApplyCloudStencil(u: np.ndarray, vec: np.ndarray, diag: np.ndarray, w: np.ndarray) -> np.ndarray:
     """
     ApplyCloudStencil
@@ -259,7 +256,6 @@ def ApplyCloudStencil(u: np.ndarray, vec: np.ndarray, diag: np.ndarray, w: np.nd
     
     # 2. Stencil application
     return diag * u + np.sum(w * neigh_vals, axis = 1)                                                                                  # Apply diag + weighted neighbor sum.
-
 
 def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, tol: float = 1e-10, max_iter: int = 2000) -> np.ndarray:
     """
@@ -326,7 +322,6 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
     except Exception:                                                                                                                   # SciPy missing or solver failed unexpectedly.
         pass                                                                                                                            # Fall back to pure NumPy implementation below.
 
-
     # 2. Pure NumPy Implementation initialization
     if x0 is None:                                                                                                                      # Initialize x for pure NumPy BiCGStab.
         x = np.zeros_like(b, dtype = float)                                                                                             # Default initial guess: zeros.
@@ -342,12 +337,10 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
     v     = np.zeros_like(b, dtype = float)                                                                                             # v vector.
     p     = np.zeros_like(b, dtype = float)                                                                                             # p search direction.
 
-
     # 3. Check for trivial solution
     b_norm = np.linalg.norm(b)                                                                                                          # Norm of RHS for relative stopping.
     if b_norm == 0:                                                                                                                     # Trivial system with zero RHS.
         return x                                                                                                                        # x=0 is a valid solution.
-
 
     # 4. Iterate BiCGStab steps
     for _ in range(int(max_iter)):                                                                                                      # Iterate BiCGStab steps.
@@ -408,13 +401,11 @@ def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_
     diag, w = CloudStencil(p, vec, L, reg_factor=1e-8)                                                                                  # Retrieve the raw stencil weight values.
     m       = p.shape[0]                                                                                                                # Obtain the total number of nodes.
 
-
     # 2. Masking valid neighbors
     valid   = vec != -1                                                                                                                 # Create a boolean mask of valid neighbors.
     rows    = np.repeat(np.arange(m), vec.shape[1]).reshape(m, -1)[valid]                                                               # Map every valid neighbor to its origin row index.
     cols    = vec[valid]                                                                                                                # Obtain the target column indices corresponding to the neighbors.
     data    = w[valid]                                                                                                                  # Obtain the neighbor-specific weight data values.
-
 
     # 3. Diagonal concatenation
     rows    = np.concatenate([rows, np.arange(m)])                                                                                      # Append the central row index positions for the main diagonal.

@@ -169,9 +169,9 @@ def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, re
         success             bool                True if successful, False otherwise.
     """
     try:                                                                                                                                # Start graph plotting process.
-        points            = np.array(points)                                                                                            # Ensure points are a NumPy array.
-        regions           = np.array(regions)                                                                                           # Ensure regions are a NumPy array.
-        neighbors_indices = np.array(neighbors_indices)                                                                                 # Ensure neighbor indices are an array.
+        points_arr        = np.array(points)                                                                                            # Ensure points are a NumPy array.
+        regions_arr       = np.array(regions)                                                                                           # Ensure regions are a NumPy array.
+        neighbors_indices_arr = np.array(neighbors_indices)                                                                             # Ensure neighbor indices are an array.
         
         # 1. Setup plot
         plt.figure(figsize=(10, 8), dpi=300)                                                                                            # Create high resolution figure.

@@ -98,7 +98,7 @@ def reduce_points_by_region_single(input_csv: str, output_csv: str) -> Optional[
                     continue                                                                                                            # Skip to the next row.
 
         # 2. Group by region
-        regions_data = {}                                                                                                               # Initialize a dictionary for region grouping.
+        regions_data: Dict[Any, List[Dict[str, Any]]] = {}                                                                              # Initialize a dictionary for region grouping.
         for row in rows:                                                                                                                # Iterate over the parsed rows.
             rid = row['region']                                                                                                         # Get the region ID for the current row.
             if rid not in regions_data:                                                                                                 # Check if the region ID is not in the dictionary.
@@ -236,7 +236,7 @@ def filter_main_region_points_in_subregions(rows: List[Dict[str, Any]]) -> List[
     """
     try:                                                                                                                                # Try to execute the main block.
         # 1. Group points by region
-        regions_data = {}                                                                                                               # Initialize a dictionary for grouping points by region.
+        regions_data: Dict[Any, List[Dict[str, Any]]] = {}                                                                              # Initialize a dictionary for grouping points by region.
         for row in rows:                                                                                                                # Iterate over the input rows.
             rid = row['region']                                                                                                         # Get the region ID for the current row.
             if rid not in regions_data:                                                                                                 # Check if the region ID is not in the dictionary.

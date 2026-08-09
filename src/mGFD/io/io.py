@@ -28,7 +28,10 @@ Credits:
 """
 
 ## Library importation.
+import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def load_points(file_path: str, verbose: bool = False) -> np.ndarray:
     """
@@ -67,7 +70,7 @@ def load_points(file_path: str, verbose: bool = False) -> np.ndarray:
                 flag = np.zeros(x.shape, dtype = int)                                                                                   # Default to interior points.
                 
             if verbose:                                                                                                                 # Check if verbosity is enabled.
-                print(f"Loaded {x.shape[0]} points from {file_path}")                                                                   # Print load confirmation.
+                logger.info(f"Loaded {x.shape[0]} points from {file_path}")                                                             # Print load confirmation.
                 
             return np.column_stack([x, y, flag])                                                                                        # Return loaded point cloud.
             
@@ -85,6 +88,6 @@ def load_points(file_path: str, verbose: bool = False) -> np.ndarray:
     
     # 3. Load confirmation and return
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"Loaded {p.shape[0]} points from {file_path}")                                                                           # Print load confirmation.
+        logger.info(f"Loaded {p.shape[0]} points from {file_path}")                                                                     # Print load confirmation.
     
     return p                                                                                                                            # Return loaded point cloud.

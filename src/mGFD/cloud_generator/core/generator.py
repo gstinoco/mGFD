@@ -135,17 +135,16 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
                     all_points.append(point)                                                                                            # Append interior point.
                     all_regions.append(region_id)                                                                                       # Assign current region ID.
 
-        
         # 7. Classification and export
-        all_points      = np.array(all_points)                                                                                          # Convert total list to NumPy array.        
-        classifications = classify_nodes(all_points, all_regions, regions, actual_cloud_size, inside_regions=inside_regions)            # Classify generated points.
-        success         = export_to_csv(all_points, classifications, all_regions, output_file)                                          # Export the generated points.
+        all_points_arr  = np.array(all_points)                                                                                          # Convert total list to NumPy array.        
+        classifications = classify_nodes(all_points_arr, all_regions, regions, actual_cloud_size, inside_regions=inside_regions)        # Classify generated points.
+        success         = export_to_csv(all_points_arr, classifications, all_regions, output_file)                                      # Export the generated points.
 
         if not success:                                                                                                                 # Check if export failed.
             return {"success": False, "error": "Failed to export CSV"}                                                                  # Return failure status.
         
         output_base = os.path.splitext(output_file)[0]                                                                                  # Get base filename without extension.
-        create_visualization(all_points, all_regions, output_base, classifications)                                                     # Generate visual representation.
+        create_visualization(all_points_arr, all_regions, output_base, classifications)                                                 # Generate visual representation.
         
         # 8. Result packaging
         results = {                                                                                                                     # Build the success dictionary.

@@ -72,11 +72,11 @@ def generate_boundary_points(contour: List[Tuple[float, float]], cloud_size: flo
                 boundary_points.append([x, y])                                                                                          # Add point to the list.
     
     if boundary_points:                                                                                                                 # Check if any points were generated.
-        boundary_points   = np.array(boundary_points)                                                                                   # Convert list to NumPy array.
-        rounded_points    = np.round(boundary_points / (cloud_size * 0.1)) * (cloud_size * 0.1)                                         # Round points to avoid duplicates due to float precision.
+        boundary_points_arr   = np.array(boundary_points)                                                                                   # Convert list to NumPy array.
+        rounded_points    = np.round(boundary_points_arr / (cloud_size * 0.1)) * (cloud_size * 0.1)                                         # Round points to avoid duplicates due to float precision.
         _, unique_indices = np.unique(rounded_points, axis=0, return_index=True)                                                        # Find unique indices.
-        boundary_points   = boundary_points[unique_indices]                                                                             # Keep only unique points.
+        boundary_points_arr   = boundary_points_arr[unique_indices]                                                                             # Keep only unique points.
         
-        return boundary_points                                                                                                          # Return the filtered boundary points.
+        return boundary_points_arr                                                                                                          # Return the filtered boundary points.
     
     return np.empty((0, 2))                                                                                                             # Return empty array if no points.

@@ -190,7 +190,7 @@ def generate_interior_points_poisson(polygon: Polygon, cloud_size: float) -> Lis
     except Exception as e:                                                                                                              # On failure.
         # Fallback to original method
         
-        return generate_interior_points(polygon, cloud_size)                                                                            # Return grid-based points.
+        return list(map(tuple, generate_interior_points(polygon, cloud_size)))                                                          # Return grid-based points.
 
 def generate_region_cloud_poisson(region_points: List[Tuple[float, float]], cloud_size: float) -> Tuple[Any, Any, Any]:
     """
@@ -224,8 +224,7 @@ def generate_region_cloud_poisson(region_points: List[Tuple[float, float]], clou
         # 5. Apply Lloyd's relaxation
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.
             interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), polygon, iterations=5).tolist()    # Apply smoothing.
-        
-        
+
         return boundary_points, interior_points, cloud_size                                                                             # Return the generated data.
         
     except Exception as e:                                                                                                              # On failure.
@@ -308,8 +307,7 @@ def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[floa
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.
             interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), polygon_with_holes, iterations=5).tolist()
                                                                                                                                         # Apply smoothing.
-        
-        
+
         return boundary_points, interior_points, cloud_size                                                                             # Return generated data.
         
     except Exception as e:                                                                                                              # If Poisson execution fails.
@@ -363,7 +361,7 @@ def generate_interior_regions_clouds_poisson(regions: List[List[Tuple[float, flo
         interior_clouds     List        List of tuples with results.
     """
     interior_clouds = []                                                                                                                # Initialize the results container.
-    max_workers     = max(1, os.cpu_count() - 1)                                                                                        # Determine optimal thread count.
+    max_workers     = max(1, (os.cpu_count() or 1) - 1)                                                                                 # Determine optimal thread count.
     
     with ProcessPoolExecutor(max_workers=max_workers) as executor:                                                                      # Start multiprocessing pool.
         futures = []                                                                                                                    # List to track running tasks.

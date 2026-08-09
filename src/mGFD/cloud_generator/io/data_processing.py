@@ -42,7 +42,7 @@ Last Modification:
 ## Library importation.
 import csv                                                                                                                              # Module to read and write CSV files.
 
-from typing import List, Tuple                                                                                                          # Import type hints.
+from typing import List, Tuple, Dict, Any                                                                                               # Import type hints.
 
 def load_regions(csv_file: str) -> List[List[Tuple[float, float]]]:
     """
@@ -60,7 +60,7 @@ def load_regions(csv_file: str) -> List[List[Tuple[float, float]]]:
                                                         tuples representing the boundary contour of that region.
     """
     try:                                                                                                                                # Start of error handling block.
-        regions_dict         = {}                                                                                                       # Dictionary to group points by region ID.
+        regions_dict: Dict[Any, List[Tuple[float, float]]] = {}                                                                         # Dictionary to group points by region ID.
         single_region_points = []                                                                                                       # Fallback list if no regions are specified.
         has_region_column    = False                                                                                                    # Boolean flag for the 'region' column.
         
@@ -95,9 +95,9 @@ def load_regions(csv_file: str) -> List[List[Tuple[float, float]]]:
                         region_val_str = str(row['region']).strip()                                                                     # Extract and clean the region identifier.
                         try:                                                                                                            # Try parsing region as a number.
                             region_val = float(region_val_str)                                                                          # Parse the region string as a float.
-                            region_id  = int(region_val)                                                                                # Cast the float region to an integer.
+                            region_id: Any = int(region_val)                                                                            # Cast the float region to an integer.
                         except (ValueError, TypeError):                                                                                 # Handle parsing errors.
-                            region_id  = region_val_str                                                                                 # Fallback to using the raw string as region ID.
+                            region_id = region_val_str                                                                                  # Fallback to using the raw string as region ID.
                             
                         if region_id not in regions_dict:                                                                               # Check if region ID is new.
                             regions_dict[region_id] = []                                                                                # Initialize an empty list for the new region.

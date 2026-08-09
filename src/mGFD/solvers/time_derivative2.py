@@ -42,6 +42,7 @@ Last Modification:
 """
 
 ## Library importation.
+import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
 
 from scipy.sparse import eye, diags                                                                                                     # Sparse matrix generation.
@@ -50,6 +51,8 @@ from typing import Callable, Optional, Tuple, List                              
 
 import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
 import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def TimeDerivative2(p: np.ndarray, f: Callable, g: Callable, t: int, coef: List[float], operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), implicit: bool = False, lam: float = 0.5, upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -80,11 +83,23 @@ def TimeDerivative2(p: np.ndarray, f: Callable, g: Callable, t: int, coef: List[
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
     
+    # 0. Input validation
+    if not isinstance(p, np.ndarray) or p.ndim != 2 or p.shape[1] != 3:                                                                 # Validate point cloud array shape and type.
+        raise ValueError("Point cloud 'p' must be a 2D numpy array with 3 columns (x, y, flag).")                                       # Raise explicit error on bad input.
+    if not callable(f):                                                                                                                 # Validate forcing function f.
+        raise TypeError("Initial condition function 'f' must be a callable function.")                                                  # Raise explicit error on bad input.
+    if not callable(g):                                                                                                                 # Validate forcing function g.
+        raise TypeError("Initial condition function 'g' must be a callable function.")                                                  # Raise explicit error on bad input.
+    if not isinstance(t, int) or t <= 0:                                                                                                # Validate time steps.
+        raise ValueError("Number of time steps 't' must be a positive integer.")                                                        # Raise explicit error on bad input.
+    if not isinstance(operator, np.ndarray) or operator.shape[0] < 5:                                                                   # Validate operator array.
+        raise ValueError("Operator must be a numpy array with at least 5 coefficients.")                                                # Raise explicit error on bad input.
+
     # 1. Variable initialization
     m      = p.shape[0]                                                                                                                 # Total number of nodes.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"Solving Transient problem ({t} steps) for {m} nodes...")                                                                # Print solver progress.
+        logger.info(f"Solving Transient problem ({t} steps) for {m} nodes...")                                                          # Print solver progress.
         
     T      = np.linspace(0, 1, t)                                                                                                       # Time discretization array.
     dt     = T[1] - T[0]                                                                                                                # Time step size.
@@ -158,6 +173,6 @@ def TimeDerivative2(p: np.ndarray, f: Callable, g: Callable, t: int, coef: List[
                 u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
 
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"\tSolver finished successfully.")                                                                                       # Print completion message.
+        logger.info("\tSolver finished successfully.")                                                                                  # Print completion message.
         
     return u_ap, vec                                                                                                                    # Return computed values.

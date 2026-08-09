@@ -48,7 +48,6 @@ Credits:
         Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
         https://doi.org/10.1016/j.camwa.2025.07.034
 
-
 Date:
     May, 2024.
 Last Modification:
@@ -80,11 +79,9 @@ def compute_neighbors(p: np.ndarray, nvec: int) -> np.ndarray:
     m    = int(p.shape[0])                                                                                                              # Total number of nodes.
     dist = find_distances(p)                                                                                                            # Search radius from nearest-neighbor spacing.
 
-
     # 2. Search radius scaling
     if nvec > 12:                                                                                                                       # Scale dist if asking for expanded stencil.
         dist = dist * np.sqrt(nvec / 12.0)                                                                                              # Area scales with r^2, so r scales with sqrt(n).
-
 
     # 3. Neighbor search
     vec  = find_neighbors_balanced(p, dist, nvec)                                                                                       # Build balanced neighbor list using KDTree candidates.
@@ -110,11 +107,9 @@ def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np
     m    = int(p.shape[0])                                                                                                              # Total number of nodes.
     dist = find_distances(p)                                                                                                            # Search radius from nearest-neighbor spacing.
 
-
     # 2. Search radius scaling
     if nvec > 12:                                                                                                                       # Scale dist if asking for expanded stencil.
         dist = dist * np.sqrt(nvec / 12.0)                                                                                              # Area scales with r^2, so r scales with sqrt(n).
-
 
     # 3. Upwind neighbor search
     vec  = find_neighbors_adv(p, dist, a, b, nvec)                                                                                      # Build neighbor list using upwind KDTree query.
@@ -208,7 +203,6 @@ def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray
 
     target_per_quad = int(np.ceil(nvec / 4.0))                                                                                          # Target number of points per quadrant.
 
-
     # 3. Quadrant-balanced selection
     for i in range(m):                                                                                                                  # Loop over nodes.
         cand   = indices[i, 1:]                                                                                                         # Candidate indices (skip self).
@@ -278,7 +272,6 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
     if m == 0 or nvec <= 0:                                                                                                             # Handle empty input or invalid neighbor count.
         return vec                                                                                                                      # Return empty neighbor matrix.
 
-
     # 2. Advection direction magnitude
     speed = float(np.hypot(a, b))                                                                                                       # Magnitude of advection direction.
 
@@ -286,11 +279,9 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
         dist0 = find_distances(p)                                                                                                       # Use isotropic distance estimate.
         return find_neighbors(p, dist0, nvec)                                                                                           # Return isotropic KDTree neighbors.
 
-
     # 3. Candidate pool sizing
     k = max(nvec + 1, 128, 40 * nvec)                                                                                                   # Candidate pool size for KDTree query.
     k = int(min(m, k))                                                                                                                  # Clamp to m to avoid invalid k.
-
 
     # 4. KDTree candidate query
     tree               = KDTree(p[:, :2])                                                                                               # Build KDTree on (x, y) coordinates.
@@ -301,7 +292,6 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
         indices   = indices.reshape(-1, 1)                                                                                              # Reshape indices to (m, 1).
 
     tol = 1e-14 * speed                                                                                                                 # Tolerance to decide upwind vs downwind.
-
 
     # 5. Upwind filtering and selection
     for i in range(m):                                                                                                                  # Loop over nodes.

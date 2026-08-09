@@ -173,9 +173,9 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
                         if isinstance(first_item, (int, np.integer)):                                                                   # Newer Shapely API returns indices.
                             final_candidates = [valid_geometries[i] for i in candidates]                                                # Resolve geometry from the valid geometries.
                         elif isinstance(first_item, (Polygon, LineString, Point)):                                                      # Older Shapely API returns geometries.
-                             final_candidates = list(candidates)                                                                        # Convert iterator to list directly.
+                            final_candidates = list(candidates)                                                                         # Convert iterator to list directly.
                         else:                                                                                                           # If it is neither.
-                             final_candidates = valid_geometries                                                                        # Default to evaluating all geometries.
+                            final_candidates = valid_geometries                                                                         # Default to evaluating all geometries.
                     else:                                                                                                               # If no specific candidates were found or API mismatch.
                         final_candidates = valid_geometries                                                                             # Evaluate all valid geometries.
                     
@@ -220,10 +220,12 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
             
         except Exception as e:                                                                                                          # Handle any calculation error for a given point.
             # Fallback to simple coordinate-based classification if Shapely fails
-            if (abs(x - global_min_x) < boundary_tolerance or                                                                           # Check left edge.
+            if (
+                abs(x - global_min_x) < boundary_tolerance or                                                                           # Check left edge.
                 abs(x - global_max_x) < boundary_tolerance or                                                                           # Check right edge.
                 abs(y - global_min_y) < boundary_tolerance or                                                                           # Check bottom edge.
-                abs(y - global_max_y) < boundary_tolerance):                                                                            # Check top edge.
+                abs(y - global_max_y) < boundary_tolerance                                                                              # Check top edge.
+            ):
                 is_boundary = True                                                                                                      # Set boundary flag to True.
         
         classifications.append("boundary" if is_boundary else "interior")                                                               # Add the final classification label for this point.

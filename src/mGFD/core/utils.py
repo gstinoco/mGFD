@@ -71,7 +71,7 @@ def poly_area(x: np.ndarray, y: np.ndarray) -> float:
     return float(area)                                                                                                                  # Return scalar area.
 
 
-def get_valid_triangulation(p: np.ndarray, nom: str) -> Optional[np.ndarray]:
+def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optional[np.ndarray]:
     """
     get_valid_triangulation
     Compute a valid triangulation for the point cloud p by filtering out Delaunay
@@ -168,15 +168,15 @@ def get_valid_triangulation(p: np.ndarray, nom: str) -> Optional[np.ndarray]:
 
     # 6. Return and cache saving
     if len(global_triangles) > 0:                                                                                                       # Check if any valid triangles were found.
-        global_triangles = np.array(global_triangles, dtype = np.int32)                                                                 # Convert list to NumPy array.
+        global_triangles_arr = np.array(global_triangles, dtype = np.int32)                                                                 # Convert list to NumPy array.
         
         if cache_path:                                                                                                                  # Check if cache path is defined.
             try:                                                                                                                        # Attempt operation.
-                np.savetxt(cache_path, global_triangles, delimiter = ',', fmt = '%d')                                                   # Save triangulation to cache.
+                np.savetxt(cache_path, global_triangles_arr, delimiter = ',', fmt = '%d')                                                   # Save triangulation to cache.
             except Exception:                                                                                                           # Ignore exceptions.
                 pass                                                                                                                    # Do nothing.
         
-        return global_triangles                                                                                                         # Return computed triangulation.
+        return global_triangles_arr                                                                                                         # Return computed triangulation.
 
     return None                                                                                                                         # Return None.
 

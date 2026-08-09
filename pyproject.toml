@@ -27,8 +27,6 @@ dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
-    "pandas",
-    "psutil",
     "pyvista",
     "shapely",
     "opencv-python-headless",
@@ -42,6 +40,10 @@ Issues = "https://github.com/gstinoco/mGFD/issues"
 [project.optional-dependencies]
 test = [
     "pytest",
+]
+benchmark = [
+    "psutil",
+    "pandas",
 ]
 
 [project.scripts]

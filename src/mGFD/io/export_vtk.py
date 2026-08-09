@@ -47,6 +47,7 @@ Last Modification:
 """
 
 ## Library importation.
+import logging                                                                                                                          # Standard logging module.
 import os                                                                                                                               # OS interfaces for file/directory paths.
 import numpy as np                                                                                                                      # Core numerical operations.
 import pyvista as pv                                                                                                                    # 3D visualization utilities.
@@ -54,6 +55,8 @@ import pyvista as pv                                                            
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
 
 from mGFD.core.utils import get_valid_triangulation                                                                                     # Geometry utilities.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData:
     """
@@ -117,7 +120,7 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, out
     mesh.save(filepath)                                                                                                                 # Save VTP file to disk.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"\tSaved VTK to {filepath}")                                                                                             # Report successful save.
+        logger.info(f"\tSaved VTK to {filepath}")                                                                                       # Report successful save.
 
 def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: int, T: np.ndarray, out_dir: str, basename: str = "Transient_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
     """
@@ -178,4 +181,4 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: i
         f.write("\n".join(pvd_content))                                                                                                 # Write all lines to PVD.
         
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                                                          # Report successful save.
+        logger.info(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                                                    # Report successful save.

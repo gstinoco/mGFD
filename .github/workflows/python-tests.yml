@@ -1,0 +1,47 @@
+name: mGFD Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgl1-mesa-glx
+        
+    - name: Install package and test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[test] flake8 mypy
+        
+    - name: Lint with flake8
+      run: |
+        # Ignore style rules as specified in the project
+        flake8 src/mGFD/ --ignore=E501,E241,E262,E221,E261,E201,E202,E251,E266,E226,W291,E231,E272,E116,W293,F401,F403,E712,E111,E114,E128,E127,E122,E722,E701,W391,E302,E305,W503,W504,E741,F841
+        
+    - name: Type check with mypy
+      run: |
+        mypy src/mGFD/ --config-file mypy.ini
+        
+    - name: Test with pytest
+      run: |
+        pytest tests/

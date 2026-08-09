@@ -154,8 +154,7 @@ def generate_region_cloud_with_uniform_density(region_points: List[Tuple[float, 
         
         # 4. Generate interior points using the specified cloud size
         interior_points = generate_interior_points(polygon, cloud_size)                                                                 # Generate points inside the region.
-        
-        
+
         return boundary_points, interior_points, cloud_size                                                                             # Return generated data.
         
     except Exception as e:                                                                                                              # On failure.
@@ -230,8 +229,7 @@ def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float
         
         # 7. Generate interior points avoiding holes
         interior_points = generate_interior_points(polygon_with_holes, cloud_size)                                                      # Fill the remaining space using grid points.
-        
-        
+
         return boundary_points, interior_points, cloud_size                                                                             # Return generated data.
         
     except Exception as e:                                                                                                              # If execution fails.
@@ -295,7 +293,7 @@ def generate_interior_regions_clouds(regions: List[List[Tuple[float, float]]], m
     # Using ProcessPoolExecutor for parallelization
     
     # 2. Determine max workers (leave one core free or use all if few)
-    max_workers = max(1, os.cpu_count() - 1)                                                                                            # Determine optimal thread count.
+    max_workers = max(1, (os.cpu_count() or 1) - 1)                                                                                     # Determine optimal thread count.
     
     with ProcessPoolExecutor(max_workers=max_workers) as executor:                                                                      # Start multiprocessing pool.
         futures = []                                                                                                                    # List to track running tasks.

@@ -44,6 +44,7 @@ Last Modification:
 ## Library importation.
 import os                                                                                                                               # Operating system interfaces.
 import sys                                                                                                                              # System-specific parameters and functions.
+import logging                                                                                                                          # Standard logging module.
 import argparse                                                                                                                         # Module for parsing command-line arguments.
 import numpy as np                                                                                                                      # Core numerical operations.
 
@@ -52,6 +53,8 @@ from typing import Any                                                          
 from mGFD.cloud_generator.core.generator import generate_cloud_natural, generate_cloud_regular                                          # Import generation functions.
 from mGFD.cloud_generator.core.reduction import reduce_points_by_region                                                                 # Import reduction function.
 from mGFD.cloud_generator.viz.visualization import create_visualization                                                                 # Import visualization creator.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def handle_generate(args: argparse.Namespace) -> None:
     """
@@ -70,18 +73,18 @@ def handle_generate(args: argparse.Namespace) -> None:
     """
     # 1. Validation
     if not os.path.exists(args.input):                                                                                                  # Check if the input file exists.
-        print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)                                                          # Print an error message to standard error.
+        logger.error(f"Error: Input file '{args.input}' not found.")                                                                    # Log an error message.
         sys.exit(1)                                                                                                                     # Exit with an error code.
         
     # 2. Header and info output
     if not args.quiet:
-        print(f"mGFD CloudGenerator - Generate")                                                                                        # Print header text for generation.
-        print(f"==============================")                                                                                        # Print separator line.
-        print(f"Input:    {args.input}")                                                                                                # Print the input file path.
-        print(f"Output:   {args.output}")                                                                                               # Print the output file path.
-        print(f"Method:   {args.method}")                                                                                               # Print the selected method.
-        print(f"Density:  {args.density}x")                                                                                             # Print the density multiplier.
-        print("Generating point cloud, please wait...")                                                                                 # Print wait message.
+        logger.info("mGFD CloudGenerator - Generate")                                                                                  # Log header text for generation.
+        logger.info("==============================")                                                                                  # Log separator line.
+        logger.info(f"Input:    {args.input}")                                                                                          # Log the input file path.
+        logger.info(f"Output:   {args.output}")                                                                                         # Log the output file path.
+        logger.info(f"Method:   {args.method}")                                                                                         # Log the selected method.
+        logger.info(f"Density:  {args.density}x")                                                                                       # Log the density multiplier.
+        logger.info("Generating point cloud, please wait...")                                                                           # Log wait message.
         
     # 3. Cloud generation
     try:                                                                                                                                # Start generation process inside a try-except block.
@@ -102,15 +105,15 @@ def handle_generate(args: argparse.Namespace) -> None:
             
         # 4. Success output
         if not args.quiet:
-            print("\nSuccess!")                                                                                                         # Print success message.
-            print(f"Total points generated: {result.get('total_nodes', 'Unknown')}")                                                    # Print total generated nodes.
-            print(f"Regions generated:      {result.get('regions_generated', 'Unknown')}")                                              # Print number of generated regions.
-            print(f"Main region points:     {result.get('main_region_nodes', 'Unknown')}")                                              # Print points in the main region.
-            print(f"Visualizations saved to {result.get('visualization_file', '')} and {result.get('visualization_svg_file', '')}")     # Print visualization paths.
+            logger.info("\nSuccess!")                                                                                                   # Log success message.
+            logger.info(f"Total points generated: {result.get('total_nodes', 'Unknown')}")                                              # Log total generated nodes.
+            logger.info(f"Regions generated:      {result.get('regions_generated', 'Unknown')}")                                        # Log number of generated regions.
+            logger.info(f"Main region points:     {result.get('main_region_nodes', 'Unknown')}")                                        # Log points in the main region.
+            logger.info(f"Visualizations saved to {result.get('visualization_file', '')} and {result.get('visualization_svg_file', '')}") # Log visualization paths.
         
     # 5. Exception handling
     except Exception as e:                                                                                                              # Handle general exceptions.
-        print(f"\nError generating cloud: {e}", file=sys.stderr)                                                                        # Print error details to standard error.
+        logger.error(f"\nError generating cloud: {e}")                                                                                  # Log error details.
         sys.exit(1)                                                                                                                     # Exit with an error code.
 
 def handle_reduce(args: argparse.Namespace) -> None:
@@ -129,17 +132,17 @@ def handle_reduce(args: argparse.Namespace) -> None:
     """
     # 1. Validation
     if not os.path.exists(args.input):                                                                                                  # Check if the input file exists.
-        print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)                                                          # Print an error message to standard error.
+        logger.error(f"Error: Input file '{args.input}' not found.")                                                                    # Log an error message.
         sys.exit(1)                                                                                                                     # Exit with an error code.
         
     # 2. Header and info output
     if not args.quiet:
-        print(f"mGFD CloudGenerator - Reduce")                                                                                          # Print header text for reduction.
-        print(f"============================")                                                                                          # Print separator line.
-        print(f"Input:      {args.input}")                                                                                              # Print the input file path.
-        print(f"Output:     {args.output}")                                                                                             # Print the output file path.
-        print(f"Multiplier: {args.multiplier}")                                                                                         # Print the reduction multiplier.
-        print("Reducing point cloud, please wait...")                                                                                   # Print wait message.
+        logger.info("mGFD CloudGenerator - Reduce")                                                                                    # Log header text for reduction.
+        logger.info("============================")                                                                                    # Log separator line.
+        logger.info(f"Input:      {args.input}")                                                                                        # Log the input file path.
+        logger.info(f"Output:     {args.output}")                                                                                       # Log the output file path.
+        logger.info(f"Multiplier: {args.multiplier}")                                                                                   # Log the reduction multiplier.
+        logger.info("Reducing point cloud, please wait...")                                                                             # Log wait message.
         
     # 3. Cloud reduction
     try:                                                                                                                                # Start reduction process inside a try-except block.
@@ -152,8 +155,8 @@ def handle_reduce(args: argparse.Namespace) -> None:
         # 4. Visualization and output
         if result is not None:                                                                                                          # Check if the reduction was successful.
             if not args.quiet:
-                print("\nSuccess!")                                                                                                     # Print success message.
-                print(f"Total points after reduction: {len(result)}")                                                                   # Print the new total number of points.
+                logger.info("\nSuccess!")                                                                                               # Log success message.
+                logger.info(f"Total points after reduction: {len(result)}")                                                             # Log the new total number of points.
             
             points          = np.array([(row['x'], row['y']) for row in result])                                                        # Extract point coordinates.
             regions_list    = [row.get('region', 1) for row in result]                                                                  # Extract region list.
@@ -163,14 +166,14 @@ def handle_reduce(args: argparse.Namespace) -> None:
             create_visualization(points, regions_list, output_base, classifications)                                                    # Generate visual plots.
             
             if not args.quiet:
-                print(f"Visualizations saved to {output_base}.png and {output_base}.svg")                                               # Inform the user about saved visual plots.
+                logger.info(f"Visualizations saved to {output_base}.png and {output_base}.svg")                                         # Log saved visual plots.
         else:                                                                                                                           # If reduction returned None (failed).
-            print(f"\nError: Failed to reduce cloud. Check logs for details.", file=sys.stderr)                                         # Print error message.
+            logger.error("\nError: Failed to reduce cloud. Check logs for details.")                                                   # Log error message.
             sys.exit(1)                                                                                                                 # Exit with an error code.
             
     # 5. Exception handling
     except Exception as e:                                                                                                              # Handle general exceptions.
-        print(f"\nError reducing cloud: {e}", file=sys.stderr)                                                                          # Print error details to standard error.
+        logger.error(f"\nError reducing cloud: {e}")                                                                                    # Log error details.
         sys.exit(1)                                                                                                                     # Exit with an error code.
 
 def main() -> None:
@@ -187,7 +190,10 @@ def main() -> None:
     Output:
         None
     """
-    # 1. Parser initialization
+    # 1. Global Logging configuration
+    logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                       # Configure logging format for CLI.
+
+    # 2. Parser initialization
     parser = argparse.ArgumentParser(                                                                                                   # Instantiate an ArgumentParser.
         description="mGFD CloudGenerator - Point cloud generation and optimization suite."                                              # Define program description.
     )

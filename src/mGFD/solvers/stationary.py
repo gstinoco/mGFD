@@ -34,7 +34,6 @@ Credits:
         Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
         https://doi.org/10.1016/j.camwa.2025.07.034
 
-
 Date:
     May, 2024.
 Last Modification:
@@ -42,6 +41,7 @@ Last Modification:
 """
 
 ## Library importation.
+import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
 
 from scipy.sparse.linalg import spsolve                                                                                                 # Direct sparse linear solver.
@@ -49,6 +49,8 @@ from typing import Callable, Optional, Tuple                                    
 
 import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
 import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -74,11 +76,21 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
         u_ap        m               ndarray         Array with the approximation computed by the routine.
         vec         m x nvec        ndarray         Array with the correspondence of the nvec neighbors of each node.  
     """
+    # 0. Input validation
+    if not isinstance(p, np.ndarray) or p.ndim != 2 or p.shape[1] != 3:                                                                 # Validate point cloud array shape and type.
+        raise ValueError("Point cloud 'p' must be a 2D numpy array with 3 columns (x, y, flag).")                                       # Raise explicit error on bad input.
+    if not callable(phi):                                                                                                               # Validate boundary condition function.
+        raise TypeError("Boundary condition 'phi' must be a callable function.")                                                        # Raise explicit error on bad input.
+    if not callable(f):                                                                                                                 # Validate RHS function.
+        raise TypeError("Right-hand side 'f' must be a callable function.")                                                             # Raise explicit error on bad input.
+    if not isinstance(operator, np.ndarray) or operator.shape[0] < 5:                                                                   # Validate operator array.
+        raise ValueError("Operator must be a numpy array with at least 5 coefficients.")                                                # Raise explicit error on bad input.
+
     # 1. Variable initialization
     m      = len(p[:, 0])                                                                                                               # The total number of nodes is calculated.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"Solving Stationary problem for {m} nodes...")                                                                           # Print solver progress.
+        logger.info(f"Solving Stationary problem for {m} nodes...")                                                                     # Print solver progress.
         
     u_ap   = np.zeros([m])                                                                                                              # u_ap initialization with zeros.
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Save the boundary nodes.
@@ -109,6 +121,6 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
     u_ap[inne_n] = un[inne_n]                                                                                                           # Save the computed solution to the interior nodes.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
-        print(f"\tSolver finished successfully.")                                                                                       # Print completion message.
+        logger.info("\tSolver finished successfully.")                                                                                  # Print completion message.
         
     return u_ap, vec                                                                                                                    # Return computed values.

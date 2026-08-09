@@ -116,7 +116,7 @@ def export_to_csv(points: np.ndarray, classifications: List[str], regions_list: 
             # Note: Set comparison might be tricky due to type differences (str vs int), 
             # so we'll just log if counts are different significantly
             if len(input_regions) != len(file_regions):                                                                                 # Compare the number of unique regions.
-                 pass                                                                                                                   # Ignore mismatch for now.
+                pass                                                                                                                    # Ignore mismatch for now.
             # We don't return False here as it might be just type mismatch
                  
         except Exception as verify_error:                                                                                               # Handle errors during verification.
