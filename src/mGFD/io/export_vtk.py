@@ -45,42 +45,49 @@ Date:
 Last Modification:
     August, 2026.
 """
-## Library importation.
-import os
-import numpy as np
-import pyvista as pv
-from mGFD.core.utils import get_valid_triangulation                                                       # Geometry utilities.
 
-def _create_mesh(p, cloud_path=None):
-    '''
+## Library importation.
+import os                                                                                                                               # OS interfaces for file/directory paths.
+import numpy as np                                                                                                                      # Core numerical operations.
+import pyvista as pv                                                                                                                    # 3D visualization utilities.
+
+from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+
+from mGFD.core.utils import get_valid_triangulation                                                                                     # Geometry utilities.
+
+def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData:
+    """
     _create_mesh
     Helper function to construct a PyVista PolyData mesh from point coordinates and triangles.
     
     Input:
-        p                           ndarray         Point cloud [x, y] coordinates.
+        p           m x 3           ndarray         Point cloud coordinates and boundary flags.
         cloud_path                  str             (Optional) Path to external triangulation source.
         
     Output:
         mesh                        pv.PolyData     The constructed PyVista mesh with bound point data.
-    '''
-    points = np.column_stack([p[:, 0], p[:, 1], np.zeros(p.shape[0])])                                  # Create 3D points with Z=0.
-    triangles = get_valid_triangulation(p, cloud_path)                                                  # Retrieve optimal triangulation.
+    """
+    # 1. 3D point creation
+    points    = np.column_stack([p[:, 0], p[:, 1], np.zeros(p.shape[0])])                                                               # Create 3D points with Z=0.
+    
+    # 2. Triangulation generation
+    triangles = get_valid_triangulation(p, cloud_path)                                                                                  # Retrieve optimal triangulation.
         
-    if triangles is not None:                                                                           # If triangulation is available.
-        # PyVista PolyData faces require padding with the number of points per face (3 for triangles)
-        faces = np.empty((triangles.shape[0], 4), dtype=np.int32)                                       # Preallocate array for faces.
-        faces[:, 0] = 3                                                                                 # Set padding indicating 3 points per face.
-        faces[:, 1:] = triangles                                                                        # Set vertices indices.
-        mesh = pv.PolyData(points, faces)                                                               # Create PyVista mesh with triangles.
-    else:                                                                                               # Fallback to point cloud if triangulation fails.
-        # Fallback to point cloud if triangulation fails
-        mesh = pv.PolyData(points)                                                                      # Create PyVista mesh as point cloud.
+    # 3. Mesh construction
+    if triangles is not None:                                                                                                           # If triangulation is available.
+        faces        = np.empty((triangles.shape[0], 4), dtype = np.int32)                                                              # Preallocate array for faces.
+        faces[:, 0]  = 3                                                                                                                # Set padding indicating 3 points per face.
+        faces[:, 1:] = triangles                                                                                                        # Set vertices indices.
+        mesh         = pv.PolyData(points, faces)                                                                                       # Create PyVista mesh with triangles.
+    else:                                                                                                                               # Fallback to point cloud if triangulation fails.
+        mesh         = pv.PolyData(points)                                                                                              # Create PyVista mesh as point cloud.
         
-    mesh.point_data['Flag'] = p[:, 2]                                                                   # Store boundary flag in the mesh.
-    return mesh                                                                                         # Return created mesh.
+    mesh.point_data['Flag'] = p[:, 2]                                                                                                   # Store boundary flag in the mesh.
+    
+    return mesh                                                                                                                         # Return created mesh.
 
-def export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Stationary_Solution", cloud_path=None, verbose=True):
-    '''
+def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, out_dir: str, basename: str = "Stationary_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+    """
     export_stationary_vtk
     Export a stationary PDE solution to a VTK (.vtp) file.
     
@@ -88,29 +95,32 @@ def export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Stationary_Solution"
     and attaches the approximate solution, exact solution, and error as point data.
     
     Input:
-        p                           ndarray         Point cloud [x, y] coordinates.
-        u_ap                        ndarray         Approximate solution values.
-        u_ex                        ndarray         Exact solution values.
+        p           m x 3           ndarray         Point cloud coordinates and boundary flags.
+        u_ap        m               ndarray         Approximate solution values.
+        u_ex        m               ndarray         Exact solution values.
         out_dir                     str             Directory where the VTK file will be saved.
         basename                    str             Base filename for the output file.
         cloud_path                  str             (Optional) Path to the point cloud CSV, used to load cached boundary-aware triangulations.
         verbose                     bool            (Optional) If True, prints status messages to standard output.
-    '''
-    os.makedirs(out_dir, exist_ok=True)                                                                 # Ensure output directory exists.
-    mesh = _create_mesh(p, cloud_path=cloud_path)                                                       # Create base mesh for the geometry.
+    """
+    # 1. Initialization and mesh creation
+    os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
+    mesh = _create_mesh(p, cloud_path = cloud_path)                                                                                     # Create base mesh for the geometry.
     
-    mesh.point_data['U_ap'] = u_ap                                                                      # Store approximate solution.
-    mesh.point_data['U_ex'] = u_ex                                                                      # Store exact solution.
-    mesh.point_data['Absolute_Error'] = np.abs(u_ap - u_ex)                                             # Store absolute error.
+    # 2. Data attachment
+    mesh.point_data['U_ap']           = u_ap                                                                                            # Store approximate solution.
+    mesh.point_data['U_ex']           = u_ex                                                                                            # Store exact solution.
+    mesh.point_data['Absolute_Error'] = np.abs(u_ap - u_ex)                                                                             # Store absolute error.
     
-    filepath = os.path.join(out_dir, f"{basename}.vtp")                                                 # Assemble full output path.
-    mesh.save(filepath)                                                                                 # Save VTP file to disk.
+    # 3. VTK saving
+    filepath = os.path.join(out_dir, f"{basename}.vtp")                                                                                 # Assemble full output path.
+    mesh.save(filepath)                                                                                                                 # Save VTP file to disk.
     
-    if verbose:
-        print(f"\tSaved VTK to {filepath}")                                                                 # Report successful save.
+    if verbose:                                                                                                                         # Check if verbosity is enabled.
+        print(f"\tSaved VTK to {filepath}")                                                                                             # Report successful save.
 
-def export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Transient_Solution", cloud_path=None, verbose=True):
-    '''
+def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: int, T: np.ndarray, out_dir: str, basename: str = "Transient_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+    """
     export_transient_vtk
     Export a transient PDE solution to a time-series VTK (.pvd + .vtp) format.
     
@@ -118,51 +128,54 @@ def export_transient_vtk(p, u_ap, u_ex, t, T, out_dir, basename="Transient_Solut
     using a PVD (ParaView Data) file, which allows ParaView to play the sequence as an animation.
     
     Input:
-        p                           ndarray         Point cloud [x, y] coordinates.
-        u_ap                        ndarray         Approximate solution values over time.
-        u_ex                        ndarray         Exact solution values over time.
+        p           m x 3           ndarray         Point cloud coordinates and boundary flags.
+        u_ap        m x t           ndarray         Approximate solution values over time.
+        u_ex        m x t           ndarray         Exact solution values over time.
         t                           int             Total number of time steps.
-        T                           ndarray         Array of physical time values.
+        T           t               ndarray         Array of physical time values.
         out_dir                     str             Directory where the VTK files will be saved.
         basename                    str             Base filename for the output PVD and VTP files.
         cloud_path                  str             (Optional) Path to the point cloud CSV, used to load cached boundary-aware triangulations.
         verbose                     bool            (Optional) If True, prints status messages to standard output.
-    '''
-    os.makedirs(out_dir, exist_ok=True)                                                                 # Ensure output directory exists.
-    mesh = _create_mesh(p, cloud_path=cloud_path)                                                       # Create base mesh for the geometry.
+    """
+    # 1. Initialization and mesh creation
+    os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
+    mesh = _create_mesh(p, cloud_path = cloud_path)                                                                                     # Create base mesh for the geometry.
     
-    pvd_content = [                                                                                     # Initialize PVD XML structure.
+    # 2. PVD Initialization
+    pvd_content = [                                                                                                                     # Initialize PVD XML structure.
         '<?xml version="1.0"?>',
         '<VTKFile type="Collection" version="0.1" byte_order="LittleEndian">',
         '  <Collection>'
     ]
     
-    # Optional: Only save every N steps if there are too many (e.g. max 500 frames)
-    step = max(1, t // 500)                                                                             # Calculate step size to prevent massive storage.
+    step         = max(1, t // 500)                                                                                                     # Calculate step size to prevent massive storage.
+    frames_saved = 0                                                                                                                    # Initialize frame counter.
     
-    frames_saved = 0                                                                                    # Frame counter.
-    for k in range(0, t, step):                                                                         # Iterate over chosen time steps.
-        time_val = float(T[k])                                                                          # Physical time value.
+    # 3. Frame iteration
+    for k in range(0, t, step):                                                                                                         # Iterate over chosen time steps.
+        time_val = float(T[k])                                                                                                          # Physical time value.
         
-        # Update point data for this time step
-        mesh.point_data['U_ap'] = u_ap[:, k]                                                            # Store approximate solution at time k.
-        mesh.point_data['U_ex'] = u_ex[:, k]                                                            # Store exact solution at time k.
-        mesh.point_data['Absolute_Error'] = np.abs(u_ap[:, k] - u_ex[:, k])                             # Store absolute error at time k.
+        mesh.point_data['U_ap']           = u_ap[:, k]                                                                                  # Store approximate solution at time k.
+        mesh.point_data['U_ex']           = u_ex[:, k]                                                                                  # Store exact solution at time k.
+        mesh.point_data['Absolute_Error'] = np.abs(u_ap[:, k] - u_ex[:, k])                                                             # Store absolute error at time k.
         
-        # Save VTP frame
-        filename = f"{basename}_{k:05d}.vtp"                                                            # Frame filename.
-        filepath = os.path.join(out_dir, filename)                                                      # Assemble full path for the frame.
-        mesh.save(filepath)                                                                             # Save individual VTP frame.
+        filename = f"{basename}_{k:05d}.vtp"                                                                                            # Frame filename.
+        filepath = os.path.join(out_dir, filename)                                                                                      # Assemble full path for the frame.
+        mesh.save(filepath)                                                                                                             # Save individual VTP frame.
         
-        pvd_content.append(f'    <DataSet timestep="{time_val}" group="" part="0" file="{filename}"/>') # Register frame in PVD file.
-        frames_saved += 1                                                                               # Increment frame counter.
+        pvd_content.append(f'    <DataSet timestep="{time_val}" group="" part="0" file="{filename}"/>')                                 # Register frame in PVD file.
+        frames_saved += 1                                                                                                               # Increment frame counter.
         
-    pvd_content.append('  </Collection>')                                                               # Close Collection XML tag.
-    pvd_content.append('</VTKFile>')                                                                    # Close VTKFile XML tag.
+    # 4. PVD finalization
+    pvd_content.append('  </Collection>')                                                                                               # Close Collection XML tag.
+    pvd_content.append('</VTKFile>')                                                                                                    # Close VTKFile XML tag.
     
-    pvd_filepath = os.path.join(out_dir, f"{basename}.pvd")                                             # Assemble PVD file path.
-    with open(pvd_filepath, "w") as f:                                                                  # Open PVD file for writing.
-        f.write("\n".join(pvd_content))                                                                 # Write all lines to PVD.
+    # 5. PVD saving
+    pvd_filepath = os.path.join(out_dir, f"{basename}.pvd")                                                                             # Assemble PVD file path.
+    
+    with open(pvd_filepath, "w") as f:                                                                                                  # Open PVD file for writing.
+        f.write("\n".join(pvd_content))                                                                                                 # Write all lines to PVD.
         
-    if verbose:
-        print(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                          # Report successful save.
+    if verbose:                                                                                                                         # Check if verbosity is enabled.
+        print(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                                                          # Report successful save.

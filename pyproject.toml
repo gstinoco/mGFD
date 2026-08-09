@@ -3,16 +3,17 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mGFD"
+name = "mGFD: A meshless generalized finite difference method"
 version = "0.9.1"
 description = "A meshless generalized finite difference method for solving stationary and transient PDEs"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Gerardo Tinoco-Guerrero", email = "gerardo.tinoco@umich.mx" },
+    { name = "Gerardo Tinoco-Guerrero" },
     { name = "Francisco Javier Domínguez-Mota" },
     { name = "José Alberto Guzmán-Torres" },
+    { email = "gerardo.tinoco@umich.mx"},
 ]
 
 

@@ -40,13 +40,15 @@ Date:
 Last Modification:
     August, 2026.
 """
-## Library importation.
-import numpy as np                                                                  # Numerical arrays and math.
-from scipy.sparse.linalg import spsolve                                             # Direct sparse linear solver.
-from typing import Callable, Optional, Tuple
 
-import mGFD.core.gammas as Gammas                                                     # Gammas calculation and sparse matrix builder.
-import mGFD.core.neighbors as Neighbors                                               # Neighbor search routines.
+## Library importation.
+import numpy as np                                                                                                                      # Core numerical operations.
+
+from scipy.sparse.linalg import spsolve                                                                                                 # Direct sparse linear solver.
+from typing import Callable, Optional, Tuple                                                                                            # Type hinting.
+
+import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
+import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
 
 def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -58,9 +60,9 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
     
     Input:
         p           m x 3           ndarray         Array with the coordinates of the nodes and the boundary flag.
-        phi                         function        Function declared with the boundary condition.
-        f                           function        Function declared with the right-hand side of the equation.
-        operator                    ndarray         Array with the weights for the operator.
+        phi                         Callable        Function declared with the boundary condition.
+        f                           Callable        Function declared with the right-hand side of the equation.
+        operator    6 x 1           ndarray         Array with the weights for the operator.
                                                         ([D, E, A, B, C, F]).
                                                         ([0, 0, 2, 0, 2, 0] is the default).
         upwind                      bool            If an Upwind stencil is requested.
@@ -71,44 +73,47 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
     Output:
         u_ap        m               ndarray         Array with the approximation computed by the routine.
         u_ex        m               ndarray         Array with the theoretical solution.
-        vec         m x o           ndarray         Array with the correspondence of the o neighbors of each node.  
+        vec         m x nvec        ndarray         Array with the correspondence of the nvec neighbors of each node.  
     """
-    # Variable initialization
-    m      = len(p[:, 0])                                                           # The total number of nodes is calculated.
-    if verbose:
-        print(f"Solving Stationary problem for {m} nodes...")
-    u_ap   = np.zeros([m])                                                          # u_ap initialization with zeros.
-    u_ex   = np.zeros([m])                                                          # u_ex initialization with zeros.
-    boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                        # Save the boundary nodes.
-    inne_n = p[:, 2] == 0                                                           # Save the inner nodes.
-
-    # Values for the velocities form the operator
-    if upwind:                                                                      # If an Upwind stencil is requested.
-        a = operator[0][0] if operator.ndim == 2 else operator[0]                   # Value of the velocity on x.
-        b = operator[1][0] if operator.ndim == 2 else operator[1]                   # Value of the velocity on y.
-
-    # Boundary conditions
-    u_ap[boun_n] = phi(p[boun_n, 0], p[boun_n, 1])                                  # The boundary condition is assigned.
+    # 1. Variable initialization
+    m      = len(p[:, 0])                                                                                                               # The total number of nodes is calculated.
     
-    ## Neighbor search for all the nodes.
-    if vec is None:
-        if upwind:                                                                  # If an Upwind stencil is requested.
-            vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                 # Neighbor search with the proper routine.
-        else:                                                                       # All the other cases.
-            vec = Neighbors.compute_neighbors(p, nvec)                              # Neighbor search with the proper routine.
+    if verbose:                                                                                                                         # Check if verbosity is enabled.
+        print(f"Solving Stationary problem for {m} nodes...")                                                                           # Print solver progress.
+        
+    u_ap   = np.zeros([m])                                                                                                              # u_ap initialization with zeros.
+    u_ex   = np.zeros([m])                                                                                                              # u_ex initialization with zeros.
+    boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Save the boundary nodes.
+    inne_n = p[:, 2] == 0                                                                                                               # Save the inner nodes.
 
-    # Computation of Gamma values
-    L = operator[:-1]                                                               # The values of the differential operator are assigned.
-    K = Gammas.compute_sparse_matrix(p, vec, L)                                     # K computation with the required Gammas (Sparse).
-    R = Gammas.RHS(p, boun_n, inne_n, phi, f)                                       # Right-hand side of the equation.
-    
-    # A Generalized Finite Differences Method
-    un           = spsolve(K, R)                                                    # Direct sparse solve of the linear system.
-    u_ap[inne_n] = un[inne_n]                                                       # Save the computed solution to the interior nodes.
-    
-    # Theoretical Solution
-    u_ex = phi(p[:,0], p[:,1])                                                      # The theoretical solution is computed.
+    # 2. Extract advection velocities for Upwind scheme.
+    if upwind:                                                                                                                          # If an Upwind stencil is requested.
+        a = operator[0][0] if operator.ndim == 2 else operator[0]                                                                       # Value of the velocity on x.
+        b = operator[1][0] if operator.ndim == 2 else operator[1]                                                                       # Value of the velocity on y.
 
-    if verbose:
-        print(f"\tSolver finished successfully.")
-    return u_ap, u_ex, vec
+    # 3. Apply Boundary Conditions
+    u_ap[boun_n] = phi(p[boun_n, 0], p[boun_n, 1])                                                                                      # The boundary condition is assigned.
+    
+    # 4. Neighbor search for all the nodes.
+    if vec is None:                                                                                                                     # If no neighbor list is provided.
+        if upwind:                                                                                                                      # If an Upwind stencil is requested.
+            vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                                                     # Neighbor search with the proper routine.
+        else:                                                                                                                           # All the other cases.
+            vec = Neighbors.compute_neighbors(p, nvec)                                                                                  # Neighbor search with the proper routine.
+
+    # 5. Computation of Gamma values
+    L = operator[:-1]                                                                                                                   # The values of the differential operator are assigned.
+    K = Gammas.compute_sparse_matrix(p, vec, L)                                                                                         # K computation with the required Gammas (Sparse).
+    R = Gammas.RHS(p, boun_n, inne_n, phi, f)                                                                                           # Right-hand side of the equation.
+    
+    # 6. Solution of the linear system (Generalized Finite Differences)
+    un           = spsolve(K, R)                                                                                                        # Direct sparse solve of the linear system.
+    u_ap[inne_n] = un[inne_n]                                                                                                           # Save the computed solution to the interior nodes.
+    
+    # 7. Compute exact theoretical solution
+    u_ex         = phi(p[:, 0], p[:, 1])                                                                                                # The theoretical solution is computed.
+
+    if verbose:                                                                                                                         # Check if verbosity is enabled.
+        print(f"\tSolver finished successfully.")                                                                                       # Print completion message.
+        
+    return u_ap, u_ex, vec                                                                                                              # Return computed values.

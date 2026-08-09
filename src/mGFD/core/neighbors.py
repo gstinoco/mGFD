@@ -54,12 +54,14 @@ Date:
 Last Modification:
     August, 2026.
 """
-## Library importation.
-import numpy as np                                                                                                  # Core numerical operations.
 
-from scipy.spatial import KDTree                                                                                    # Spatial indexing for fast neighbor queries.
+#                                                                                                                                       # Library importation.
+import numpy as np                                                                                                                      # Core numerical operations.
 
-def compute_neighbors(p, nvec):
+from scipy.spatial import KDTree                                                                                                        # Spatial indexing for fast neighbor queries.
+from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+
+def compute_neighbors(p: np.ndarray, nvec: int) -> np.ndarray:
     """
     compute_neighbors
     Convenience function to build the neighbor list vec for a point cloud.
@@ -74,17 +76,22 @@ def compute_neighbors(p, nvec):
     Output:
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
-    m    = int(p.shape[0])                                                                                          # Total number of nodes.
-    dist = find_distances(p)                                                                                        # Search radius from nearest-neighbor spacing.
+    # 1. Variable initialization
+    m    = int(p.shape[0])                                                                                                              # Total number of nodes.
+    dist = find_distances(p)                                                                                                            # Search radius from nearest-neighbor spacing.
 
-    if nvec > 12:                                                                                                   # Scale dist if asking for expanded stencil.
-        dist = dist * np.sqrt(nvec / 12.0)                                                                          # Area scales with r^2, so r scales with sqrt(n).
 
-    vec  = find_neighbors_balanced(p, dist, nvec)                                                                   # Build balanced neighbor list using KDTree candidates.
+    # 2. Search radius scaling
+    if nvec > 12:                                                                                                                       # Scale dist if asking for expanded stencil.
+        dist = dist * np.sqrt(nvec / 12.0)                                                                                              # Area scales with r^2, so r scales with sqrt(n).
 
-    return vec                                                                                                      # Return global neighbor list.
 
-def compute_upwind_neighbors(p, a, b, nvec):                                                                        # Compute an upwind-biased neighbor list for advection problems.
+    # 3. Neighbor search
+    vec  = find_neighbors_balanced(p, dist, nvec)                                                                                       # Build balanced neighbor list using KDTree candidates.
+
+    return vec                                                                                                                          # Return global neighbor list.
+
+def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np.ndarray:                                               # Compute an upwind-biased neighbor list for advection problems.
     """
     compute_upwind_neighbors
     Convenience function to build an upwind-biased neighbor list for a point cloud.
@@ -100,17 +107,21 @@ def compute_upwind_neighbors(p, a, b, nvec):                                    
     Output:
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
-    m    = int(p.shape[0])                                                                                          # Total number of nodes.
-    dist = find_distances(p)                                                                                        # Search radius from nearest-neighbor spacing.
+    m    = int(p.shape[0])                                                                                                              # Total number of nodes.
+    dist = find_distances(p)                                                                                                            # Search radius from nearest-neighbor spacing.
 
-    if nvec > 12:                                                                                                   # Scale dist if asking for expanded stencil.
-        dist = dist * np.sqrt(nvec / 12.0)                                                                          # Area scales with r^2, so r scales with sqrt(n).
 
-    vec  = find_neighbors_adv(p, dist, a, b, nvec)                                                                  # Build neighbor list using upwind KDTree query.
+    # 2. Search radius scaling
+    if nvec > 12:                                                                                                                       # Scale dist if asking for expanded stencil.
+        dist = dist * np.sqrt(nvec / 12.0)                                                                                              # Area scales with r^2, so r scales with sqrt(n).
 
-    return vec                                                                                                      # Return global neighbor list.
 
-def find_distances(p):                                                                                              # Estimate a search radius dist from point spacing.
+    # 3. Upwind neighbor search
+    vec  = find_neighbors_adv(p, dist, a, b, nvec)                                                                                      # Build neighbor list using upwind KDTree query.
+
+    return vec                                                                                                                          # Return global neighbor list.
+
+def find_distances(p: np.ndarray) -> float:                                                                                             # Estimate a search radius dist from point spacing.
     """
     find_distances
     Estimate a characteristic spacing from the point cloud and convert it to a search radius dist.
@@ -125,15 +136,15 @@ def find_distances(p):                                                          
     Output:
         dist                        float           Search radius used to collect candidate neighbors.
     """
-    ## KDTree-based (memory efficient).
-    tree          = KDTree(p[:, :2])                                                                                # Build KDTree on (x, y) coordinates.
-    distances, _  = tree.query(p[:, :2], k = 2)                                                                     # Query self + nearest neighbor.
-    min_distances = distances[:, 1]                                                                                 # Keep nearest-neighbor distances (skip self at k=0).
-    dist          = (3 / 2) * float(np.max(min_distances))                                                          # Convert spacing to a search radius.
+    # 1. KDTree-based search
+    tree          = KDTree(p[:, :2])                                                                                                    # Build KDTree on (x, y) coordinates.
+    distances, _  = tree.query(p[:, :2], k = 2)                                                                                         # Query self + nearest neighbor.
+    min_distances = distances[:, 1]                                                                                                     # Keep nearest-neighbor distances (skip self at k=0).
+    dist          = (3 / 2) * float(np.max(min_distances))                                                                              # Convert spacing to a search radius.
 
-    return dist                                                                                                     # Return radius distance.
+    return dist                                                                                                                         # Return radius distance.
 
-def find_neighbors(p, dist, nvec):                                                                                  # Build an isotropic neighbor list within a radius.
+def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:                                                                # Build an isotropic neighbor list within a radius.
     """
     find_neighbors
     Find up to nvec neighbors for each point within a radius distance dist.
@@ -148,21 +159,22 @@ def find_neighbors(p, dist, nvec):                                              
     Output:
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
-    ## Variable initialization.
-    m   = int(len(p[:, 0]))                                                                                         # Total number of nodes.
-    vec = np.zeros([m, nvec], dtype = int) - 1                                                                      # Initialize neighbor matrix with padding -1.
+    # 1. Variable initialization
+    m   = int(len(p[:, 0]))                                                                                                             # Total number of nodes.
+    vec = np.zeros([m, nvec], dtype = int) - 1                                                                                          # Initialize neighbor matrix with padding -1.
 
-    # KDTree radius query per node.
-    tree = KDTree(p[:, :2])                                                                                         # Build KDTree on (x, y) coordinates.
-    for i in range(m):                                                                                              # For each node i.
-        distances, indices = tree.query(p[i, :2], k = nvec + 1, distance_upper_bound = dist)                        # Query up to nvec+1 neighbors inside radius.
-        valid_indices      = indices[distances < dist]                                                              # Keep only neighbors with valid distances.
-        valid_indices      = valid_indices[valid_indices != i]                                                      # Remove self from the neighbor list.
-        vec[i, :min(len(valid_indices), nvec)] = valid_indices[:nvec]                                               # Store up to nvec neighbors.
+    # 2. KDTree radius query per node.
+    tree = KDTree(p[:, :2])                                                                                                             # Build KDTree on (x, y) coordinates.
+    
+    for i in range(m):                                                                                                                  # For each node i.
+        distances, indices = tree.query(p[i, :2], k = nvec + 1, distance_upper_bound = dist)                                            # Query up to nvec+1 neighbors inside radius.
+        valid_indices      = indices[distances < dist]                                                                                  # Keep only neighbors with valid distances.
+        valid_indices      = valid_indices[valid_indices != i]                                                                          # Remove self from the neighbor list.
+        vec[i, :min(len(valid_indices), nvec)] = valid_indices[:nvec]                                                                   # Store up to nvec neighbors.
 
-    return vec                                                                                                      # Return neighbor list.
+    return vec                                                                                                                          # Return neighbor list.
 
-def find_neighbors_balanced(p, dist, nvec):                                                                         # Build a quadrant-balanced neighbor list.
+def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:                                                       # Build a quadrant-balanced neighbor list.
     """
     find_neighbors_balanced
     Find up to nvec neighbors for each point, ensuring a balanced spatial distribution by
@@ -176,63 +188,68 @@ def find_neighbors_balanced(p, dist, nvec):                                     
     Output:
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
-    m   = int(len(p[:, 0]))                                                                                         # Total number of nodes.
-    vec = np.zeros([m, nvec], dtype = int) - 1                                                                      # Initialize neighbor matrix with padding -1.
+    # 1. Variable initialization
+    m    = int(len(p[:, 0]))                                                                                                            # Total number of nodes.
+    vec  = np.zeros([m, nvec], dtype = int) - 1                                                                                         # Initialize neighbor matrix with padding -1.
 
-    nvec = int(nvec)
-    if m == 0 or nvec <= 0:
-        return vec
+    nvec = int(nvec)                                                                                                                    # Force integer.
+    
+    if m == 0 or nvec <= 0:                                                                                                             # Handle empty cases.
+        return vec                                                                                                                      # Return empty matrix.
 
-    # Query a large candidate pool to ensure we find points in all quadrants if possible.
-    k_cand = min(m, 10 * nvec)                                                                                      # Expand candidate search pool.
-    tree = KDTree(p[:, :2])                                                                                         # Build KDTree on (x, y).
-    distances, indices = tree.query(p[:, :2], k = k_cand)                                                           # Query candidates.
+    # 2. Initial candidate pool query
+    k_cand             = min(m, 10 * nvec)                                                                                              # Expand candidate search pool.
+    tree               = KDTree(p[:, :2])                                                                                               # Build KDTree on (x, y).
+    distances, indices = tree.query(p[:, :2], k = k_cand)                                                                               # Query candidates.
 
-    if k_cand == 1:
-        distances = distances.reshape(-1, 1)
-        indices   = indices.reshape(-1, 1)
+    if k_cand == 1:                                                                                                                     # Handle edge case.
+        distances = distances.reshape(-1, 1)                                                                                            # Reshape distances.
+        indices   = indices.reshape(-1, 1)                                                                                              # Reshape indices.
 
-    target_per_quad = int(np.ceil(nvec / 4.0))                                                                      # Target number of points per quadrant.
+    target_per_quad = int(np.ceil(nvec / 4.0))                                                                                          # Target number of points per quadrant.
 
-    for i in range(m):
-        cand   = indices[i, 1:]                                                                                     # Candidate indices (skip self).
-        dist_c = distances[i, 1:]                                                                                   # Candidate distances.
+
+    # 3. Quadrant-balanced selection
+    for i in range(m):                                                                                                                  # Loop over nodes.
+        cand   = indices[i, 1:]                                                                                                         # Candidate indices (skip self).
+        dist_c = distances[i, 1:]                                                                                                       # Candidate distances.
 
         # Filter valid candidates within a slightly expanded radius to allow filling empty quadrants.
-        good   = (cand >= 0) & (cand < m) & np.isfinite(dist_c) & (dist_c <= 1.5 * dist)
-        cand   = cand[good].astype(np.int32, copy = False)
-        dist_c = dist_c[good]
+        good   = (cand >= 0) & (cand < m) & np.isfinite(dist_c) & (dist_c <= 1.5 * dist)                                                # Valid mask.
+        cand   = cand[good].astype(np.int32, copy = False)                                                                              # Filter candidate indices.
+        dist_c = dist_c[good]                                                                                                           # Filter candidate distances.
 
-        if cand.size == 0:
-            continue
+        if cand.size == 0:                                                                                                              # Skip if no candidates.
+            continue                                                                                                                    # Continue loop.
 
-        dx = p[cand, 0] - p[i, 0]                                                                                   # DX relative to central node.
-        dy = p[cand, 1] - p[i, 1]                                                                                   # DY relative to central node.
+        dx = p[cand, 0] - p[i, 0]                                                                                                       # DX relative to central node.
+        dy = p[cand, 1] - p[i, 1]                                                                                                       # DY relative to central node.
 
         # Define quadrants
-        q1 = (dx >= 0) & (dy >= 0)                                                                                  # NE quadrant.
-        q2 = (dx < 0)  & (dy >= 0)                                                                                  # NW quadrant.
-        q3 = (dx < 0)  & (dy < 0)                                                                                   # SW quadrant.
-        q4 = (dx >= 0) & (dy < 0)                                                                                   # SE quadrant.
+        q1 = (dx >= 0) & (dy >= 0)                                                                                                      # NE quadrant.
+        q2 = (dx < 0)  & (dy >= 0)                                                                                                      # NW quadrant.
+        q3 = (dx < 0)  & (dy < 0)                                                                                                       # SW quadrant.
+        q4 = (dx >= 0) & (dy < 0)                                                                                                       # SE quadrant.
 
-        selected = []
-        for q in [q1, q2, q3, q4]:                                                                                  # Extract balanced points.
-            q_cand = cand[q]
-            selected.extend(q_cand[:target_per_quad])
+        selected = []                                                                                                                   # List of selected indices.
+        
+        for q in [q1, q2, q3, q4]:                                                                                                      # Extract balanced points.
+            q_cand = cand[q]                                                                                                            # Candidates in quadrant.
+            selected.extend(q_cand[:target_per_quad])                                                                                   # Add to selection.
 
         # If we couldn't fill the stencil purely with balanced points, fill with closest remaining.
-        if len(selected) < nvec:
-            remaining = [c for c in cand if c not in selected]
-            needed = nvec - len(selected)
-            selected.extend(remaining[:needed])
+        if len(selected) < nvec:                                                                                                        # Need more points.
+            remaining = [c for c in cand if c not in selected]                                                                          # Get unselected candidates.
+            needed    = nvec - len(selected)                                                                                            # Compute how many are needed.
+            selected.extend(remaining[:needed])                                                                                         # Add to selection.
 
-        selected = selected[:nvec]                                                                                  # Truncate if we overshot.
-        take = len(selected)
-        vec[i, :take] = selected                                                                                    # Save selected neighbors.
+        selected      = selected[:nvec]                                                                                                 # Truncate if we overshot.
+        take          = len(selected)                                                                                                   # Final count.
+        vec[i, :take] = selected                                                                                                        # Save selected neighbors.
 
-    return vec                                                                                                      # Return balanced neighbor list.
+    return vec                                                                                                                          # Return balanced neighbor list.
 
-def find_neighbors_adv(p, dist, a, b, nvec):                                                                        # Build an upwind-biased neighbor list.
+def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int) -> np.ndarray:                                        # Build an upwind-biased neighbor list.
     """
     find_neighbors_adv
     Find up to nvec neighbors per node with an upwind preference for direction (a, b).
@@ -250,60 +267,69 @@ def find_neighbors_adv(p, dist, a, b, nvec):                                    
     Output:
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
-    m   = int(len(p[:, 0]))                                                                                         # Total number of nodes.
-    vec = np.zeros([m, nvec], dtype = int) - 1                                                                      # Initialize neighbor matrix with padding -1.
+    # 1. Variable initialization
+    m    = int(len(p[:, 0]))                                                                                                            # Total number of nodes.
+    vec  = np.zeros([m, nvec], dtype = int) - 1                                                                                         # Initialize neighbor matrix with padding -1.
 
-    a    = float(a)                                                                                                 # Normalize a to float.
-    b    = float(b)                                                                                                 # Normalize b to float.
-    nvec = int(nvec)                                                                                                # Normalize neighbor count to int.
+    a    = float(a)                                                                                                                     # Normalize a to float.
+    b    = float(b)                                                                                                                     # Normalize b to float.
+    nvec = int(nvec)                                                                                                                    # Normalize neighbor count to int.
 
-    if m == 0 or nvec <= 0:                                                                                         # Handle empty input or invalid neighbor count.
-        return vec                                                                                                  # Return empty neighbor matrix.
+    if m == 0 or nvec <= 0:                                                                                                             # Handle empty input or invalid neighbor count.
+        return vec                                                                                                                      # Return empty neighbor matrix.
 
-    speed = float(np.hypot(a, b))                                                                                   # Magnitude of advection direction.
 
-    if (not np.isfinite(speed)) or speed == 0.0:                                                                    # Fallback when direction is invalid.
-        dist0 = find_distances(p)                                                                                   # Use isotropic distance estimate.
-        return find_neighbors(p, dist0, nvec)                                                                       # Return isotropic KDTree neighbors.
+    # 2. Advection direction magnitude
+    speed = float(np.hypot(a, b))                                                                                                       # Magnitude of advection direction.
 
-    k = max(nvec + 1, 128, 40 * nvec)                                                                               # Candidate pool size for KDTree query.
-    k = int(min(m, k))                                                                                              # Clamp to m to avoid invalid k.
+    if (not np.isfinite(speed)) or speed == 0.0:                                                                                        # Fallback when direction is invalid.
+        dist0 = find_distances(p)                                                                                                       # Use isotropic distance estimate.
+        return find_neighbors(p, dist0, nvec)                                                                                           # Return isotropic KDTree neighbors.
 
-    tree               = KDTree(p[:, :2])                                                                           # Build KDTree on (x, y) coordinates.
-    distances, indices = tree.query(p[:, :2], k = k)                                                                # Query k nearest candidates for all points.
 
-    if k == 1:                                                                                                      # Ensure 2D shapes for consistent slicing.
-        distances = distances.reshape(-1, 1)                                                                        # Reshape distances to (m, 1).
-        indices   = indices.reshape(-1, 1)                                                                          # Reshape indices to (m, 1).
+    # 3. Candidate pool sizing
+    k = max(nvec + 1, 128, 40 * nvec)                                                                                                   # Candidate pool size for KDTree query.
+    k = int(min(m, k))                                                                                                                  # Clamp to m to avoid invalid k.
 
-    tol = 1e-14 * speed                                                                                             # Tolerance to decide upwind vs downwind.
 
-    for i in range(m):                                                                                              # Loop over nodes.
-        cand   = indices[i, 1:]                                                                                     # Candidate neighbor indices (skip self at position 0).
-        dist_c = distances[i, 1:]                                                                                   # Candidate neighbor distances.
-        good   = (cand >= 0) & (cand < m) & np.isfinite(dist_c)                                                     # Filter invalid indices and infinite distances.
-        cand   = cand[good].astype(np.int32, copy = False)                                                          # Keep only valid candidates.
-        dist_c = dist_c[good]                                                                                       # Keep aligned distances for sorting.
+    # 4. KDTree candidate query
+    tree               = KDTree(p[:, :2])                                                                                               # Build KDTree on (x, y) coordinates.
+    distances, indices = tree.query(p[:, :2], k = k)                                                                                    # Query k nearest candidates for all points.
 
-        if cand.size == 0:                                                                                          # No valid candidates.
-            continue                                                                                                # Leave row as -1 padding.
+    if k == 1:                                                                                                                          # Ensure 2D shapes for consistent slicing.
+        distances = distances.reshape(-1, 1)                                                                                            # Reshape distances to (m, 1).
+        indices   = indices.reshape(-1, 1)                                                                                              # Reshape indices to (m, 1).
 
-        order  = np.lexsort((cand, dist_c))                                                                         # Sort primarily by distance, then by index.
-        cand   = cand[order]                                                                                        # Apply sorting to candidate indices.
-        dist_c = dist_c[order]                                                                                      # Apply sorting to candidate distances.
+    tol = 1e-14 * speed                                                                                                                 # Tolerance to decide upwind vs downwind.
 
-        dx     = p[cand, 0] - p[i, 0]                                                                               # Candidate dx offsets.
-        dy     = p[cand, 1] - p[i, 1]                                                                               # Candidate dy offsets.
-        dot    = dx * a + dy * b                                                                                    # Directional dot product to classify upwind/downwind.
-        up     = cand[dot <= tol]                                                                                   # Upwind candidates (including near-orthogonal).
-        dn     = cand[dot > tol]                                                                                    # Downwind candidates.
 
-        if up.size >= nvec:                                                                                         # If upwind set is large enough.
-            vec[i, :] = up[:nvec]                                                                                   # Take the closest nvec upwind neighbors.
-        else:                                                                                                       # Otherwise, fill remaining slots with downwind.
-            fill          = np.concatenate([up, dn])                                                                # Concatenate upwind-first ordering.
-            take          = min(nvec, int(fill.size))                                                               # Limit to available candidates.
-            vec[i, :take] = fill[:take]                                                                             # Store selected neighbors.
+    # 5. Upwind filtering and selection
+    for i in range(m):                                                                                                                  # Loop over nodes.
+        cand   = indices[i, 1:]                                                                                                         # Candidate neighbor indices (skip self at position 0).
+        dist_c = distances[i, 1:]                                                                                                       # Candidate neighbor distances.
+        good   = (cand >= 0) & (cand < m) & np.isfinite(dist_c)                                                                         # Filter invalid indices and infinite distances.
+        cand   = cand[good].astype(np.int32, copy = False)                                                                              # Keep only valid candidates.
+        dist_c = dist_c[good]                                                                                                           # Keep aligned distances for sorting.
 
-    return vec                                                                                                      # Return upwind neighbor list.
+        if cand.size == 0:                                                                                                              # No valid candidates.
+            continue                                                                                                                    # Leave row as -1 padding.
+
+        order  = np.lexsort((cand, dist_c))                                                                                             # Sort primarily by distance, then by index.
+        cand   = cand[order]                                                                                                            # Apply sorting to candidate indices.
+        dist_c = dist_c[order]                                                                                                          # Apply sorting to candidate distances.
+
+        dx     = p[cand, 0] - p[i, 0]                                                                                                   # Candidate dx offsets.
+        dy     = p[cand, 1] - p[i, 1]                                                                                                   # Candidate dy offsets.
+        dot    = dx * a + dy * b                                                                                                        # Directional dot product to classify upwind/downwind.
+        up     = cand[dot <= tol]                                                                                                       # Upwind candidates (including near-orthogonal).
+        dn     = cand[dot > tol]                                                                                                        # Downwind candidates.
+
+        if up.size >= nvec:                                                                                                             # If upwind set is large enough.
+            vec[i, :] = up[:nvec]                                                                                                       # Take the closest nvec upwind neighbors.
+        else:                                                                                                                           # Otherwise, fill remaining slots with downwind.
+            fill          = np.concatenate([up, dn])                                                                                    # Concatenate upwind-first ordering.
+            take          = min(nvec, int(fill.size))                                                                                   # Limit to available candidates.
+            vec[i, :take] = fill[:take]                                                                                                 # Store selected neighbors.
+
+    return vec                                                                                                                          # Return upwind neighbor list.
 
