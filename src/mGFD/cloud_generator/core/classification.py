@@ -41,9 +41,10 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
+import shapely                                                                                                                          # Vectorized geometry operations.
 
 from shapely.strtree import STRtree                                                                                                     # Spatial index for fast nearest-neighbor search.
-from typing import List, Tuple, Optional                                                                                                # Type hinting.
+from typing import List, Tuple, Optional, Any                                                                                           # Type hinting.
 from shapely.geometry import Point, Polygon, LineString                                                                                 # Geometric objects for spatial operations.
 
 from mGFD.cloud_generator.utils.utils import calculate_dynamic_boundary_refinement                                                      # Import tolerance calculator.
@@ -81,7 +82,7 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
     global_min_y, global_max_y = np.min(points_array[:, 1]), np.max(points_array[:, 1])                                                 # Extract minimum and maximum Y coordinates.
     
     # 4. Create Shapely geometries from contours
-    shapely_contours = []                                                                                                               # List for storing all contour geometries.
+    shapely_contours: List[Any] = []                                                                                                    # List for storing all contour geometries.
     valid_geometries = []                                                                                                               # List for valid geometries specifically for STRtree.
     geom_id_to_index = {}                                                                                                               # Dictionary to map object ID to its contour index.
     
@@ -93,7 +94,7 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
                     
                     for cp in contour_points:                                                                                           # Iterate through the points of the contour.
                         if len(cp) >= 2:                                                                                                # Verify that the point has at least 2 dimensions.
-                            valid_coords.append((float(cp[0]), float(cp[1])))                                                           # Convert contour point coordinates to float tuples.
+                            valid_coords.append((cp[0], cp[1]))                                                                         # Convert contour point coordinates to float tuples.
                     
                     if len(valid_coords) >= 3:                                                                                          # Proceed if we have enough valid coordinates.
                         if valid_coords[0] != valid_coords[-1]:                                                                         # Check if the polygon is open.
@@ -125,16 +126,7 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
             else:                                                                                                                       # If the contour has fewer than 3 points.
                 shapely_contours.append(None)                                                                                           # Append a None to maintain indexing order.
     
-    # 5. Build STRtree for efficient spatial queries
-    spatial_index = None                                                                                                                # Initialize the spatial index variable.
-    
-    if valid_geometries:                                                                                                                # Check if there are valid geometries to index.
-        try:                                                                                                                            # Try block to build the STRtree.
-            spatial_index = STRtree(valid_geometries)                                                                                   # Construct the R-tree index.
-        except Exception as e:                                                                                                          # If tree construction fails.
-            pass                                                                                                                        # Ignore STRtree failure.
-    
-    # 6. Create global domain boundary as a rectangle
+    # 5. Create global domain boundary as a rectangle                                                                                   #
     domain_boundary = None                                                                                                              # Initialize the global boundary variable.
     
     try:                                                                                                                                # Try to build the boundary box.
@@ -144,91 +136,37 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
             (global_max_x, global_max_y),                                                                                               # Top-right corner.
             (global_min_x, global_max_y),                                                                                               # Top-left corner.
             (global_min_x, global_min_y)                                                                                                # Close back at bottom-left.
-        ]
+        ]                                                                                                                               #
         domain_boundary = LineString(domain_coords)                                                                                     # Create a LineString for the boundary box.
     except:                                                                                                                             # Catch any exceptions during boundary creation.
         domain_boundary = None                                                                                                          # Set it to None if failed.
+        
+    # 6. Classify each point using Shapely vectorized operations                                                                        #
+    points_geoms = shapely.points(points_array[:, 0], points_array[:, 1])                                                               # Create vector of Point geometries.
     
-    # 7. Classify each point using Shapely geometric operations
-    for i in range(len(points_array)):                                                                                                  # Iterate over the entire point cloud.
-        x, y        = points_array[i]                                                                                                   # Extract the X and Y coordinates.
-        region_id   = regions_array[i]                                                                                                  # Extract the region ID of the current point.
-        is_boundary = False                                                                                                             # Default boundary classification state.
+    if domain_boundary is not None:                                                                                                     # Check distance to the domain bounding box.
+        domain_distances = shapely.distance(points_geoms, domain_boundary)                                                              # Compute vectorized distances.
+        is_boundary_mask = domain_distances <= boundary_tolerance                                                                       # Initialize classification mask.
+    else:                                                                                                                               # If no domain boundary.
+        is_boundary_mask = np.zeros(len(points_array), dtype=bool)                                                                      # Initialize classification mask as False.
         
-        try:                                                                                                                            # Attempt to classify the point geometrically.
-            point_geom              = Point(x, y)                                                                                       # Create a Shapely Point geometry.
-            min_distance_to_contour = float('inf')                                                                                      # Set the minimum distance to infinity.
-            
-            # Primary method: Check distance to Shapely contours
-            if shapely_contours:                                                                                                        # Check if there are contours loaded.
-                if spatial_index:                                                                                                       # Use the R-tree if available.
-                    # query returns candidates (geometries) that *might* be near
-                    candidates = spatial_index.query(point_geom)                                                                        # Perform a spatial query to get near geometries.
-                    
-                    final_candidates = []                                                                                               # List for candidates handling STRtree API versions.
-                    
-                    if hasattr(candidates, '__iter__') and len(candidates) > 0:                                                         # Check if the query returned an iterable result.
-                        first_item = list(candidates)[0]                                                                                # Get the first candidate item.
-                        
-                        if isinstance(first_item, (int, np.integer)):                                                                   # Newer Shapely API returns indices.
-                            final_candidates = [valid_geometries[i] for i in candidates]                                                # Resolve geometry from the valid geometries.
-                        elif isinstance(first_item, (Polygon, LineString, Point)):                                                      # Older Shapely API returns geometries.
-                            final_candidates = list(candidates)                                                                         # Convert iterator to list directly.
-                        else:                                                                                                           # If it is neither.
-                            final_candidates = valid_geometries                                                                         # Default to evaluating all geometries.
-                    else:                                                                                                               # If no specific candidates were found or API mismatch.
-                        final_candidates = valid_geometries                                                                             # Evaluate all valid geometries.
-                    
-                    if not final_candidates:                                                                                            # Ensure the candidate list isn't empty.
-                        final_candidates = valid_geometries                                                                             # Fallback to checking all valid geometries.
-                        
-                    for contour in final_candidates:                                                                                    # Iterate over the localized geometries.
-                        # Check if this contour is a valid boundary for the current point's region
-                        if inside_regions:                                                                                              # If region-specific logic is enabled.
-                            contour_idx = geom_id_to_index.get(id(contour))                                                             # Fetch the original index of the contour.
-                            
-                            if contour_idx is not None:                                                                                 # Check if the mapping was found.
-                                if region_id == 1 and contour_idx != 0:                                                                 # Rule: Region 1 checks contour 0 only.
-                                    continue                                                                                            # Skip other contours for Region 1.
-                                if region_id > 1 and contour_idx != (region_id - 1):                                                    # Rule: Sub-regions check their own contour.
-                                    continue                                                                                            # Skip non-matching contours.
-                        
-                        dist = point_geom.distance(contour)                                                                             # Calculate exact shortest distance to contour.
-                        if isinstance(dist, (np.ndarray, list)):                                                                        # In some environments, distance might be an array.
-                            dist = np.min(dist)                                                                                         # Reduce an array to its scalar minimum.
-                        min_distance_to_contour = min(min_distance_to_contour, float(dist))                                             # Update the shortest distance.
-                else:                                                                                                                   # If STRtree is not available.
-                    # Fallback to checking all contours
-                    for idx, contour in enumerate(shapely_contours):                                                                    # Perform an exhaustive iteration over contours.
-                        if contour is not None:                                                                                         # Skip invalid contours.
-                            if inside_regions:                                                                                          # If region-specific logic is enabled.
-                                if region_id == 1 and idx != 0:                                                                         # Rule: Region 1 checks contour 0 only.
-                                    continue                                                                                            # Skip other contours.
-                                if region_id > 1 and idx != (region_id - 1):                                                            # Rule: Sub-regions check their own contour.
-                                    continue                                                                                            # Skip non-matching contours.
-                                    
-                            min_distance_to_contour = min(min_distance_to_contour, point_geom.distance(contour))                        # Calculate distance.
+    if shapely_contours:                                                                                                                # Check distances to internal Shapely contours.
+        for idx, contour in enumerate(shapely_contours):                                                                                # Iterate over all valid contours.
+            if contour is None:                                                                                                         # Skip invalid contours.
+                continue                                                                                                                # Continue to next contour.
                 
-                if min_distance_to_contour <= boundary_tolerance:                                                                       # Classify as boundary if close to any contour.
-                    is_boundary = True                                                                                                  # Mark point as boundary.
+            dists = shapely.distance(points_geoms, contour)                                                                             # Vectorized distance from all points to contour.
             
-            # Fallback method: Check distance to global domain boundary
-            if not is_boundary and domain_boundary is not None:                                                                         # If not boundary yet, test against the bounding box.
-                distance_to_domain = point_geom.distance(domain_boundary)                                                               # Measure distance to the domain bounding box.
-                if distance_to_domain <= boundary_tolerance:                                                                            # Check against the same distance tolerance.
-                    is_boundary = True                                                                                                  # Mark point as boundary.
-            
-        except Exception as e:                                                                                                          # Handle any calculation error for a given point.
-            # Fallback to simple coordinate-based classification if Shapely fails
-            if (
-                abs(x - global_min_x) < boundary_tolerance or                                                                           # Check left edge.
-                abs(x - global_max_x) < boundary_tolerance or                                                                           # Check right edge.
-                abs(y - global_min_y) < boundary_tolerance or                                                                           # Check bottom edge.
-                abs(y - global_max_y) < boundary_tolerance                                                                              # Check top edge.
-            ):
-                is_boundary = True                                                                                                      # Set boundary flag to True.
-        
-        classifications.append("boundary" if is_boundary else "interior")                                                               # Add the final classification label for this point.
+            if inside_regions:                                                                                                          # If region-specific logic is enabled.
+                if idx == 0:                                                                                                            # Contour 0 belongs to region 1.
+                    mask = (regions_array == 1) & (dists <= boundary_tolerance)                                                         # Check region 1 points.
+                else:                                                                                                                   # Other contours belong to respective sub-regions.
+                    mask = (regions_array == (idx + 1)) & (dists <= boundary_tolerance)                                                 # Check sub-region points.
+                is_boundary_mask |= mask                                                                                                # Update global mask.
+            else:                                                                                                                       # If no region logic.
+                is_boundary_mask |= (dists <= boundary_tolerance)                                                                       # Apply distance check globally.
+                
+    classifications = np.where(is_boundary_mask, "boundary", "interior").tolist()                                                       # Construct list of classification strings.
     
     # 8. Log classification statistics
     boundary_count = sum(1 for c in classifications if c == "boundary")                                                                 # Count the number of boundary nodes.
