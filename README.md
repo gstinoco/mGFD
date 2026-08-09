@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="docs/logo/logo.png" alt="mGFD logo" width="680" style="margin: 20px 0; border-radius: 8px;">
+<img src="https://raw.githubusercontent.com/gstinoco/mGFD/main/docs/logo/logo.png" alt="mGFD logo" width="680" style="margin: 20px 0; border-radius: 8px;">
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-black.svg?style=for-the-badge)](https://github.com/gstinoco/mGFD) 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/) 
@@ -45,6 +45,12 @@ This makes it exceptionally powerful for modeling physics in complex, real-world
 ## 📦 Installation
 
 **mGFD** relies on a robust scientific stack (`numpy`, `scipy`, `shapely`, `opencv-python-headless`).
+
+The easiest way to install the package is directly from PyPI:
+
+```bash
+pip install mGFD
+```
 
 To install the package from source (useful for development):
 
@@ -160,7 +166,7 @@ u_ap, vec = TimeDerivative2(p, f_wave, g_wave, t2, [c], operator=L_wave, implici
 
 Looking for the **mathematical formulation**, **real-world geographic lake datasets** (Lake Patzcuaro, Caspian Sea, etc.), or reproducible **benchmarking scripts**?
 
-👉 **[Explore the Research Laboratory (`/research/README.md`)](./research/README.md)**
+👉 **[Explore the Research Laboratory (`/research/README.md`)](https://github.com/gstinoco/mGFD/tree/main/research)**
 
 The `research/` directory contains our complete academic suite, including experimental data, geographic boundary files, VTK results, and the exact theoretical explanations associated with our scientific publications.
 
