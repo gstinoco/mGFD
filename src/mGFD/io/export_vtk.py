@@ -142,6 +142,7 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: i
         verbose                     bool            (Optional) If True, prints status messages to standard output.
     """
     # 1. Initialization and mesh creation
+    out_dir = os.path.join(out_dir, 'VTK')                                                                                              # Append VTK subdirectory to avoid cluttering.
     os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
     mesh = _create_mesh(p, cloud_path = cloud_path)                                                                                     # Create base mesh for the geometry.
     

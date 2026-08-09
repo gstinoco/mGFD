@@ -316,16 +316,11 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
                 out_nom = nom.replace('.mp4', f'{suffix}.mp4').replace('.gif', f'{suffix}.gif')                                         # Append suffix before extension.
                 if out_nom == nom: out_nom = nom + suffix                                                                               # Fallback suffix append.
                 
-            if animation.writers.is_available('ffmpeg'):                                                                                # Check if FFmpeg is installed.
-                ani.save(out_nom.replace('.gif', '.mp4'), writer='ffmpeg', fps=10)                                                      # Save animation as high-quality MP4.
-                
-                if verbose:
-                    logger.info(f'\tSaved animation to {out_nom.replace(".gif", ".mp4")}')                                              # Print confirmation of save.
-            else:                                                                                                                       # Fallback to Pillow.
-                ani.save(out_nom, writer='pillow', fps=10)                                                                              # Save animation as GIF.
-                
-                if verbose:
-                    logger.info(f'\tSaved animation to {out_nom}')                                                                      # Print confirmation of save.
+            save_nom = out_nom if out_nom.endswith('.gif') else out_nom + '.gif'
+            ani.save(save_nom, writer='pillow', fps=10)                                                                                 # Save animation as GIF.
+            
+            if verbose:
+                logger.info(f'\tSaved animation to {save_nom}')                                                                         # Print confirmation of save.
                 
             plt.close(fig)                                                                                                              # Close figure to release memory.
             
