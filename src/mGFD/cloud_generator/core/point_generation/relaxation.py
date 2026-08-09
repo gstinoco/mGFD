@@ -43,7 +43,7 @@ from shapely.geometry import Polygon                                            
 from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
 from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.                                             # Fast polygon checker.
 
-@nb.njit(cache=True, fastmath=True)                                                                                                     # Decorator for JIT compilation.
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.
 def _compute_relaxation_step_jit(int_pts: np.ndarray, point_region: np.ndarray, flat_regions: np.ndarray, offsets: np.ndarray, vertices: np.ndarray, poly_coords: np.ndarray) -> tuple:
     """
     _compute_relaxation_step_jit
@@ -63,50 +63,47 @@ def _compute_relaxation_step_jit(int_pts: np.ndarray, point_region: np.ndarray, 
     """
     n            = len(int_pts)                                                                                                         # Number of interior points.
     new_int_pts  = np.zeros_like(int_pts)                                                                                               # Allocate updated points array.
-    max_movement = 0.0                                                                                                                  # Tracker for maximum movement.
+    movements    = np.zeros(n, dtype=np.float64)                                                                                        # Allocate array for individual movements.
 
-    for i in range(n):                                                                                                                  # Iterate over interior points.
+    for i in nb.prange(n):                                                                                                              # type: ignore
         reg_idx = point_region[i]                                                                                                       # Get Voronoi region index.
         start   = offsets[reg_idx]                                                                                                      # Start index in flattened array.
         end     = offsets[reg_idx + 1]                                                                                                  # End index in flattened array.
         
         if end - start == 0:                                                                                                            # If region is empty.
             new_int_pts[i] = int_pts[i]                                                                                                 # Keep original position.
-            continue                                                                                                                    # Skip to next point.
+        else:                                                                                                                           # If region has vertices.
+            is_unbounded = False                                                                                                        # Flag for unbounded region.
+            sum_x        = 0.0                                                                                                          # Accumulator for X.
+            sum_y        = 0.0                                                                                                          # Accumulator for Y.
+            count        = 0                                                                                                            # Number of vertices in region.
             
-        is_unbounded = False                                                                                                            # Flag for unbounded region.
-        sum_x        = 0.0                                                                                                              # Accumulator for X.
-        sum_y        = 0.0                                                                                                              # Accumulator for Y.
-        count        = 0                                                                                                                # Number of vertices in region.
-        
-        for j in range(start, end):                                                                                                     # Iterate over region vertices.
-            v_idx = flat_regions[j]                                                                                                     # Vertex index.
-            
-            if v_idx == -1:                                                                                                             # Check for unbounded vertex (-1).
-                is_unbounded = True                                                                                                     # Set flag.
-                break                                                                                                                   # Stop processing this region.
+            for j in range(start, end):                                                                                                 # Iterate over region vertices.
+                v_idx = flat_regions[j]                                                                                                 # Vertex index.
                 
-            sum_x += vertices[v_idx, 0]                                                                                                 # Accumulate X.
-            sum_y += vertices[v_idx, 1]                                                                                                 # Accumulate Y.
-            count += 1                                                                                                                  # Increment counter.
-            
-        if is_unbounded or count == 0:                                                                                                  # If region is invalid or unbounded.
-            new_int_pts[i] = int_pts[i]                                                                                                 # Keep original position.
-            continue                                                                                                                    # Skip to next point.
-            
-        cx = sum_x / count                                                                                                              # Compute centroid X.
-        cy = sum_y / count                                                                                                              # Compute centroid Y.
-        
-        if _is_point_in_polygon_jit(cx, cy, poly_coords):                                                                               # Check if centroid is inside polygon.
-            new_int_pts[i, 0] = cx                                                                                                      # Update point X.
-            new_int_pts[i, 1] = cy                                                                                                      # Update point Y.
-            dist              = np.sqrt((cx - int_pts[i, 0])**2 + (cy - int_pts[i, 1])**2)                                              # Calculate movement.
-            
-            if dist > max_movement:                                                                                                     # If movement is largest.
-                max_movement = dist                                                                                                     # Update tracker.
-        else:                                                                                                                           # If centroid is outside polygon.
-            new_int_pts[i] = int_pts[i]                                                                                                 # Keep original position.
-            
+                if v_idx == -1:                                                                                                         # Check for unbounded vertex (-1).
+                    is_unbounded = True                                                                                                 # Set flag.
+                    break                                                                                                               # Stop processing this region.
+                    
+                sum_x += vertices[v_idx, 0]                                                                                             # Accumulate X.
+                sum_y += vertices[v_idx, 1]                                                                                             # Accumulate Y.
+                count += 1                                                                                                              # Increment counter.
+                
+            if is_unbounded or count == 0:                                                                                              # If region is invalid or unbounded.
+                new_int_pts[i] = int_pts[i]                                                                                             # Keep original position.
+            else:                                                                                                                       # If region is valid.
+                cx = sum_x / count                                                                                                      # Compute centroid X.
+                cy = sum_y / count                                                                                                      # Compute centroid Y.
+                
+                if _is_point_in_polygon_jit(cx, cy, poly_coords):                                                                       # Check if centroid is inside polygon.
+                    new_int_pts[i, 0] = cx                                                                                              # Update point X.
+                    new_int_pts[i, 1] = cy                                                                                              # Update point Y.
+                    dist              = np.sqrt((cx - int_pts[i, 0])**2 + (cy - int_pts[i, 1])**2)                                      # Calculate movement.
+                    movements[i]      = dist                                                                                            # Store movement for later max reduction.
+                else:                                                                                                                   # If centroid is outside polygon.
+                    new_int_pts[i] = int_pts[i]                                                                                         # Keep original position.
+                    
+    max_movement = np.max(movements)                                                                                                    # Safely extract maximum movement outside prange.
     return new_int_pts, max_movement                                                                                                    # Return updated points and tracker.
 
 def lloyd_relaxation(interior_points: np.ndarray, boundary_points: np.ndarray, polygon: Polygon, iterations: int = 5, tolerance: float = 1e-4) -> np.ndarray:

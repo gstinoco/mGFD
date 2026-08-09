@@ -47,7 +47,7 @@ from mGFD.cloud_generator.core.point_generation.boundary import generate_boundar
 from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
 from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.                                             # Geometric operations.
 
-@nb.njit(cache=True, fastmath=True)                                                                                                     # Decorator for JIT compilation.
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.
 def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, poly_coords: np.ndarray) -> np.ndarray:
     """
     _generate_interior_fallback_jit
@@ -65,20 +65,35 @@ def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, po
     ny       = len(y_range)                                                                                                             # Number of Y coordinates.
     capacity = nx * ny                                                                                                                  # Initial capacity.
     out      = np.zeros((capacity, 2), dtype=np.float64)                                                                                # Allocate output array.
-    count    = 0                                                                                                                        # Counter for output points.
+    valid    = np.zeros(capacity, dtype=np.bool_)                                                                                       # Track valid grid points.
 
-    for i in range(nx):                                                                                                                 # Iterate over x grid.
+    for i in nb.prange(nx):                                                                                                             # type: ignore
         x = x_range[i]                                                                                                                  # Extract x coordinate.
         
         for j in range(ny):                                                                                                             # Iterate over y grid.
-            y = y_range[j]                                                                                                              # Extract y coordinate.
+            y   = y_range[j]                                                                                                            # Extract y coordinate.
+            idx = i * ny + j                                                                                                            # Global index.
             
             if _is_point_in_polygon_jit(x, y, poly_coords):                                                                             # Check if point is inside.
-                out[count, 0] = x                                                                                                       # Store x coordinate.
-                out[count, 1] = y                                                                                                       # Store y coordinate.
-                count        += 1                                                                                                       # Increment counter.
+                out[idx, 0] = x                                                                                                         # Store x coordinate.
+                out[idx, 1] = y                                                                                                         # Store y coordinate.
+                valid[idx]  = True                                                                                                      # Mark index as valid.
+                
+    count = 0                                                                                                                           # Counter for output points.
+    for idx in range(capacity):                                                                                                         # Sequential loop for valid points count.
+        if valid[idx]:                                                                                                                  # If point is inside.
+            count += 1                                                                                                                  # Increment valid count.
+            
+    final_out = np.zeros((count, 2), dtype=np.float64)                                                                                  # Allocate condensed array.
+    
+    idx_out = 0                                                                                                                         # Iterator for final output array.
+    for idx in range(capacity):                                                                                                         # Sequential loop for transfer.
+        if valid[idx]:                                                                                                                  # If point is inside.
+            final_out[idx_out, 0] = out[idx, 0]                                                                                         # Copy x.
+            final_out[idx_out, 1] = out[idx, 1]                                                                                         # Copy y.
+            idx_out              += 1                                                                                                   # Increment index.
 
-    return out[:count]                                                                                                                  # Return valid slice of output array.
+    return final_out                                                                                                                    # Return valid slice of output array.
 
 def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:
     """

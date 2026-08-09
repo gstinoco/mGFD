@@ -36,6 +36,7 @@ This makes it exceptionally powerful for modeling physics in complex, real-world
 
 * **☁️ Integrated Cloud Generator:** A powerful engine to automatically generate 2D point clouds from geographic contour boundaries (supports Poisson-Disk sampling, Lloyd relaxation, and grid-based methods).
 * **📐 Pure Meshless Solvers:** Discretize and solve PDEs using only local neighbor stencils. No mesh required!
+* **🏎️ High Performance:** Fully optimized with Numba JIT compilation and parallelized with LLVM multithreading and KDTree C++ backends for extremely fast matrix assemblies and cloud generation.
 * **⚡ Stationary Solvers:** Out-of-the-box support for Poisson-type equations and generalized stationary problems.
 * **🔥 Transient Solvers:** First-order (Heat, Advection-Diffusion) and Second-order (Wave) time integrations.
 * **🧩 Modular Architecture:** Highly professional PEP-8 compliant sub-package architecture. Logically separated domains (`mGFD.solvers`, `mGFD.core`) and specialized pipelines (e.g. `mGFD.cloud_generator.core.point_generation`).
@@ -159,6 +160,54 @@ L_wave = np.vstack([[0], [0], [2*c**2], [0], [2*c**2], [0]])
 u_ap, vec = TimeDerivative2(p, f_wave, g_wave, t2, [c], operator=L_wave, implicit=True, lam=0.5, verbose=True)
 ```
 </details>
+
+---
+
+## 🧮 Understanding the Differential Operator
+
+One of the most powerful features of **mGFD** is its ability to solve *almost any* second-order linear Partial Differential Equation by simply defining a 6-element operator vector. 
+
+Based on the theoretical formulation (Tinoco-Guerrero et al., 2025), a general second-order linear PDE operator can be expressed as:
+
+$$ L u = A u_{xx} + B u_{xy} + C u_{yy} + D u_x + E u_y + F u = f(x, y) $$
+
+To pass this operator to the solvers in `mGFD`, you construct a column vector (array) with the coefficients organized exactly as follows:
+
+```python
+operator = [
+    D,   # Coefficient of u_x
+    E,   # Coefficient of u_y
+    2*A, # 2 × Coefficient of u_xx
+    B,   # Coefficient of u_xy
+    2*C, # 2 × Coefficient of u_yy
+    F    # Coefficient of u (reaction term)
+]
+```
+
+### Examples of Operator Construction
+
+**1. Poisson Equation (Laplacian)**
+The spatial operator is $u_{xx} + u_{yy}$. Here, $A = 1$ and $C = 1$, while all other coefficients are 0.
+```python
+# [0, 0, 2(1), 0, 2(1), 0]
+L_poisson = np.vstack([[0], [0], [2], [0], [2], [0]])
+```
+
+**2. Wave Equation**
+The spatial operator is $c^2 u_{xx} + c^2 u_{yy}$. Here, $A = c^2$ and $C = c^2$.
+```python
+# [0, 0, 2(c^2), 0, 2(c^2), 0]
+L_wave = np.vstack([[0], [0], [2*c**2], [0], [2*c**2], [0]])
+```
+
+**3. Advection-Diffusion Equation**
+The spatial operator is $-\nu (u_{xx} + u_{yy}) + \alpha_1 u_x + \alpha_2 u_y$. Here $D = \alpha_1$, $E = \alpha_2$, $A = -\nu$, and $C = -\nu$.
+```python
+# [a1, a2, 2(-nu), 0, 2(-nu), 0]
+L_adv_diff = np.vstack([[alpha_1], [alpha_2], [-2*nu], [0], [-2*nu], [0]])
+```
+
+By tweaking this single vector, you have the flexibility to solve a vast family of PDEs without modifying any internal code or regenerating a mesh!
 
 ---
 

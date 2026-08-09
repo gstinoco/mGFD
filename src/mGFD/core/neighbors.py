@@ -61,7 +61,7 @@ import numba as nb                                                              
 from scipy.spatial import KDTree                                                                                                        # Spatial indexing for fast neighbor queries.
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
 
-@nb.njit(cache=True, fastmath=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)
 def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int) -> np.ndarray:
     """
     _find_neighbors_jit
@@ -79,7 +79,7 @@ def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float,
     """
     vec = np.zeros((m, nvec), dtype=np.int64) - 1                                                                                       # Initialize neighbor matrix with padding -1.
     
-    for i in range(m):                                                                                                                  # For each node i.
+    for i in nb.prange(m):                                                                                                              # type: ignore
         idx_count = 0                                                                                                                   # Counter for valid neighbors.
         
         for j in range(indices.shape[1]):                                                                                               # Iterate over queried neighbors.
@@ -94,7 +94,7 @@ def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float,
                     break                                                                                                               # Exit neighbor loop.
     return vec                                                                                                                          # Return populated neighbor list.
 
-@nb.njit(cache=True, fastmath=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)
 def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int, target_per_quad: int) -> np.ndarray:
     """
     _find_neighbors_balanced_jit
@@ -115,7 +115,7 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
     vec      = np.zeros((m, nvec), dtype=np.int64) - 1                                                                                  # Initialize neighbor matrix with padding -1.
     max_cand = indices.shape[1]                                                                                                         # Maximum number of candidates per node.
     
-    for i in range(m):                                                                                                                  # Loop over nodes.
+    for i in nb.prange(m):                                                                                                              # type: ignore
         cand       = np.zeros(max_cand, dtype=np.int64)                                                                                 # Allocate array for valid candidates.
         dist_c     = np.zeros(max_cand, dtype=np.float64)                                                                               # Allocate array for candidate distances.
         cand_count = 0                                                                                                                  # Counter for valid candidates.
@@ -129,64 +129,62 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
                 dist_c[cand_count] = d                                                                                                  # Store candidate distance.
                 cand_count        += 1                                                                                                  # Increment candidate count.
         
-        if cand_count == 0:                                                                                                             # Skip if no candidates.
-            continue                                                                                                                    # Continue to next node.
-        
-        q1                     = np.zeros(cand_count, dtype=np.int64)                                                                   # Array for NE quadrant.
-        q2                     = np.zeros(cand_count, dtype=np.int64)                                                                   # Array for NW quadrant.
-        q3                     = np.zeros(cand_count, dtype=np.int64)                                                                   # Array for SW quadrant.
-        q4                     = np.zeros(cand_count, dtype=np.int64)                                                                   # Array for SE quadrant.
-        q1_c, q2_c, q3_c, q4_c = 0, 0, 0, 0                                                                                             # Counters for quadrants.
-        
-        for j in range(cand_count):                                                                                                     # Sort candidates into quadrants.
-            idx = cand[j]                                                                                                               # Candidate global index.
-            dx  = p[idx, 0] - p[i, 0]                                                                                                   # DX relative to node i.
-            dy  = p[idx, 1] - p[i, 1]                                                                                                   # DY relative to node i.
+        if cand_count > 0:                                                                                                              # Process if candidates exist.
+            q1                     = np.zeros(cand_count, dtype=np.int64)                                                               # Array for NE quadrant.
+            q2                     = np.zeros(cand_count, dtype=np.int64)                                                               # Array for NW quadrant.
+            q3                     = np.zeros(cand_count, dtype=np.int64)                                                               # Array for SW quadrant.
+            q4                     = np.zeros(cand_count, dtype=np.int64)                                                               # Array for SE quadrant.
+            q1_c, q2_c, q3_c, q4_c = 0, 0, 0, 0                                                                                         # Counters for quadrants.
             
-            if dx >= 0 and dy >= 0:                                                                                                     # NE quadrant.
-                q1[q1_c] = idx                                                                                                          # Assign to NE.
-                q1_c    += 1                                                                                                            # Increment NE counter.
-            elif dx < 0 and dy >= 0:                                                                                                    # NW quadrant.
-                q2[q2_c] = idx                                                                                                          # Assign to NW.
-                q2_c    += 1                                                                                                            # Increment NW counter.
-            elif dx < 0 and dy < 0:                                                                                                     # SW quadrant.
-                q3[q3_c] = idx                                                                                                          # Assign to SW.
-                q3_c    += 1                                                                                                            # Increment SW counter.
-            else:                                                                                                                       # SE quadrant.
-                q4[q4_c] = idx                                                                                                          # Assign to SE.
-                q4_c += 1                                                                                                               # Increment SE counter.
-        
-        selected = np.zeros(nvec, dtype=np.int64) - 1                                                                                   # Array to store selected neighbors.
-        sel_c = 0                                                                                                                       # Counter for selected neighbors.
-        
-        for q_arr, q_len in [(q1, q1_c), (q2, q2_c), (q3, q3_c), (q4, q4_c)]:                                                           # Iterate over quadrants.
-            take = min(q_len, target_per_quad)                                                                                          # Number of points to take from this quadrant.
+            for j in range(cand_count):                                                                                                 # Sort candidates into quadrants.
+                idx = cand[j]                                                                                                           # Candidate global index.
+                dx  = p[idx, 0] - p[i, 0]                                                                                               # DX relative to node i.
+                dy  = p[idx, 1] - p[i, 1]                                                                                               # DY relative to node i.
+                
+                if dx >= 0 and dy >= 0:                                                                                                 # NE quadrant.
+                    q1[q1_c] = idx                                                                                                      # Assign to NE.
+                    q1_c    += 1                                                                                                        # Increment NE counter.
+                elif dx < 0 and dy >= 0:                                                                                                # NW quadrant.
+                    q2[q2_c] = idx                                                                                                      # Assign to NW.
+                    q2_c    += 1                                                                                                        # Increment NW counter.
+                elif dx < 0 and dy < 0:                                                                                                 # SW quadrant.
+                    q3[q3_c] = idx                                                                                                      # Assign to SW.
+                    q3_c    += 1                                                                                                        # Increment SW counter.
+                else:                                                                                                                   # SE quadrant.
+                    q4[q4_c] = idx                                                                                                      # Assign to SE.
+                    q4_c += 1                                                                                                           # Increment SE counter.
             
-            for j in range(take):                                                                                                       # Loop over quadrant points.
-                if sel_c < nvec:                                                                                                        # If space is available.
-                    selected[sel_c] = q_arr[j]                                                                                          # Add point to selected list.
-                    sel_c          += 1                                                                                                 # Increment selected counter.
-        
-        if sel_c < nvec:                                                                                                                # If more points are needed.
-            for j in range(cand_count):                                                                                                 # Iterate over all candidates.
-                idx              = cand[j]                                                                                              # Candidate index.
-                already_selected = False                                                                                                # Flag to check if already selected.
+            selected = np.zeros(nvec, dtype=np.int64) - 1                                                                               # Array to store selected neighbors.
+            sel_c = 0                                                                                                                   # Counter for selected neighbors.
+            
+            for q_arr, q_len in [(q1, q1_c), (q2, q2_c), (q3, q3_c), (q4, q4_c)]:                                                       # Iterate over quadrants.
+                take = min(q_len, target_per_quad)                                                                                      # Number of points to take from this quadrant.
                 
-                for k in range(sel_c):                                                                                                  # Check against selected points.
-                    if selected[k] == idx:                                                                                              # If found.
-                        already_selected = True                                                                                         # Set flag.
-                        break                                                                                                           # Exit check loop.
-                
-                if not already_selected and sel_c < nvec:                                                                               # If not selected and space available.
-                    selected[sel_c] = idx                                                                                               # Add point to selected list.
-                    sel_c          += 1                                                                                                 # Increment selected counter.
-        
-        for j in range(sel_c):                                                                                                          # Transfer to vec.
-            vec[i, j] = selected[j]                                                                                                     # Save selected neighbors.
+                for j in range(take):                                                                                                   # Loop over quadrant points.
+                    if sel_c < nvec:                                                                                                    # If space is available.
+                        selected[sel_c] = q_arr[j]                                                                                      # Add point to selected list.
+                        sel_c          += 1                                                                                             # Increment selected counter.
+            
+            if sel_c < nvec:                                                                                                            # If more points are needed.
+                for j in range(cand_count):                                                                                             # Iterate over all candidates.
+                    idx              = cand[j]                                                                                          # Candidate index.
+                    already_selected = False                                                                                            # Flag to check if already selected.
+                    
+                    for k in range(sel_c):                                                                                              # Check against selected points.
+                        if selected[k] == idx:                                                                                          # If found.
+                            already_selected = True                                                                                     # Set flag.
+                            break                                                                                                       # Exit check loop.
+                    
+                    if not already_selected and sel_c < nvec:                                                                           # If not selected and space available.
+                        selected[sel_c] = idx                                                                                           # Add point to selected list.
+                        sel_c          += 1                                                                                             # Increment selected counter.
+            
+            for j in range(sel_c):                                                                                                      # Transfer to vec.
+                vec[i, j] = selected[j]                                                                                                 # Save selected neighbors.
     
     return vec                                                                                                                          # Return balanced neighbor list.
 
-@nb.njit(cache=True, fastmath=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)
 def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, a: float, b: float, tol: float, m: int, nvec: int) -> np.ndarray:
     """
     _find_neighbors_adv_jit
@@ -207,7 +205,7 @@ def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.nd
     vec      = np.zeros((m, nvec), dtype=np.int64) - 1                                                                                  # Initialize neighbor matrix with padding -1.
     max_cand = indices.shape[1]                                                                                                         # Maximum number of candidates per node.
     
-    for i in range(m):                                                                                                                  # Loop over nodes.
+    for i in nb.prange(m):                                                                                                              # type: ignore
         cand       = np.zeros(max_cand, dtype=np.int64)                                                                                 # Allocate array for valid candidates.
         dist_c     = np.zeros(max_cand, dtype=np.float64)                                                                               # Allocate array for candidate distances.
         cand_count = 0                                                                                                                  # Counter for valid candidates.
@@ -221,47 +219,45 @@ def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.nd
                 dist_c[cand_count] = d                                                                                                  # Store candidate distance.
                 cand_count        += 1                                                                                                  # Increment candidate count.
         
-        if cand_count == 0:                                                                                                             # Skip if no candidates.
-            continue                                                                                                                    # Continue to next node.
-        
-        for j in range(cand_count):                                                                                                     # Simple bubble sort by distance.
-            for k in range(0, cand_count - j - 1):                                                                                      # Bubble pass.
-                if dist_c[k] > dist_c[k+1]:                                                                                             # If out of order.
-                    tmp_d       = dist_c[k]                                                                                             # Swap distance.
-                    dist_c[k]   = dist_c[k+1]                                                                                           # Swap distance.
-                    dist_c[k+1] = tmp_d                                                                                                 # Swap distance.
-                    tmp_idx     = cand[k]                                                                                               # Swap index.
-                    cand[k]     = cand[k+1]                                                                                             # Swap index.
-                    cand[k+1]   = tmp_idx                                                                                               # Swap index.
-        
-        up         = np.zeros(cand_count, dtype=np.int64)                                                                               # Upwind candidates array.
-        dn         = np.zeros(cand_count, dtype=np.int64)                                                                               # Downwind candidates array.
-        up_c, dn_c = 0, 0                                                                                                               # Upwind and downwind counters.
-        
-        for j in range(cand_count):                                                                                                     # Classify by upwind direction.
-            idx = cand[j]                                                                                                               # Candidate index.
-            dx  = p[idx, 0] - p[i, 0]                                                                                                   # DX offset.
-            dy  = p[idx, 1] - p[i, 1]                                                                                                   # DY offset.
+        if cand_count > 0:                                                                                                              # Process if candidates exist.
+            for j in range(cand_count):                                                                                                 # Simple bubble sort by distance.
+                for k in range(0, cand_count - j - 1):                                                                                  # Bubble pass.
+                    if dist_c[k] > dist_c[k+1]:                                                                                         # If out of order.
+                        tmp_d       = dist_c[k]                                                                                         # Swap distance.
+                        dist_c[k]   = dist_c[k+1]                                                                                       # Swap distance.
+                        dist_c[k+1] = tmp_d                                                                                             # Swap distance.
+                        tmp_idx     = cand[k]                                                                                           # Swap index.
+                        cand[k]     = cand[k+1]                                                                                         # Swap index.
+                        cand[k+1]   = tmp_idx                                                                                           # Swap index.
             
-            if dx * a + dy * b <= tol:                                                                                                  # Upwind condition.
-                up[up_c]  = idx                                                                                                         # Add to upwind list.
-                up_c     += 1                                                                                                           # Increment upwind count.
-            else:                                                                                                                       # Downwind condition.
-                dn[dn_c]  = idx                                                                                                         # Add to downwind list.
-                dn_c     += 1                                                                                                           # Increment downwind count.
-        
-        if up_c >= nvec:                                                                                                                # Enough upwind candidates.
-            for j in range(nvec):                                                                                                       # Take top nvec upwind.
-                vec[i, j] = up[j]                                                                                                       # Store in vec.
-        else:                                                                                                                           # Not enough upwind candidates.
-            for j in range(up_c):                                                                                                       # Take all upwind.
-                vec[i, j] = up[j]                                                                                                       # Store in vec.
+            up         = np.zeros(cand_count, dtype=np.int64)                                                                           # Upwind candidates array.
+            dn         = np.zeros(cand_count, dtype=np.int64)                                                                           # Downwind candidates array.
+            up_c, dn_c = 0, 0                                                                                                           # Upwind and downwind counters.
             
-            rem     = nvec - up_c                                                                                                       # Remaining slots.
-            take_dn = min(rem, dn_c)                                                                                                    # How many downwind to take.
+            for j in range(cand_count):                                                                                                 # Classify by upwind direction.
+                idx = cand[j]                                                                                                           # Candidate index.
+                dx  = p[idx, 0] - p[i, 0]                                                                                               # DX offset.
+                dy  = p[idx, 1] - p[i, 1]                                                                                               # DY offset.
+                
+                if dx * a + dy * b <= tol:                                                                                              # Upwind condition.
+                    up[up_c]  = idx                                                                                                     # Add to upwind list.
+                    up_c     += 1                                                                                                       # Increment upwind count.
+                else:                                                                                                                   # Downwind condition.
+                    dn[dn_c]  = idx                                                                                                     # Add to downwind list.
+                    dn_c     += 1                                                                                                       # Increment downwind count.
             
-            for j in range(take_dn):                                                                                                    # Take downwind.
-                vec[i, up_c + j] = dn[j]                                                                                                # Store in vec.
+            if up_c >= nvec:                                                                                                            # Enough upwind candidates.
+                for j in range(nvec):                                                                                                   # Take top nvec upwind.
+                    vec[i, j] = up[j]                                                                                                   # Store in vec.
+            else:                                                                                                                       # Not enough upwind candidates.
+                for j in range(up_c):                                                                                                   # Take all upwind.
+                    vec[i, j] = up[j]                                                                                                   # Store in vec.
+                
+                rem     = nvec - up_c                                                                                                   # Remaining slots.
+                take_dn = min(rem, dn_c)                                                                                                # How many downwind to take.
+                
+                for j in range(take_dn):                                                                                                # Take downwind.
+                    vec[i, up_c + j] = dn[j]                                                                                            # Store in vec.
     
     return vec                                                                                                                          # Return upwind neighbor list.
 
@@ -338,7 +334,7 @@ def find_distances(p: np.ndarray) -> float:                                     
     """
     # 1. KDTree-based search
     tree          = KDTree(p[:, :2])                                                                                                    # Build KDTree on (x, y) coordinates.
-    distances, _  = tree.query(p[:, :2], k = 2)                                                                                         # Query self + nearest neighbor.
+    distances, _  = tree.query(p[:, :2], k = 2, workers=-1)                                                                             # Query self + nearest neighbor.
     min_distances = distances[:, 1]                                                                                                     # Keep nearest-neighbor distances (skip self at k=0).
     dist          = (3 / 2) * float(np.max(min_distances))                                                                              # Convert spacing to a search radius.
 
@@ -361,17 +357,16 @@ def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:        
     """
     # 1. Variable initialization
     m    = int(p.shape[0])                                                                                                              # Total number of nodes.
-    nvec = int(nvec)                                                                                                                    # Ensure integer type.
     
     if m == 0 or nvec <= 0:                                                                                                             # Edge case check.
         return np.zeros((m, nvec), dtype=np.int64) - 1                                                                                  # Return empty matrix.
         
     # 2. KDTree vectorized query
     tree               = KDTree(p[:, :2])                                                                                               # Build KDTree on (x, y) coordinates.
-    distances, indices = tree.query(p[:, :2], k=nvec+1, distance_upper_bound=dist)                                                      # Bulk query all nodes.
+    distances, indices = tree.query(p[:, :2], k=nvec+1, distance_upper_bound=dist, workers=-1)                                          # Bulk query all nodes.
     
     # 3. JIT-accelerated filtering and assignment
-    vec = _find_neighbors_jit(indices, distances, float(dist), m, nvec)                                                                 # Delegate array manipulation to Numba.
+    vec = _find_neighbors_jit(indices, distances, dist, m, nvec)                                                                        # Delegate array manipulation to Numba.
     
     return vec                                                                                                                          # Return neighbor list.
 
@@ -391,7 +386,6 @@ def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray
     """
     # 1. Variable initialization
     m    = int(p.shape[0])                                                                                                              # Total number of nodes.
-    nvec = int(nvec)                                                                                                                    # Ensure integer type.
     
     if m == 0 or nvec <= 0:                                                                                                             # Edge case check.
         return np.zeros((m, nvec), dtype=np.int64) - 1                                                                                  # Return empty matrix.
@@ -399,7 +393,7 @@ def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray
     # 2. KDTree vectorized candidate pool query
     k_cand             = min(m, 10 * nvec)                                                                                              # Expand candidate search pool.
     tree               = KDTree(p[:, :2])                                                                                               # Build KDTree on (x, y).
-    distances, indices = tree.query(p[:, :2], k=k_cand)                                                                                 # Bulk query all candidates.
+    distances, indices = tree.query(p[:, :2], k=k_cand, workers=-1)                                                                     # Bulk query all candidates.
     
     if k_cand == 1:                                                                                                                     # Handle edge case.
         distances = distances.reshape(-1, 1)                                                                                            # Reshape distances.
@@ -408,7 +402,7 @@ def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray
     target_per_quad = int(np.ceil(nvec / 4.0))                                                                                          # Target number of points per quadrant.
     
     # 3. JIT-accelerated quadrant-balanced selection
-    vec = _find_neighbors_balanced_jit(np.asarray(p, dtype=np.float64), indices, distances, float(dist), m, nvec, target_per_quad)      # Delegate balancing to Numba.
+    vec = _find_neighbors_balanced_jit(np.asarray(p, dtype=np.float64), indices, distances, dist, m, nvec, target_per_quad)             # Delegate balancing to Numba.
     
     return vec                                                                                                                          # Return balanced neighbor list.
 
@@ -432,9 +426,6 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
     """
     # 1. Variable initialization
     m    = int(p.shape[0])                                                                                                              # Total number of nodes.
-    a    = float(a)                                                                                                                     # Normalize a to float.
-    b    = float(b)                                                                                                                     # Normalize b to float.
-    nvec = int(nvec)                                                                                                                    # Normalize neighbor count to int.
     
     if m == 0 or nvec <= 0:                                                                                                             # Handle empty input or invalid neighbor count.
         return np.zeros((m, nvec), dtype=np.int64) - 1                                                                                  # Return empty neighbor matrix.
@@ -449,7 +440,7 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
     # 3. KDTree vectorized candidate query
     k                  = min(m, max(nvec + 1, 128, 40 * nvec))                                                                          # Candidate pool size for KDTree query.
     tree               = KDTree(p[:, :2])                                                                                               # Build KDTree on (x, y) coordinates.
-    distances, indices = tree.query(p[:, :2], k=k)                                                                                      # Query candidates.
+    distances, indices = tree.query(p[:, :2], k=k, workers=-1)                                                                          # Query candidates.
 
     if k == 1:                                                                                                                          # Ensure 2D shapes for consistent slicing.
         distances = distances.reshape(-1, 1)                                                                                            # Reshape distances.
