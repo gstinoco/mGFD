@@ -30,6 +30,7 @@ dependencies = [
     "pyvista",
     "shapely",
     "opencv-python-headless",
+    "numba",
 ]
 
 [project.urls]

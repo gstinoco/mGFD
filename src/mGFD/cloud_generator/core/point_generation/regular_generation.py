@@ -36,6 +36,7 @@ Last Modification:
 import os                                                                                                                               # Operating system interfaces.
 import cv2                                                                                                                              # OpenCV for fast rasterization and masking.
 import numpy as np                                                                                                                      # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation.                                                                                                                      # Core numerical operations.
 
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 from typing import List, Tuple, Optional, Any                                                                                           # Type hinting.
@@ -43,9 +44,43 @@ from concurrent.futures import ProcessPoolExecutor                              
 
 from mGFD.cloud_generator.utils.utils import calculate_cloud_size, create_closed_contour                                                # Utility functions.
 from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                                # Boundary generation.
-from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Geometric operations.
+from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
+from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.                                             # Geometric operations.
 
-def generate_interior_points(polygon: Polygon, cloud_size: float) -> np.ndarray:
+@nb.njit(cache=True, fastmath=True)                                                                                                     # Decorator for JIT compilation.
+def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, poly_coords: np.ndarray) -> np.ndarray:
+    """
+    _generate_interior_fallback_jit
+    Numba JIT-compiled grid point generator using Ray-Casting.
+    
+    Input:
+        x_range         nx ndarray      Range of X coordinates.
+        y_range         ny ndarray      Range of Y coordinates.
+        poly_coords     p x 2 ndarray   Coordinates defining the polygon boundary.
+        
+    Output:
+        points          m x 2 ndarray   Array of (x, y) generated points.
+    """
+    nx       = len(x_range)                                                                                                             # Number of X coordinates.
+    ny       = len(y_range)                                                                                                             # Number of Y coordinates.
+    capacity = nx * ny                                                                                                                  # Initial capacity.
+    out      = np.zeros((capacity, 2), dtype=np.float64)                                                                                # Allocate output array.
+    count    = 0                                                                                                                        # Counter for output points.
+
+    for i in range(nx):                                                                                                                 # Iterate over x grid.
+        x = x_range[i]                                                                                                                  # Extract x coordinate.
+        
+        for j in range(ny):                                                                                                             # Iterate over y grid.
+            y = y_range[j]                                                                                                              # Extract y coordinate.
+            
+            if _is_point_in_polygon_jit(x, y, poly_coords):                                                                             # Check if point is inside.
+                out[count, 0] = x                                                                                                       # Store x coordinate.
+                out[count, 1] = y                                                                                                       # Store y coordinate.
+                count        += 1                                                                                                       # Increment counter.
+
+    return out[:count]                                                                                                                  # Return valid slice of output array.
+
+def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:
     """
     generate_interior_points
     Generate points inside a polygon using a vectorized grid-based approach.
@@ -110,19 +145,14 @@ def generate_interior_points(polygon: Polygon, cloud_size: float) -> np.ndarray:
         return points if len(points) > 0 else np.empty((0, 2))                                                                          # Return points or empty array.
         
     except Exception as e:                                                                                                              # Fallback on OpenCV error.
-        # 7. Fallback to Path based iterative method
-        points = []                                                                                                                     # Initialize point list.
-        # Re-generate grid points if needed (though they are local in try block)
-        x_range       = np.arange(x_min, x_max + cloud_size, cloud_size)                                                                # Re-create x range.
-        y_range       = np.arange(y_min, y_max + cloud_size, cloud_size)                                                                # Re-create y range.
-        fast_contains = create_fast_polygon_checker(polygon)                                                                            # Create path-based checker.
+        # 7. Fallback to JIT Ray-Casting method                                                                                         #
+        x_range     = np.arange(x_min, x_max + cloud_size, cloud_size, dtype=np.float64)                                                # Re-create x range.
+        y_range     = np.arange(y_min, y_max + cloud_size, cloud_size, dtype=np.float64)                                                # Re-create y range.
+        poly_coords = np.array(polygon.exterior.coords, dtype=np.float64)                                                               # Extract polygon exterior coordinates.
         
-        for x in x_range:                                                                                                               # Iterate over x grid.
-            for y in y_range:                                                                                                           # Iterate over y grid.
-                if fast_contains(x, y):                                                                                                 # Check if point is inside.
-                    points.append([x, y])                                                                                               # Add to list if inside.
+        points = _generate_interior_fallback_jit(x_range, y_range, poly_coords)                                                         # Use JIT compiled generation.
         
-        return np.array(points) if points else np.empty((0, 2))                                                                         # Return array of points.
+        return points if len(points) > 0 else np.empty((0, 2))                                                                          # Return array of points.
 
 def generate_region_cloud_with_uniform_density(region_points: List[Tuple[float, float]], cloud_size: float) -> Tuple[Any, Any, Any]:
     """
@@ -190,6 +220,7 @@ def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float
         
         # 4. Create main polygon
         main_polygon = Polygon(main_contour)                                                                                            # Create exterior geometric polygon.
+        
         if not main_polygon.is_valid:                                                                                                   # Ensure it is valid.
             main_polygon = main_polygon.buffer(0)                                                                                       # Clean geometry.
         
@@ -205,13 +236,16 @@ def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float
             # If inside_regions is True, these boundaries belong to the interior regions (regions 2, 3, etc.)
             if not inside_regions:                                                                                                      # If holes are empty spaces.
                 hole_points = generate_boundary_points(hole_contour, cloud_size)                                                        # Generate nodes along the hole border.
+                
                 if len(hole_points) > 0:                                                                                                # Ensure valid points were generated.
                     boundary_points      = np.vstack((boundary_points, hole_points))                                                    # Add them to the main boundary array.
                     hole_boundary_count += len(hole_points)                                                                             # Increment the tracking counter.
                 
             hole_polygon = Polygon(hole_contour)                                                                                        # Create geometric polygon for the hole.
+            
             if not hole_polygon.is_valid:                                                                                               # Ensure validity.
                 hole_polygon = hole_polygon.buffer(0)                                                                                   # Clean geometry.
+            
             hole_polygons.append(hole_polygon)                                                                                          # Store the hole polygon.
         
         if hole_boundary_count > 0:                                                                                                     # If hole boundaries were generated.
@@ -221,6 +255,7 @@ def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float
         if hole_polygons:                                                                                                               # If there are any holes.
             # Create a polygon with holes
             polygon_with_holes = main_polygon                                                                                           # Start with the main body.
+            
             for hole in hole_polygons:                                                                                                  # Iterate over the holes.
                 # Subtract each hole from the main polygon
                 polygon_with_holes = polygon_with_holes.difference(hole)                                                                # Cut the hole out of the main shape.
@@ -257,6 +292,7 @@ def generate_region_task(region_points: List[Tuple[float, float]], region_id: in
         
         # 1. Shrink cloud size for very small regions
         actual_cloud_size = main_cloud_size                                                                                             # Start with the main spacing.
+        
         if min_dim < main_cloud_size * 2:                                                                                               # If region is extremely thin or small.
             actual_cloud_size = min_dim / 3.0                                                                                           # Scale down spacing to ensure points fit.
 
@@ -271,6 +307,7 @@ def generate_region_task(region_points: List[Tuple[float, float]], region_id: in
             return (boundary_points, interior_points, region_id)                                                                        # Return packaged results.
         else:                                                                                                                           # If generation returned None.
             return None                                                                                                                 # Return failure.
+    
     except Exception as e:                                                                                                              # If execution crashes.
         return None                                                                                                                     # Return failure.
 
@@ -297,6 +334,7 @@ def generate_interior_regions_clouds(regions: List[List[Tuple[float, float]]], m
     
     with ProcessPoolExecutor(max_workers=max_workers) as executor:                                                                      # Start multiprocessing pool.
         futures = []                                                                                                                    # List to track running tasks.
+        
         for i in range(1, len(regions)):                                                                                                # Iterate over inner regions only.
             region_points = regions[i]                                                                                                  # Extract contour.
             region_id     = i + 1                                                                                                       # Compute region ID.

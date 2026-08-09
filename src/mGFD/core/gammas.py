@@ -54,11 +54,304 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compiler.
 
 from scipy.optimize import nnls                                                                                                         # Core numerical operations.
 from scipy.sparse import csr_matrix                                                                                                     # Core sparse matrix representations.
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
 from scipy.sparse.linalg import LinearOperator, bicgstab                                                                                # SciPy iterative solver interface.
+
+@nb.njit(cache=True, fastmath=True)
+def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray:
+    """
+    _nnls_numba
+    Non-Negative Least Squares solver using Lawson-Hanson algorithm, compiled with Numba JIT.
+    
+    Input:
+        A           m x n           ndarray             Design matrix.
+        b           m               ndarray             Right-hand side vector.
+        max_iter                    int                 Maximum number of iterations.
+    
+    Output:
+        x           n               ndarray             Solution vector with non-negative constraints.
+    """
+    # 1. Variable initialization
+    m, n       = A.shape                                                                                                                # Matrix dimensions.
+    P          = np.zeros(n, dtype=nb.boolean)                                                                                          # Active set mask (positive).
+    Z          = np.ones(n, dtype=nb.boolean)                                                                                           # Inactive set mask (zero).
+    x          = np.zeros(n, dtype=np.float64)                                                                                          # Solution vector.
+    w          = np.dot(A.T, (b - np.dot(A, x)))                                                                                        # Dual vector (gradient).
+    iter_count = 0                                                                                                                      # Iteration counter.
+    
+    # 2. Main iterative loop
+    while np.any(Z) and iter_count < max_iter:                                                                                          # While there are inactive variables.
+        w_z = w.copy()                                                                                                                  # Copy gradient.
+        
+        for i in range(n):                                                                                                              # Iterate over all variables.
+            if not Z[i]:                                                                                                                # If variable is active.
+                w_z[i] = -1e9                                                                                                           # Penalize active variables to ignore them.
+        
+        max_w = np.max(w_z)                                                                                                             # Find maximum gradient in inactive set.
+        
+        if max_w <= 1e-10:                                                                                                              # If optimal condition met.
+            break                                                                                                                       # Exit loop.
+        
+        j    = np.argmax(w_z)                                                                                                           # Index of maximum gradient.
+        P[j] = True                                                                                                                     # Move to active set.
+        Z[j] = False                                                                                                                    # Remove from inactive set.
+        
+        while True:                                                                                                                     # Inner loop for active set optimization.
+            P_count = 0                                                                                                                 # Count active variables.
+            
+            for i in range(n):                                                                                                          # Iterate over all variables.
+                if P[i]:                                                                                                                # If active.
+                    P_count += 1                                                                                                        # Increment count.
+            
+            A_P     = np.zeros((m, P_count), dtype=np.float64)                                                                          # Allocate submatrix.
+            col_idx = 0                                                                                                                 # Column index.
+            
+            for i in range(n):                                                                                                          # Iterate over all variables.
+                if P[i]:                                                                                                                # If active.
+                    A_P[:, col_idx] = A[:, i]                                                                                           # Copy column.
+                    col_idx        += 1                                                                                                 # Increment column index.
+            
+            if A_P.shape[1] == 0:                                                                                                       # Degenerate case.
+                break                                                                                                                   # Exit inner loop.
+            
+            z_P     = np.dot(np.linalg.pinv(A_P), b)                                                                                    # Solve least squares for active set.
+            z       = np.zeros(n, dtype=np.float64)                                                                                     # Allocate full vector.
+            col_idx = 0                                                                                                                 # Column index.
+            
+            for i in range(n):                                                                                                          # Iterate over all variables.
+                if P[i]:                                                                                                                # If active.
+                    z[i]     = z_P[col_idx]                                                                                             # Copy solution.
+                    col_idx += 1                                                                                                        # Increment column index.
+            
+            all_pos = True                                                                                                              # Check if all active variables are positive.
+            
+            for i in range(n):                                                                                                          # Iterate over all variables.
+                if P[i] and z[i] <= 0:                                                                                                  # If active and negative.
+                    all_pos = False                                                                                                     # Flag as not all positive.
+                    break                                                                                                               # Stop checking.
+            
+            if all_pos:                                                                                                                 # If feasible.
+                x = z                                                                                                                   # Update solution.
+                break                                                                                                                   # Exit inner loop.
+            
+            alpha = 1.0                                                                                                                 # Initialization of step size.
+            
+            for i in range(n):                                                                                                          # Iterate over all variables.
+                if P[i] and z[i] <= 0:                                                                                                  # If active and negative.
+                    alpha_i = x[i] / (x[i] - z[i])                                                                                      # Compute max step size.
+                    
+                    if alpha_i < alpha:                                                                                                 # If smaller than current step size.
+                        alpha = alpha_i                                                                                                 # Update step size.
+            
+            x = x + alpha * (z - x)                                                                                                     # Apply step.
+            
+            for i in range(n):                                                                                                          # Iterate over all variables.
+                if P[i] and abs(x[i]) < 1e-12:                                                                                          # If active and zero.
+                    P[i] = False                                                                                                        # Remove from active set.
+                    Z[i] = True                                                                                                         # Move to inactive set.
+        
+        w = np.dot(A.T, (b - np.dot(A, x)))                                                                                             # Update gradient.
+        iter_count += 1                                                                                                                 # Increment iteration counter.
+    
+    return x                                                                                                                            # Return solution.
+
+@nb.njit(cache=True, fastmath=True)
+def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
+    """
+    _compute_cloud_dense_jit
+    Assemble a full dense stencil matrix K for a 2D point cloud, compiled with Numba JIT.
+    
+    Input:
+        p           m x 3           ndarray             Point cloud [x, y, flag].
+        vec         m x nvec        ndarray[int]        Neighbor indices per node (padded with -1).
+        L           5               ndarray             Operator coefficients [D, E, A, B, C].
+     
+    Output:
+        K           m x m           ndarray             Dense matrix with stencil weights.
+    """
+    # 1. Variable initialization
+    m    = p.shape[0]                                                                                                                   # Total number of nodes in the cloud.
+    nvec = vec.shape[1]                                                                                                                 # The maximum number of neighbors (vec width).
+    K    = np.zeros((m, m), dtype=np.float64)                                                                                           # Dense stencil matrix initialization.
+    
+    # 2. Dense Gammas computation
+    for i in range(m):                                                                                                                  # For each node in the cloud.
+        if p[i, 2] == 0:                                                                                                                # Interior node: compute a stencil row.
+            nvec_i = 0                                                                                                                  # Neighbor count initialization.
+            
+            for j in range(nvec):                                                                                                       # Iterate over neighbor slots.
+                if vec[i, j] != -1:                                                                                                     # If valid neighbor.
+                    nvec_i += 1                                                                                                         # Increment neighbor count.
+            
+            if nvec_i == 0:                                                                                                             # If no neighbors available.
+                K[i, i] = 1.0                                                                                                           # Fallback to identity.
+                continue                                                                                                                # Skip to next node.
+            
+            dx            = np.zeros(nvec_i, dtype=np.float64)                                                                          # Neighbor x-offsets (relative to node i).
+            dy            = np.zeros(nvec_i, dtype=np.float64)                                                                          # Neighbor y-offsets (relative to node i).
+            neigh_indices = np.zeros(nvec_i, dtype=np.int64)                                                                            # Neighbor indices array.
+            
+            idx           = 0                                                                                                           # Local index.
+            
+            for j in range(nvec):                                                                                                       # Iterate over neighbor slots.
+                if vec[i, j] != -1:                                                                                                     # If valid neighbor.
+                    vec1               = vec[i, j]                                                                                      # Fetch neighbor global index.
+                    dx[idx]            = p[vec1, 0] - p[i, 0]                                                                           # Compute x-offset.
+                    dy[idx]            = p[vec1, 1] - p[i, 1]                                                                           # Compute y-offset.
+                    neigh_indices[idx] = vec1                                                                                           # Store neighbor index.
+                    idx               += 1                                                                                              # Increment local index.
+            
+            M = np.zeros((5, nvec_i), dtype=np.float64)                                                                                 # Reconstruction matrix initialization.
+            
+            for j in range(nvec_i):                                                                                                     # Populate reconstruction matrix.
+                M[0, j] = dx[j]                                                                                                         # dx term.
+                M[1, j] = dy[j]                                                                                                         # dy term.
+                M[2, j] = dx[j]**2                                                                                                      # dx^2 term.
+                M[3, j] = dx[j] * dy[j]                                                                                                 # dx*dy term.
+                M[4, j] = dy[j]**2                                                                                                      # dy^2 term.
+            
+            M_pinv = np.linalg.pinv(M)                                                                                                  # Compute pseudoinverse of reconstruction matrix.
+            YY     = np.dot(M_pinv, L)                                                                                                  # Compute neighbor weights.
+            K[i, i] = -np.sum(YY)                                                                                                       # Assign central weight to diagonal.
+            
+            for j in range(nvec_i):                                                                                                     # Assign neighbor weights.
+                K[i, neigh_indices[j]] = YY[j]                                                                                          # Set weight for neighbor j.
+        
+        elif p[i, 2] == 1 or p[i, 2] == 2:                                                                                              # Boundary node: Dirichlet identity row.
+            K[i, i] = 1.0                                                                                                               # Enforce u_i = boundary value.
+            
+    return K                                                                                                                            # Return dense stencil matrix.
+
+@nb.njit(cache=True, fastmath=True)
+def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    _compute_cloud_stencil_jit
+    Compute a stencil representation (diag, w) for a 2D point cloud, compiled with Numba JIT.
+    
+    Input:
+        p           m x 3           ndarray             Point cloud [x, y, flag].
+        vec         m x nvec        ndarray[int]        Neighbor indices per node (padded with -1).
+        L           5               ndarray             Operator coefficients [D, E, A, B, C].
+        reg_factor                  float               Regularization factor.
+    
+    Output:
+        diag        m               ndarray             Central weights.
+        w           m x nvec        ndarray             Neighbor weights aligned with vec indices.
+    """
+    # 1. Variable initialization
+    m    = p.shape[0]                                                                                                                   # Number of nodes.
+    nvec = vec.shape[1]                                                                                                                 # Neighbor slots per node.
+    diag = np.zeros(m, dtype=np.float64)                                                                                                # Diagonal weights (central coefficient).
+    w    = np.zeros((m, nvec), dtype=np.float64)                                                                                        # Neighbor weights for each node.
+    
+    # 2. Stencil computation
+    for i in range(m):                                                                                                                  # Loop over nodes.
+        if p[i, 2] == 0:                                                                                                                # Interior node: compute stencil weights.
+            nvec_i = 0                                                                                                                  # Count valid neighbors.
+            
+            for j in range(nvec):                                                                                                       # Iterate over neighbor slots.
+                if vec[i, j] != -1:                                                                                                     # If valid neighbor.
+                    nvec_i += 1                                                                                                         # Increment neighbor count.
+            
+            if nvec_i == 0:                                                                                                             # Degenerate case: no neighbors available.
+                diag[i] = 1.0                                                                                                           # Fall back to identity row.
+                continue                                                                                                                # Continue to next node.
+            
+            dx  = np.zeros(nvec_i, dtype=np.float64)                                                                                    # Neighbor x-offsets.
+            dy  = np.zeros(nvec_i, dtype=np.float64)                                                                                    # Neighbor y-offsets.
+            idx = 0                                                                                                                     # Local index.
+            
+            for j in range(nvec):                                                                                                       # Iterate over neighbor slots.
+                if vec[i, j] != -1:                                                                                                     # If valid neighbor.
+                    vec1    = vec[i, j]                                                                                                 # Fetch neighbor global index.
+                    dx[idx] = p[vec1, 0] - p[i, 0]                                                                                      # Compute dx offset.
+                    dy[idx] = p[vec1, 1] - p[i, 1]                                                                                      # Compute dy offset.
+                    idx    += 1                                                                                                         # Increment local index.
+            
+            M = np.zeros((5, nvec_i), dtype=np.float64)                                                                                 # Reconstruction matrix.
+            
+            for j in range(nvec_i):                                                                                                     # Populate reconstruction matrix.
+                M[0, j] = dx[j]                                                                                                         # dx term.
+                M[1, j] = dy[j]                                                                                                         # dy term.
+                M[2, j] = dx[j]**2                                                                                                      # dx^2 term.
+                M[3, j] = dx[j] * dy[j]                                                                                                 # dx*dy term.
+                M[4, j] = dy[j]**2                                                                                                      # dy^2 term.
+            
+            YY       = np.zeros(nvec_i, dtype=np.float64)                                                                               # Placeholder for neighbor weights.
+            valid_YY = False                                                                                                            # Validity flag for neighbor weights.
+            
+            # 3. Solver attempts
+            M_Mt         = np.dot(M, M.T)                                                                                               # Normal matrix.
+            G_trace      = np.trace(M_Mt)                                                                                               # Trace of the normal matrix.
+            lam          = (1e-12 + reg_factor * G_trace) if G_trace > 0.0 else 1e-12                                                   # Regularization parameter.
+            A_aug        = np.zeros((5 + nvec_i, nvec_i), dtype=np.float64)                                                             # Augmented matrix for NNLS.
+            A_aug[:5, :] = M                                                                                                            # Inject reconstruction matrix.
+            sqrt_lam     = np.sqrt(lam)                                                                                                 # Compute square root of lambda.
+            
+            for j in range(nvec_i):                                                                                                     # Inject regularization terms.
+                A_aug[5+j, j] = sqrt_lam                                                                                                # Set diagonal regularization.
+            
+            b_aug     = np.zeros(5 + nvec_i, dtype=np.float64)                                                                          # Augmented RHS vector for NNLS.
+            b_aug[:5] = L                                                                                                               # Inject operator coefficients.
+            YY_nnls   = _nnls_numba(A_aug, b_aug)                                                                                       # Try non-negative least squares solve.
+            
+            if np.sum(YY_nnls) >= 1e-10:                                                                                                # Check if solution is non-trivial.
+                YY       = YY_nnls                                                                                                      # Accept solution.
+                valid_YY = True                                                                                                         # Flag as valid.
+            
+            if not valid_YY:                                                                                                            # Fallback to regularized least squares.
+                try:                                                                                                                    # Try linear solve.
+                    G        = M_Mt                                                                                                     # Normal matrix.
+                    tr       = np.trace(G)                                                                                              # Trace of normal matrix.
+                    reg      = (1e-12 + reg_factor * tr) if tr > 0.0 else 1e-12                                                         # Adaptive regularization parameter.
+                    c        = np.linalg.solve(G + reg * np.eye(5), L)                                                                  # Solve for regularized coefficients.
+                    YY_ls    = np.dot(M.T, c)                                                                                           # Compute neighbor weights.
+                    valid_YY = True                                                                                                     # Assume valid temporarily.
+                    
+                    for j in range(nvec_i):                                                                                             # Check for NaN/Inf.
+                        if not np.isfinite(YY_ls[j]):                                                                                   # If invalid element found.
+                            valid_YY = False                                                                                            # Mark invalid.
+                            break                                                                                                       # Stop checking.
+                    
+                    if valid_YY:                                                                                                        # If strictly valid.
+                        YY = YY_ls                                                                                                      # Accept solution.
+                except:                                                                                                                 # Catch exceptions.
+                    valid_YY = False                                                                                                    # Mark invalid.
+            
+            if not valid_YY:                                                                                                            # Absolute fallback to pseudoinverse.
+                M_pinv   = np.linalg.pinv(M)                                                                                            # Direct pseudoinverse computation.
+                YY_pinv  = np.dot(M_pinv, L)                                                                                            # Direct neighbor weights computation.
+                valid_YY = True                                                                                                         # Assume valid temporarily.
+                
+                for j in range(nvec_i):                                                                                                 # Check for NaN/Inf.
+                    if not np.isfinite(YY_pinv[j]):                                                                                     # If invalid element found.
+                        valid_YY = False                                                                                                # Mark invalid.
+                        break                                                                                                           # Stop checking.
+                
+                if valid_YY:                                                                                                            # If strictly valid.
+                    YY = YY_pinv                                                                                                        # Accept solution.
+            
+            if not valid_YY:                                                                                                            # If all solvers failed.
+                diag[i] = 1.0                                                                                                           # Identity diagonal.
+                continue                                                                                                                # Skip neighbor weights.
+            
+            # 4. Result assignment
+            diag[i] = -np.sum(YY)                                                                                                       # Central weight ensures sum-to-zero structure.
+            idx     = 0                                                                                                                 # Local index.
+            
+            for j in range(nvec):                                                                                                       # Iterate over neighbor slots.
+                if vec[i, j] != -1:                                                                                                     # If valid neighbor.
+                    w[i, j] = YY[idx]                                                                                                   # Store weight aligned to vec order.
+                    idx    += 1                                                                                                         # Increment local index.
+                    
+        elif p[i, 2] == 1 or p[i, 2] == 2:                                                                                              # Boundary node: identity row.
+            diag[i] = 1.0                                                                                                               # Enforce u_i = boundary value.
+            
+    return diag, w                                                                                                                      # Return stencil representation.
 
 def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
     """
@@ -85,38 +378,13 @@ def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
         This routine allocates an (m, m) dense matrix and is therefore O(m^2) in memory. For typical
         mGFD runs, prefer CloudStencil() + ApplyCloudStencil() to avoid dense assembly.
     """
-    # 1. Variable initialization.
-    nvec = int(len(vec[0, :]))                                                                                                          # The maximum number of neighbors (vec width).
-    m    = int(len(p[:, 0]))                                                                                                            # Total number of nodes in the cloud.
-    K    = np.zeros([m, m])                                                                                                             # Dense stencil matrix initialization.
+    # 1. Variable initialization and type enforcement
+    p_np   = np.asarray(p, dtype=np.float64)                                                                                            # Enforce float64 type for points.
+    vec_np = np.asarray(vec, dtype=np.int64)                                                                                            # Enforce int64 type for neighbor indices.
+    L_np   = np.asarray(L, dtype=np.float64).flatten()                                                                                  # Enforce float64 type and flatten operator.
     
-    # 2. Gammas computation and matrix assembly.
-    for i in np.arange(m):                                                                                                              # For each node in the cloud.
-        if p[i, 2] == 0:                                                                                                                # Interior node: compute a stencil row.
-            nvec_i = int(np.sum(vec[i, :] != -1))                                                                                       # Count valid neighbors (skip padding -1).
-            dx     = np.zeros([nvec_i])                                                                                                 # Neighbor x-offsets (relative to node i).
-            dy     = np.zeros([nvec_i])                                                                                                 # Neighbor y-offsets (relative to node i).
-            
-            for j in np.arange(nvec_i):                                                                                                 # For each neighbor of node i.
-                vec1  = int(vec[i, j])                                                                                                  # Neighbor global index.
-                dx[j] = p[vec1, 0] - p[i, 0]                                                                                            # Compute dx to neighbor.
-                dy[j] = p[vec1, 1] - p[i, 1]                                                                                            # Compute dy to neighbor.
-            
-            M       = np.vstack([[dx], [dy], [dx**2], [dx * dy], [dy**2]])                                                              # Reconstruction matrix (5, nvec_i).
-            M       = np.linalg.pinv(M)                                                                                                 # type: ignore
-            YY      = M @ L                                                                                                             # Weights for neighbor contributions (nvec_i,).
-            Gamma   = np.vstack([-np.sum(YY), YY]).transpose()                                                                          # Include central weight as -sum(neighbors).
-            K[i, i] = Gamma[0, 0]                                                                                                       # Set diagonal (central) weight.
-            
-            for j in np.arange(nvec_i):                                                                                                 # Fill neighbor weights in row i.
-                K[i, int(vec[i, j])] = Gamma[0, j + 1]                                                                                  # Set weight for neighbor j.
-            
-        if p[i, 2] == 1 or p[i, 2] == 2:                                                                                                # Boundary node: Dirichlet identity row.
-            K[i, i] = 1                                                                                                                 # Enforce u_i = boundary value.
-            
-            for j in np.arange(nvec):                                                                                                   # For each neighbor slot.
-                if int(vec[i, j]) != -1:                                                                                                # Skip padding indices.
-                    K[i, int(vec[i, j])] = 0                                                                                            # Zero out neighbor weights.
+    # 2. Gammas computation and matrix assembly via JIT
+    K = _compute_cloud_dense_jit(p_np, vec_np, L_np)                                                                                    # Delegate to JIT compiled dense solver.
     
     return K                                                                                                                            # Return dense stencil matrix.
 
@@ -172,61 +440,14 @@ def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: floa
         The interior weights are computed by solving a regularized normal equation on M @ M.T
         (a 5x5 system) when possible, and falling back to a pseudoinverse if needed.
     """
-    # 1. Variable initialization
-    nvec = int(vec.shape[1])                                                                                                            # Neighbor slots per node.
-    m    = int(p.shape[0])                                                                                                              # Number of nodes.
-    diag = np.zeros(m, dtype = float)                                                                                                   # Diagonal weights (central coefficient).
-    w    = np.zeros((m, nvec), dtype = float)                                                                                           # Neighbor weights for each node.
+    # 1. Variable initialization and type enforcement
+    p_np       = np.asarray(p, dtype=np.float64)                                                                                        # Enforce float64 type for points.
+    vec_np     = np.asarray(vec, dtype=np.int64)                                                                                        # Enforce int64 type for neighbor indices.
+    L_np       = np.asarray(L, dtype=np.float64).flatten()                                                                              # Enforce float64 type and flatten operator.
+    reg_factor = float(reg_factor)                                                                                                      # Enforce float type for regularization parameter.
 
-    # 2. CloudStencil computation
-    for i in np.arange(m):                                                                                                              # Loop over nodes.
-        if p[i, 2] == 0:                                                                                                                # Interior node: compute stencil weights.
-            nvec_i = int(np.sum(vec[i, :] != -1))                                                                                       # Number of valid neighbors for node i.
-            
-            if nvec_i == 0:                                                                                                             # Degenerate case: no neighbors available.
-                diag[i] = 1.0                                                                                                           # Fall back to identity row.
-                continue                                                                                                                # Continue to next node.
-            
-            neigh = vec[i, :nvec_i].astype(int)                                                                                         # Neighbor indices (trim padding).
-            dx    = p[neigh, 0] - p[i, 0]                                                                                               # Neighbor dx offsets.
-            dy    = p[neigh, 1] - p[i, 1]                                                                                               # Neighbor dy offsets.
-            M     = np.vstack([dx, dy, dx**2, dx * dy, dy**2])                                                                          # Reconstruction matrix (5, nvec_i).
-            YY    = None                                                                                                                # Placeholder for neighbor weights.
-            
-            try:                                                                                                                        # 1. Try NNLS for strictly positive weights
-                G_trace = float(np.trace(M @ M.T))                                                                                      # Trace of the M @ M.T matrix.
-                lam     = (1e-12 + reg_factor * G_trace) if G_trace > 0.0 else 1e-12                                                    # Regularization parameter.
-                A_aug   = np.vstack([M, np.sqrt(lam) * np.eye(nvec_i)])                                                                 # Augmented matrix for NNLS.
-                b_aug   = np.concatenate([np.array(L).reshape(-1), np.zeros(nvec_i)])                                                   # Augmented RHS vector for NNLS.
-                YY, _   = nnls(A_aug, b_aug)                                                                                            # Non-negative least squares solve.
-                
-                if np.sum(YY) < 1e-10:                                                                                                  # Pure advection failure fallback
-                    YY = None
-            
-            except Exception as e:                                                                                                      # Catch any exception during NNLS.
-                YY = None                                                                                                               # Nullify weights on failure.
-            
-            if YY is None or (not np.all(np.isfinite(YY))):                                                                             # 2. Fallback to standard Mínimos Cuadrados
-                try:                                                                                                                    # Try regularized least squares.
-                    G   = M @ M.T                                                                                                       # Normal matrix.
-                    tr  = float(np.trace(G))                                                                                            # Trace of the normal matrix.
-                    reg = (1e-12 + reg_factor * tr) if tr > 0.0 else 1e-12                                                              # Adaptive regularization parameter.
-                    c   = np.linalg.solve(G + reg * np.eye(5), L)                                                                       # Solve for regularized coefficients.
-                    YY  = (M.T @ c).reshape(-1)                                                                                         # Compute final neighbor weights.
-                except Exception:                                                                                                       # Catch linear algebra errors.
-                    YY = None                                                                                                           # Nullify weights on failure.
-
-            if YY is None or (not np.all(np.isfinite(YY))):                                                                             # 3. Absolute fallback to pseudoinverse
-                YY = (np.linalg.pinv(M) @ L).reshape(-1)                                                                                # Direct pseudoinverse solve.
-                
-            if not np.all(np.isfinite(YY)):                                                                                             # If still invalid, use identity row.
-                diag[i] = 1.0                                                                                                           # Identity diagonal.
-                continue                                                                                                                # Skip neighbor weights.
-            diag[i]        = -float(np.sum(YY))                                                                                         # Central weight ensures sum-to-zero structure.
-            w[i, :nvec_i]  = YY                                                                                                         # Store neighbor weights aligned to vec order.
-        
-        elif p[i, 2] == 1 or p[i, 2] == 2:                                                                                              # Boundary node: identity row.
-            diag[i] = 1.0                                                                                                               # Enforce u_i = boundary value.
+    # 2. CloudStencil computation via JIT
+    diag, w = _compute_cloud_stencil_jit(p_np, vec_np, L_np, reg_factor)                                                                # Delegate to JIT compiled stencil solver.
 
     return diag, w                                                                                                                      # Return stencil representation (central + neighbor weights).
 
