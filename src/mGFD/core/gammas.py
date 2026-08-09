@@ -179,7 +179,7 @@ def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> n
     K    = np.zeros((m, m), dtype=np.float64)                                                                                           # Dense stencil matrix initialization.
     
     # 2. Dense Gammas computation
-    for i in nb.prange(m):                                                                                                              # For each node in the cloud.
+    for i in nb.prange(m):                                                                                                              # type: ignore
         if p[i, 2] == 0:                                                                                                                # Interior node: compute a stencil row.
             nvec_i = 0                                                                                                                  # Neighbor count initialization.
             
@@ -248,7 +248,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
     w    = np.zeros((m, nvec), dtype=np.float64)                                                                                        # Neighbor weights for each node.
     
     # 2. Stencil computation
-    for i in nb.prange(m):                                                                                                              # Loop over nodes.
+    for i in nb.prange(m):                                                                                                              # type: ignore
         if p[i, 2] == 0:                                                                                                                # Interior node: compute stencil weights.
             nvec_i = 0                                                                                                                  # Count valid neighbors.
             
@@ -401,7 +401,7 @@ def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Callable, f:
         R           m               ndarray             RHS vector consistent with Dirichlet enforcement.
     """
     # 1. Variable initialization
-    m         = int(len(p[:, 0]))                                                                                                       # Total number of nodes.
+    m         = len(p[:, 0])                                                                                                            # Total number of nodes.
     R         = np.zeros([m])                                                                                                           # RHS initialization.
 
     # 2. Vector assignment
@@ -439,7 +439,7 @@ def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: floa
     p_np       = np.asarray(p, dtype=np.float64)                                                                                        # Enforce float64 type for points.
     vec_np     = np.asarray(vec, dtype=np.int64)                                                                                        # Enforce int64 type for neighbor indices.
     L_np       = np.asarray(L, dtype=np.float64).flatten()                                                                              # Enforce float64 type and flatten operator.
-    reg_factor = float(reg_factor)                                                                                                      # Enforce float type for regularization parameter.
+    reg_factor = reg_factor                                                                                                             # Enforce float type for regularization parameter.
 
     # 2. CloudStencil computation via JIT
     diag, w = _compute_cloud_stencil_jit(p_np, vec_np, L_np, reg_factor)                                                                # Delegate to JIT compiled stencil solver.
@@ -559,7 +559,7 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
         return x                                                                                                                        # x=0 is a valid solution.
 
     # 4. Iterate BiCGStab steps
-    for _ in range(int(max_iter)):                                                                                                      # Iterate BiCGStab steps.
+    for _ in range(max_iter):                                                                                                           # Iterate BiCGStab steps.
         rho_new = float(np.dot(r0, r))                                                                                                  # rho_new = <r0, r>.
         
         if rho_new == 0:                                                                                                                # Breakdown condition.
