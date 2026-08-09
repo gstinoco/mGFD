@@ -77,8 +77,8 @@ def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray
     """
     # 1. Variable initialization
     m, n       = A.shape                                                                                                                # Matrix dimensions.
-    P          = np.zeros(n, dtype=bool)                                                                                                # Active set mask (positive).
-    Z          = np.ones(n, dtype=bool)                                                                                                 # Inactive set mask (zero).
+    P          = np.zeros(n, dtype=np.bool_)                                                                                            # Active set mask (positive).
+    Z          = np.ones(n, dtype=np.bool_)                                                                                             # Inactive set mask (zero).
     x          = np.zeros(n, dtype=np.float64)                                                                                          # Solution vector.
     w          = np.dot(A.T, (b - np.dot(A, x)))                                                                                        # Dual vector (gradient).
     iter_count = 0                                                                                                                      # Iteration counter.
