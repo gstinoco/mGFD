@@ -15,7 +15,9 @@ Workflow:
 
 Credits:
     All the codes presented below were developed by:
-        Dr. Gerardo Tinoco Guerrero
+        Dr. Gerardo Tinoco-Guerrero
+        Dr. Francisco Javier Domínguez-Mota
+        Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
 
@@ -40,46 +42,64 @@ Last Modification:
 """
 
 ## Library importation.
-import os                                                                                                                       # Filesystem and path utilities.
-import sys                                                                                                                      # sys.path manipulation so this script can import project modules.
-import time                                                                                                                     # Time tracking for execution performance.
-import json                                                                                                                     # JSON serialization for metrics.
-import logging                                                                                                                  # Standard logging module.
-import numpy as np                                                                                                              # Numerical arrays and math.
-from typing import Optional                                                                                                     # Type hinting.
+import os                                                                                                                               # Filesystem and path utilities.
+import sys                                                                                                                              # sys.path manipulation.
+import time                                                                                                                             # Time tracking for execution performance.
+import json                                                                                                                             # JSON serialization for metrics.
+import logging                                                                                                                          # Standard logging module.
+import numpy as np                                                                                                                      # Numerical arrays and math.
+from typing import Optional, List, Callable                                                                                             # Type hinting.
 
-BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                                     # Research root directory.
-sys.path.append(BASE_DIR)                                                                                                       # Enable imports like "from mGFD import Stationary".
+import mGFD.io.export_vtk as ExportVTK                                                                                                  # VTK export utilities for ParaView.
 
-import utils.metrics as Errors                                                                                                        # Error metrics for stationary/transient runs.
-import mGFD.io.export_vtk as ExportVTK                                                                                          # VTK export utilities for ParaView.
-from mGFD import Stationary                                                                                                     # Core solver to run the reference case.
-from mGFD.viz.graph import plot_stationary                                                                                      # Plotting utilities for the results.
-from mGFD.io.io import load_points                                                                                              # Point cloud loading utility.
-from utils.batch_utils import iter_clouds, load_neighbors, save_neighbors                                                             # Dataset loading + neighbor cache helpers.
+from mGFD import Stationary                                                                                                             # First-order transient solver to run the reference case.
+from mGFD.io.io import load_points                                                                                                      # Point cloud loading utility.
+from mGFD.viz.graph import plot_stationary                                                                                              # Plotting utilities for the results.
 
-logger = logging.getLogger(__name__)                                                                                            # Module level logger.
-logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                   # Basic logger configuration.
+BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                                             # Research root directory (for local utils).
+sys.path.append(BASE_DIR)                                                                                                               # Allow importing from research/codes/utils/.
 
+import utils.metrics as Errors                                                                                                          # Error metrics for stationary/transient runs.
 
-DATA_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                                 # Input dataset root directory.
-RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                                           # Output results root directory.
-SCALES: tuple = ('1', '2', '3', '4', '5')                                                                                       # Scales to process under each dataset.
-NVEC: int = 12                                                                                                                  # Neighbor count used by the solver.
+from utils.batch_utils import iter_clouds, load_neighbors, save_neighbors                                                               # Dataset loading + neighbor cache helpers.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
+logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Basic logger configuration.
+
+DATA_ROOT: str    = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                     # Input dataset root directory.
+RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                                  # Output results root directory.
+SCALES: tuple     = ('1', '2', '3', '4', '5')                                                                                           # Scales to process under each dataset.
+NVEC: int         = 12                                                                                                                  # Neighbor count used by the solver.
 
 def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
+    phi
     Boundary condition for the problem.
+
+    Input:
+        x               m           ndarray         x coordinates.
+        y               m           ndarray         y coordinates.
+
+    Output:
+        phi_val         m           ndarray         Evaluated boundary condition.
     """
     return 2 * np.exp(2 * x + y)
 
 def f(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
+    f
     Right-hand side forcing term.
+
+    Input:
+        x               m           ndarray         x coordinates.
+        y               m           ndarray         y coordinates.
+
+    Output:
+        f_val           m           ndarray         Evaluated forcing term.
     """
     return 10 * np.exp(2 * x + y)
 
-def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True) -> None:      # Run one cloud case and write outputs to Results/.
+def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True) -> None:              # Run one cloud case and write outputs to Results/.
     """
     process_cloud
     Run the Poisson benchmark on a single point cloud file.
@@ -96,74 +116,84 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         None
     """
     # 0. Input validation
-    if not isinstance(dataset, str):                                                                                            # Validate dataset argument.
-        raise TypeError("Dataset name must be a string.")                                                                       # Raise explicit error on bad input.
-    if not isinstance(scale, str):                                                                                              # Validate scale argument.
-        raise TypeError("Scale must be a string.")                                                                              # Raise explicit error on bad input.
-    if not isinstance(cloud_path, str) or not os.path.exists(cloud_path):                                                       # Validate cloud path.
-        raise ValueError("Cloud path must be a valid existing file path.")                                                      # Raise explicit error on bad input.
+    if not isinstance(dataset, str):                                                                                                    # Validate dataset argument.
+        raise TypeError("Dataset name must be a string.")                                                                               # Raise explicit error on bad input.
+    if not isinstance(scale, str):                                                                                                      # Validate scale argument.
+        raise TypeError("Scale must be a string.")                                                                                      # Raise explicit error on bad input.
+    if not isinstance(cloud_path, str) or not os.path.exists(cloud_path):                                                               # Validate cloud path.
+        raise ValueError("Cloud path must be a valid existing file path.")                                                              # Raise explicit error on bad input.
         
     # 1. Variable initialization
-    region_id = f'{dataset}/{scale}'                                                                                            # Region identifier.
-    out_dir = os.path.join(results_path, 'Poisson', dataset, scale)                                                             # Output directory for this region.
-    os.makedirs(out_dir, exist_ok = True)                                                                                       # Ensure output directory exists.
+    region_id = f'{dataset}/{scale}'                                                                                                    # Region identifier.
+    out_dir   = os.path.join(results_path, 'Poisson', dataset, scale)                                                                   # Output directory for this region.
+    os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
     
-    if verbose:                                                                                                                 # Check if verbosity is enabled.
-        logger.info(f'Working on region: {region_id}')                                                                          # Progress message for the batch run.
+    if verbose:                                                                                                                         # Check if verbosity is enabled.
+        logger.info(f'Working on region: {region_id}')                                                                                  # Progress message for the batch run.
 
     # 2. Data Loading & Neighbor Cache
-    p = load_points(cloud_path)                                                                                                 # Load point cloud into (m, 3) array [x, y, flag].
-    vec0 = load_neighbors(cloud_path, NVEC)                                                                                     # Load cached neighbor list if present.
-    L = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                               # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
+    p    = load_points(cloud_path)                                                                                                      # Load point cloud into (m, 3) array [x, y, flag].
+    vec0 = load_neighbors(cloud_path, NVEC)                                                                                             # Load cached neighbor list if present.
+    L    = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                                    # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
     
     # 3. Solver Execution
-    start_time = time.time()                                                                                                    # Start execution timer.
-    u_ap, vec = Stationary(p, phi, f, operator = L, vec = vec0, nvec = NVEC, verbose = False)                                   # Solve the stationary Poisson problem (silently in core).
-    comp_time = time.time() - start_time                                                                                        # Compute execution duration.
+    start_time = time.time()                                                                                                            # Start execution timer.
+    u_ap, vec  = Stationary(p, phi, f, operator = L, vec = vec0, nvec = NVEC, verbose = False)                                          # Solve the stationary Poisson problem (silently in core).
+    comp_time  = time.time() - start_time                                                                                               # Compute execution duration.
     
     # 4. Exact Solution and Metrics
-    u_ex = phi(p[:, 0], p[:, 1])                                                                                                # Compute exact theoretical solution locally.
-    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time = comp_time)                                   # Compute comprehensive stationary error metrics.
+    u_ex    = phi(p[:, 0], p[:, 1])                                                                                                     # Compute exact theoretical solution locally.
+    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time = comp_time)                                           # Compute comprehensive stationary error metrics.
     
-    if verbose:                                                                                                                 # Check if verbosity is enabled.
-        logger.info(f'\tError (RMSE): {metrics["RMSE"]}')                                                                       # Print RMSE error for quick inspection.
+    if verbose:                                                                                                                         # Check if verbosity is enabled.
+        logger.info(f'\tError (RMSE): {metrics["RMSE"]}')                                                                               # Print RMSE error for quick inspection.
 
     # 5. Output persistence
-    if vec0 is None:                                                                                                            # If there was no cache, persist computed neighbors.
-        save_neighbors(cloud_path, NVEC, vec)                                                                                   # Save vec to the canonical cache file.
+    if vec0 is None:                                                                                                                    # If there was no cache, persist computed neighbors.
+        save_neighbors(cloud_path, NVEC, vec)                                                                                           # Save vec to the canonical cache file.
 
-    metrics_path = os.path.join(out_dir, 'Metrics.json')                                                                        # Output path for JSON metrics report.
-    with open(metrics_path, 'w') as file:                                                                                       # Open metrics report file.
-        json.dump(metrics, file, indent=4)                                                                                      # Write structured metrics as JSON.
+    metrics_path = os.path.join(out_dir, 'Metrics.json')                                                                                # Output path for JSON metrics report.
+    
+    with open(metrics_path, 'w') as file:                                                                                               # Open metrics report file.
+        json.dump(metrics, file, indent=4)                                                                                              # Write structured metrics as JSON.
 
     # 6. VTK and Graphical rendering
-    if save:                                                                                                                    # Save solution to VTK format if requested.
-        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Poisson_Solution", cloud_path=cloud_path)             # Save VTK data to disk.
+    if save:                                                                                                                            # Save solution to VTK format if requested.
+        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Poisson_Solution", cloud_path=cloud_path)                     # Save VTK data to disk.
         
-        plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Poisson_Approximation'), title='Stationary Appx', verbose=verbose) # Save 3D scatter image.
+        plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Poisson_Approximation'),
+                        title='Stationary Appx', verbose=verbose)                                                                       # Save 3D scatter image.
         
-        if scale == '5':                                                                                                        # Only for scale 5.
-            plot_stationary(p, u_ex, save=True, nom=os.path.join(out_dir, 'Poisson_Exact'), title='Theoretical Solution', verbose=verbose) # Create independent plot of exact solution.
+        if scale == '5':                                                                                                                # Only for scale 5.
+            plot_stationary(p, u_ex, save=True, nom=os.path.join(os.path.dirname(out_dir), 'Poisson_Exact'),
+                        title='Theoretical Solution', verbose=verbose)                                                                  # Create independent plot of exact solution.
 
 def main() -> None:
     """
     main
     Entry point for the Poisson batch script.
-    """
-    Save: bool = True                                                                                                           # Choose whether VTK/PNG outputs must be saved.
-    Verbose: bool = True                                                                                                        # Choose whether prints should be visible.
 
-    if Verbose:                                                                                                                 # Check if verbosity is enabled.
-        logger.info(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                             # Print batch discovery info.
+    Input:
+        None
+
+    Output:
+        None
+    """
+    Save: bool    = True                                                                                                                # Choose whether VTK/PNG outputs must be saved.
+    Verbose: bool = True                                                                                                                # Choose whether prints should be visible.
+
+    if Verbose:                                                                                                                         # Check if verbosity is enabled.
+        logger.info(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                                     # Print batch discovery info.
         
-    found: int = 0                                                                                                              # Counter to detect empty runs.
-    for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, SCALES):                                                           # Iterate all discovered cloud CSVs.
-        found += 1                                                                                                              # Count discovered inputs.
-        process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save, verbose=Verbose)                                          # Run one case and write outputs.
+    found: int = 0                                                                                                                      # Counter to detect empty runs.
+    
+    for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, SCALES):                                                                   # Iterate all discovered cloud CSVs.
+        found += 1                                                                                                                      # Count discovered inputs.
+        process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save, verbose=Verbose)                                                  # Run one case and write outputs.
         
-    if found == 0:                                                                                                              # Provide a clear message when no inputs are found.
-        if Verbose:                                                                                                             # Check if verbosity is enabled.
-            logger.warning(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')                                     # Report empty discovery outcome.
+    if found == 0:                                                                                                                      # Provide a clear message when no inputs are found.
+        if Verbose:                                                                                                                     # Check if verbosity is enabled.
+            logger.warning(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')                                             # Report empty discovery outcome.
 
 if __name__ == "__main__":
     main()

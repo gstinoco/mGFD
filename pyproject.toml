@@ -10,10 +10,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Gerardo Tinoco-Guerrero" },
-    { name = "Francisco Javier Domínguez-Mota" },
-    { name = "José Alberto Guzmán-Torres" },
-    { email = "gerardo.tinoco@umich.mx"},
+    { name = "Gerardo Tinoco-Guerrero", email = "gerardo.tinoco@umich.mx" },
+    { name = "Francisco Javier Domínguez-Mota", email = "francisco.mota@umich.mx" },
+    { name = "José Alberto Guzmán-Torres", email = "jose.alberto.guzman@umich.mx" }
 ]
 
 
