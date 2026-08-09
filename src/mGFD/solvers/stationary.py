@@ -50,7 +50,7 @@ from typing import Callable, Optional, Tuple                                    
 import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
 import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
 
-def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """
     Numerical solution of partial differential equations with no time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -72,7 +72,6 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
     
     Output:
         u_ap        m               ndarray         Array with the approximation computed by the routine.
-        u_ex        m               ndarray         Array with the theoretical solution.
         vec         m x nvec        ndarray         Array with the correspondence of the nvec neighbors of each node.  
     """
     # 1. Variable initialization
@@ -82,7 +81,6 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
         print(f"Solving Stationary problem for {m} nodes...")                                                                           # Print solver progress.
         
     u_ap   = np.zeros([m])                                                                                                              # u_ap initialization with zeros.
-    u_ex   = np.zeros([m])                                                                                                              # u_ex initialization with zeros.
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Save the boundary nodes.
     inne_n = p[:, 2] == 0                                                                                                               # Save the inner nodes.
 
@@ -110,10 +108,7 @@ def Stationary(p: np.ndarray, phi: Callable, f: Callable, operator: np.ndarray =
     un           = spsolve(K, R)                                                                                                        # Direct sparse solve of the linear system.
     u_ap[inne_n] = un[inne_n]                                                                                                           # Save the computed solution to the interior nodes.
     
-    # 7. Compute exact theoretical solution
-    u_ex         = phi(p[:, 0], p[:, 1])                                                                                                # The theoretical solution is computed.
-
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         print(f"\tSolver finished successfully.")                                                                                       # Print completion message.
         
-    return u_ap, u_ex, vec                                                                                                              # Return computed values.
+    return u_ap, vec                                                                                                                    # Return computed values.

@@ -122,10 +122,11 @@ def benchmark_poisson_equation(p):                                              
     f   = lambda x, y: 10 * np.exp(2 * x + y)                                                           # RHS forcing term.
     L   = np.vstack([[0], [0], [2], [0], [2], [0]])                                                     # Operator (matches run_Poisson.py).
     
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+    (u_ap, vec), exec_time, memory_used, peak_memory = measure_performance(                             # Measure solver performance on this cloud.
         Stationary, p, phi, f, operator = L                                                             # Call stationary solver.
     )                                                                                                   # Unpack solution and measurements.
     
+    u_ex = phi(p[:, 0], p[:, 1])                                                                        # Compute exact theoretical solution.
     er = Errors.compute_rmse_stationary(p, vec, u_ap, u_ex)                                             # Per-node error metric.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
@@ -161,11 +162,15 @@ def benchmark_heat_equation(p):                                                 
                                                                                                         # Exact solution / forcing generator.
     L = np.vstack([[0], [0], [2 * v], [0], [2 * v], [0]])                                               # Operator (matches run_Heat.py).
     
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+    (u_ap, vec), exec_time, memory_used, peak_memory = measure_performance(                             # Measure solver performance on this cloud.
         TimeDerivative1, p, f, t, [v], operator = L, implicit = True, lam = 0.5
                         # Call transient solver (1st order).
     )                                                                                                   # Unpack solution and measurements.
     
+    T = np.linspace(0, 1, t)                                                                            # Reconstruct time vector.
+    u_ex = np.zeros([len(p), t])                                                                        # Initialize exact solution matrix.
+    for k in range(t):                                                                                  # Loop over all time steps.
+        u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], [v])                                                     # Compute exact theoretical solution.
     er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
@@ -209,10 +214,14 @@ def benchmark_advdif_equation(p):                                               
     )                                                                                                   # Function matches run_AdvDif.py.
     L = np.vstack([[-a], [-b], [2 * v], [0], [2 * v], [0]])                                             # Operator (matches run_AdvDif.py).
     
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+    (u_ap, vec), exec_time, memory_used, peak_memory = measure_performance(                             # Measure solver performance on this cloud.
         TimeDerivative1, p, f, t, [v, a, b], operator = L, implicit = True, lam = 0.5, upwind = True    # Call transient solver (1st order).
     )                                                                                                   # Unpack solution and measurements.
     
+    T = np.linspace(0, 1, t)                                                                            # Reconstruct time vector.
+    u_ex = np.zeros([len(p), t])                                                                        # Initialize exact solution matrix.
+    for k in range(t):                                                                                  # Loop over all time steps.
+        u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], [v, a, b])                                               # Compute exact theoretical solution.
     er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
@@ -252,10 +261,14 @@ def benchmark_advection_equation(p):
                                                                                                         # Exact solution / forcing generator.
     L = np.vstack([[-a], [-b], [0], [0], [0], [0]])                                                     # Operator.
     
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+    (u_ap, vec), exec_time, memory_used, peak_memory = measure_performance(                             # Measure solver performance on this cloud.
         TimeDerivative1, p, f, t, [a, b], operator = L, implicit = True, lam = 1.0, upwind = True       # Call transient solver (1st order).
     )                                                                                                   # Unpack solution and measurements.
     
+    T = np.linspace(0, 1, t)                                                                            # Reconstruct time vector.
+    u_ex = np.zeros([len(p), t])                                                                        # Initialize exact solution matrix.
+    for k in range(t):                                                                                  # Loop over all time steps.
+        u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], [a, b])                                                  # Compute exact theoretical solution.
     er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     
@@ -296,10 +309,14 @@ def benchmark_wave_equation(p):                                                 
     g = lambda x, y, t, coef: -np.pi * np.sin(np.pi * t) * np.sin(np.pi * (x + y))                      # Initial velocity / forcing generator.
     L = np.vstack([[0], [0], [2 * c**2], [0], [2 * c**2], [0]])                                         # Operator (matches run_Wave.py).
     
-    (u_ap, u_ex, vec), exec_time, memory_used, peak_memory = measure_performance(                       # Measure solver performance on this cloud.
+    (u_ap, vec), exec_time, memory_used, peak_memory = measure_performance(                             # Measure solver performance on this cloud.
         TimeDerivative2, p, f, g, t, [c], operator = L, implicit = True, lam = 1                        # Call transient solver (2nd order).
     )                                                                                                   # Unpack solution and measurements.
     
+    T = np.linspace(0, 1, t)                                                                            # Reconstruct time vector.
+    u_ex = np.zeros([len(p), t])                                                                        # Initialize exact solution matrix.
+    for k in range(t):                                                                                  # Loop over all time steps.
+        u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], [c])                                                     # Compute exact theoretical solution.
     er = Errors.compute_rmse_transient(p, vec, u_ap, u_ex)                                              # Per-node error metric across time.
     avg_error = float(np.mean(er))                                                                      # Average numerical error for summary.
     

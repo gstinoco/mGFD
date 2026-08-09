@@ -82,10 +82,15 @@ def process_cloud(dataset, scale, cloud_path, results_path, save, verbose=True):
     vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
     
     start_time = time.time()                                                                            # Start execution timer.
-    u_ap, u_ex, vec = TimeDerivative1(                                                                  # Solve Heat with implicit time stepping.
+    u_ap, vec = TimeDerivative1(                                                                        # Solve Heat with implicit time stepping.
         p, f, t, [v], operator = L, implicit = True, lam = 0.5, vec = vec0, nvec = NVEC, verbose = verbose              # Solve with cached neighbors when available.
-    )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    )                                                                                                   # Unpack approximate solution and neighbor list.
     comp_time = time.time() - start_time                                                                # Compute execution duration.
+    
+    T = np.linspace(0, 1, t)                                                                            # Reconstruct time vector.
+    u_ex = np.zeros([len(p), t])                                                                        # Initialize exact solution matrix.
+    for k in range(t):                                                                                  # Loop over all time steps.
+        u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], [v])                                                     # Compute exact theoretical solution.
     
     if vec0 is None:                                                                                    # If there was no cache, persist computed neighbors.
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.

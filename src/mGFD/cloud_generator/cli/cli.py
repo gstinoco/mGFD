@@ -212,7 +212,7 @@ def main() -> None:
         "-m", "--method",                                                                                                               # Flag names for the method.
         choices=["natural", "regular"],                                                                                                 # Allow only 'natural' or 'regular'.
         default="natural",                                                                                                              # Set default method to 'natural'.
-        help="Point generation method: 'natural' (Halton) or 'regular' (Poisson)."                                                      # Help text for the method argument.
+        help="Point generation method: 'natural' (Poisson-Disk) or 'regular' (Grid-based)."                                             # Help text for the method argument.
     )
     parser_gen.add_argument(                                                                                                            # Add an argument to 'generate'.
         "--inside-regions",                                                                                                             # Flag name for generating inside regions.

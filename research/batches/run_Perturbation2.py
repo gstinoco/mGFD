@@ -83,10 +83,11 @@ def process_cloud(dataset, scale, cloud_path, results_path, save, verbose=True):
     vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
                 
     start_time = time.time()                                                                            # Start execution timer.
-    u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary perturbation problem.
-        p, phi, f, operator = L, upwind = False, vec = vec0, nvec = NVEC, verbose = verbose                                   # Use cached neighbors when valid.
-    )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    u_ap, vec = Stationary(                                                                             # Solve the stationary perturbation problem.
+        p, phi, f, operator = L, upwind = False, vec = vec0, nvec = NVEC                                # Use cached neighbors, no upwinding.
+    )                                                                                                   # Unpack approximate solution and neighbor list.
     comp_time = time.time() - start_time                                                                # Compute execution duration.
+    u_ex = phi(p[:, 0], p[:, 1])                                                                        # Compute exact theoretical solution.
     
     if vec0 is None:                                                                                    # If we recomputed neighbors, persist them to disk.
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save neighbor cache for future runs.

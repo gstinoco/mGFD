@@ -51,7 +51,7 @@ from typing import Callable, Optional, Tuple, List                              
 import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
 import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
 
-def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), implicit: bool = False, lam: float = 0.5, upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), implicit: bool = False, lam: float = 0.5, upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """
     Numerical solution of partial differential equations with first-order time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -76,7 +76,6 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
     
     Output:
         u_ap        m x t           ndarray         Array with the approximation computed by the routine.
-        u_ex        m x t           ndarray         Array with the theoretical solution.
         vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
     """
 
@@ -89,7 +88,6 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
     T      = np.linspace(0, 1, t)                                                                                                       # Time discretization array.
     dt     = T[1] - T[0]                                                                                                                # Time step size.
     u_ap   = np.zeros([m, t])                                                                                                           # Numerical approximation matrix.
-    u_ex   = np.zeros([m, t])                                                                                                           # Exact solution matrix.
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Boolean mask for boundary nodes.
     inne_n = p[:, 2] == 0                                                                                                               # Boolean mask for interior nodes.
 
@@ -140,11 +138,7 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
             un              = solve(RHS)                                                                                                # Solve global system for time level k.
             u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes.
         
-    # 7. Compute exact theoretical solution
-    for k in np.arange(t):                                                                                                              # Loop over all time steps.
-        u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], coef)                                                                                    # Exact theoretical solution computation.
-
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         print(f"\tSolver finished successfully.")                                                                                       # Print completion message.
         
-    return u_ap, u_ex, vec                                                                                                              # Return computed values.
+    return u_ap, vec                                                                                                                    # Return computed values.

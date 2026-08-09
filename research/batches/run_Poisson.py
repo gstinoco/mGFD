@@ -80,10 +80,11 @@ def process_cloud(dataset, scale, cloud_path, results_path, save, verbose=True):
     vec0 = load_neighbors(cloud_path, NVEC)                                                             # Load cached neighbor list if present.
     
     start_time = time.time()                                                                            # Start execution timer.
-    u_ap, u_ex, vec = Stationary(                                                                       # Solve the stationary Poisson problem.
+    u_ap, vec = Stationary(                                                                             # Solve the stationary Poisson problem.
         p, phi, f, operator = L, vec = vec0, nvec = NVEC                                                # Use cached neighbors when available.
-    )                                                                                                   # Unpack approximate/exact solutions and neighbor list.
+    )                                                                                                   # Unpack approximate solution and neighbor list.
     comp_time = time.time() - start_time                                                                # Compute execution duration.
+    u_ex = phi(p[:, 0], p[:, 1])                                                                        # Compute exact theoretical solution.
     
     if vec0 is None:                                                                                    # If there was no cache, persist computed neighbors.
         save_neighbors(cloud_path, NVEC, vec)                                                           # Save vec to the canonical cache file.

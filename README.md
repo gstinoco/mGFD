@@ -38,7 +38,7 @@ This makes it exceptionally powerful for modeling physics in complex, real-world
 * **📐 Pure Meshless Solvers:** Discretize and solve PDEs using only local neighbor stencils. No mesh required!
 * **⚡ Stationary Solvers:** Out-of-the-box support for Poisson-type equations and generalized stationary problems.
 * **🔥 Transient Solvers:** First-order (Heat, Advection-Diffusion) and Second-order (Wave) time integrations.
-* **🧩 Modular Architecture:** Highly professional PEP-8 compliant sub-package architecture (`mGFD.solvers`, `mGFD.cloud_generator`, `mGFD.core`).
+* **🧩 Modular Architecture:** Highly professional PEP-8 compliant sub-package architecture. Logically separated domains (`mGFD.solvers`, `mGFD.core`) and specialized pipelines (e.g. `mGFD.cloud_generator.core.point_generation`).
 
 ---
 
@@ -66,6 +66,10 @@ The true power of `mGFD` lies in its ability to go from raw geographic contours 
 
 The `mgfd-cloud` CLI tool automates the process of converting geometric boundaries into valid computational domains.
 
+> [!TIP]
+> **Visual Contour Generator**
+> If you don't have a geographic dataset, you can visually draw and export your own contour boundaries using our [mGFD CloudGenerator Web Tool](https://malla.umich.mx/CloudGenerator/).
+
 <details open>
 <summary><b>View available CLI commands</b></summary>
 
@@ -73,11 +77,14 @@ The `mgfd-cloud` CLI tool automates the process of converting geometric boundari
 # General help
 mgfd-cloud --help
 
-# Generate a point cloud (Poisson-Disk)
-mgfd-cloud generate --input contours.csv --output my_cloud.csv --method natural --density 0.1
+# Generate a point cloud with natural (Poisson-Disk) distribution and interior islands (holes)
+mgfd-cloud generate --input contours.csv --output my_cloud.csv --method natural --density 0.5 --inside-regions
 
-# Reduce the density of an existing cloud silently
-mgfd-cloud -q reduce --input high_density.csv --output low_density.csv --factor 0.5
+# Generate a point cloud with regular (Grid-based) distribution
+mgfd-cloud generate --input contours.csv --output my_cloud_grid.csv --method regular
+
+# Reduce the density of an existing cloud silently (multiplier=2 means ~75% reduction)
+mgfd-cloud -q reduce --input high_density.csv --output low_density.csv --multiplier 2
 ```
 </details>
 
@@ -106,7 +113,7 @@ f_stat = lambda x, y: 2 * np.exp(x + y)
 L_stat = np.vstack([[0], [0], [2], [0], [2], [0]])
 
 # 5. Solve the equation! (Verbose mode on by default in scripts, but off in the core library)
-u_ap, u_ex, vec = Stationary(p, phi, f_stat, operator=L_stat, verbose=True)
+u_ap, vec = Stationary(p, phi, f_stat, operator=L_stat, verbose=True)
 ```
 </details>
 
@@ -124,7 +131,7 @@ v, t1 = 0.01, 100
 f_heat = lambda x, y, t, coef: np.exp(-2 * np.pi**2 * coef[0] * t) * np.cos(np.pi * x) * np.cos(np.pi * y)
 L_heat = np.vstack([[0], [0], [2*v], [0], [2*v], [0]])
 
-u_ap, u_ex, vec = TimeDerivative1(p, f_heat, t1, [v], operator=L_heat, implicit=True, lam=0.5, verbose=True)
+u_ap, vec = TimeDerivative1(p, f_heat, t1, [v], operator=L_heat, implicit=True, lam=0.5, verbose=True)
 ```
 </details>
 
@@ -143,7 +150,7 @@ f_wave = lambda x, y, t, coef: np.cos(np.sqrt(2) * np.pi * coef[0] * t) * np.sin
 g_wave = lambda x, y, t, coef: 0.0 * x  # Initial velocity
 L_wave = np.vstack([[0], [0], [2*c**2], [0], [2*c**2], [0]])
 
-u_ap, u_ex, vec = TimeDerivative2(p, f_wave, g_wave, t2, [c], operator=L_wave, implicit=True, lam=0.5, verbose=True)
+u_ap, vec = TimeDerivative2(p, f_wave, g_wave, t2, [c], operator=L_wave, implicit=True, lam=0.5, verbose=True)
 ```
 </details>
 
