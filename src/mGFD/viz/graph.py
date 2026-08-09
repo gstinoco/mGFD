@@ -341,8 +341,8 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
             tin = float(T[k])                                                                                                           # Get physical time value.
             fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)                          # Set main title for the figure.
             fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)                         # Set main title for the top view figure.
-            draw_frame(fig, ax1, k, angle_view=True)                                                                                    # Render the current frame.
-            draw_frame(fig_top, ax1_t, k, angle_view=False)                                                                             # Render top view frame.
+            draw_frame(fig, ax1, int(k), angle_view=True)                                                                               # Render the current frame.
+            draw_frame(fig_top, ax1_t, int(k), angle_view=False)                                                                        # Render top view frame.
             plt.pause(0.01)                                                                                                             # Pause to allow UI to update.
             
         tin = float(T[-1])                                                                                                              # Get final time value.
@@ -394,7 +394,7 @@ def plot_transient_steps(p: np.ndarray, u: np.ndarray, nom: str, title: str = 'S
 
     # 3. Snapshot iteration
     for k in np.arange(0, t + 1, step):                                                                                                 # Iterate through selected snapshots.
-        if k >= t: k = t - 1                                                                                                            # Ensure index does not exceed limits.
+        if k >= t: k = int(t - 1)                                                                                                       # Ensure index does not exceed limits.
         tin = float(T[k])
         nok = nom + '_' + str(format(T[k], '.2f'))                                                                                      # Format snapshot filename.
 
@@ -408,6 +408,6 @@ def plot_transient_steps(p: np.ndarray, u: np.ndarray, nom: str, title: str = 'S
                 ax                  Any             The 3D axes object to draw on.
                 angle_view          bool            If True, sets a perspective view; if False, sets a top-down view.
             """
-            draw_snapshot(fig, ax, k, angle_view)                                                                                       # Execute draw_snapshot with the captured step k.
+            draw_snapshot(fig, ax, int(k), angle_view)                                                                                  # Execute draw_snapshot with the captured step k.
             
         _generate_static_views(render_cb, f'{title} at t = {tin:1.3f} s', save_path=nok + 's', verbose=verbose)                         # Generate and save views.

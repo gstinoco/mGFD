@@ -81,7 +81,7 @@ def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData
         faces        = np.empty((triangles.shape[0], 4), dtype = np.int32)                                                              # Preallocate array for faces.
         faces[:, 0]  = 3                                                                                                                # Set padding indicating 3 points per face.
         faces[:, 1:] = triangles                                                                                                        # Set vertices indices.
-        mesh         = pv.PolyData(points, faces)                                                                                       # Create PyVista mesh with triangles.
+        mesh         = pv.PolyData(points, faces)                                                                                       # type: ignore
     else:                                                                                                                               # Fallback to point cloud if triangulation fails.
         mesh         = pv.PolyData(points)                                                                                              # Create PyVista mesh as point cloud.
         

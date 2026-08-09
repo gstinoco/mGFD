@@ -92,16 +92,16 @@ def generate_interior_points(polygon: Polygon, cloud_size: float) -> np.ndarray:
         # 4. Draw exterior
         ext_coords = list(polygon.exterior.coords)                                                                                      # Extract exterior coordinates.
         ext_pixels = to_pixel_coords(ext_coords)                                                                                        # Convert to pixel coordinates.
-        cv2.fillPoly(mask, [ext_pixels], 1)                                                                                             # Fill the exterior polygon in the mask.
+        cv2.fillPoly(mask, [ext_pixels], 1)                                                                                             # type: ignore
         
         # Exclude exterior boundary (set to 0) to avoid overlapping with explicit boundary nodes
-        cv2.polylines(mask, [ext_pixels], isClosed=True, color=0, thickness=1)                                                          # Clear boundary pixels in the mask.
+        cv2.polylines(mask, [ext_pixels], isClosed=True, color=0, thickness=1)                                                          # type: ignore
         
         # 5. Draw interiors (holes)
         for interior in polygon.interiors:                                                                                              # Iterate over hole geometries.
             int_coords = list(interior.coords)                                                                                          # Extract hole coordinates.
             int_pixels = to_pixel_coords(int_coords)                                                                                    # Convert to pixel coordinates.
-            cv2.fillPoly(mask, [int_pixels], 0)                                                                                         # Clear hole pixels in the mask.
+            cv2.fillPoly(mask, [int_pixels], 0)                                                                                         # type: ignore
             
         # 6. Select points
         selected_mask = mask.astype(bool).ravel()                                                                                       # Flatten mask and convert to boolean.

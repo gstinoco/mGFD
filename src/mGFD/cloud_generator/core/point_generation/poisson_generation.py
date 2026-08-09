@@ -115,14 +115,14 @@ def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary
             
         # Draw exterior
         ext_pixels = to_pixel_coords(list(polygon.exterior.coords))                                                                     # Convert exterior to pixels.
-        cv2.fillPoly(mask, [ext_pixels], 1)                                                                                             # Fill the mask with exterior polygon.
+        cv2.fillPoly(mask, [ext_pixels], 1)                                                                                             # type: ignore
         # Exclude exterior boundary to avoid overlapping
-        cv2.polylines(mask, [ext_pixels], isClosed=True, color=0, thickness=1)                                                          # Unset pixels exactly on the boundary.
+        cv2.polylines(mask, [ext_pixels], isClosed=True, color=0, thickness=1)                                                          # type: ignore
         
         # Draw holes
         for interior in polygon.interiors:                                                                                              # Iterate over internal holes.
             int_pixels = to_pixel_coords(list(interior.coords))                                                                         # Convert hole to pixels.
-            cv2.fillPoly(mask, [int_pixels], 0)                                                                                         # Clear hole region in the mask.
+            cv2.fillPoly(mask, [int_pixels], 0)                                                                                         # type: ignore
             
         # Map samples to pixel coordinates and check mask
         sample_px = np.round((samples[:, 0] - minx) / resolution).astype(int)                                                           # Get pixel x for samples.

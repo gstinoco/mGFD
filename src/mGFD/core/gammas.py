@@ -103,7 +103,7 @@ def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
                 dy[j] = p[vec1, 1] - p[i, 1]                                                                                            # Compute dy to neighbor.
             
             M       = np.vstack([[dx], [dy], [dx**2], [dx * dy], [dy**2]])                                                              # Reconstruction matrix (5, nvec_i).
-            M       = np.linalg.pinv(M)                                                                                                 # Pseudoinverse to solve least squares.
+            M       = np.linalg.pinv(M)                                                                                                 # type: ignore
             YY      = M @ L                                                                                                             # Weights for neighbor contributions (nvec_i,).
             Gamma   = np.vstack([-np.sum(YY), YY]).transpose()                                                                          # Include central weight as -sum(neighbors).
             K[i, i] = Gamma[0, 0]                                                                                                       # Set diagonal (central) weight.

@@ -84,7 +84,7 @@ def calculate_cloud_size(region_points: List[Tuple[float, float]]) -> float:
         if distances:                                                                                                                   # Ensure distances list is not empty.
             avg_distance = np.mean(distances)                                                                                           # Compute average distance.
             cloud_size   = avg_distance * CLOUD_FACTORS["adaptive_factor"]                                                              # Apply adaptive factor.
-            return cloud_size                                                                                                           # Return computed cloud size.
+            return float(cloud_size)                                                                                                    # Return computed cloud size.
         else:                                                                                                                           # If no distances were calculated.
             return CLOUD_FACTORS["default_cloud_size"]                                                                                  # Return default cloud size.
             

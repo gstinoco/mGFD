@@ -169,8 +169,8 @@ def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, re
         success             bool                True if successful, False otherwise.
     """
     try:                                                                                                                                # Start graph plotting process.
-        points_arr        = np.array(points)                                                                                            # Ensure points are a NumPy array.
-        regions_arr       = np.array(regions)                                                                                           # Ensure regions are a NumPy array.
+        points_arr            = np.array(points)                                                                                        # Ensure points are a NumPy array.
+        regions_arr           = np.array(regions)                                                                                       # Ensure regions are a NumPy array.
         neighbors_indices_arr = np.array(neighbors_indices)                                                                             # Ensure neighbor indices are an array.
         
         # 1. Setup plot
@@ -197,7 +197,7 @@ def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, re
         
         # 3. Build line segments and scatter points per region
         for region_id in unique_regions:                                                                                                # Iterate through regions.
-            region_mask       = (regions == region_id)                                                                                  # Create logical mask for the region.
+            region_mask       = (regions_arr == region_id)                                                                              # Create logical mask for the region.
             indices_in_region = np.where(region_mask)[0]                                                                                # Get point indices for this region.
             
             if len(indices_in_region) == 0:                                                                                             # Skip if region is empty.
