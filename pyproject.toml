@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mGFD: A meshless generalized finite difference method"
+name = "mGFD"
 version = "0.9.1"
-description = "A meshless generalized finite difference method for solving stationary and transient PDEs"
+description = "mGFD (Meshless Generalized Finite Differences) is a high-performance Python ecosystem designed to solve Partial Differential Equations (PDEs) directly on unstructured point clouds, bypassing traditional mesh generation."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
