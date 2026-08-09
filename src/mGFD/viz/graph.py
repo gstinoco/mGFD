@@ -337,7 +337,7 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
         fig, ax1       = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Create figure for perspective view.
         fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Create figure for top view.
         
-        for k in np.arange(0, t, step):
+        for k in range(0, t, step):
             tin = float(T[k])                                                                                                           # Get physical time value.
             fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)                          # Set main title for the figure.
             fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)                         # Set main title for the top view figure.
@@ -393,7 +393,7 @@ def plot_transient_steps(p: np.ndarray, u: np.ndarray, nom: str, title: str = 'S
             fig_obj.colorbar_added = True                                                                                               # Mark colorbar as added.
 
     # 3. Snapshot iteration
-    for k in np.arange(0, t + 1, step):                                                                                                 # Iterate through selected snapshots.
+    for k in range(0, t + 1, step):                                                                                                     # Iterate through selected snapshots.
         if k >= t: k = int(t - 1)                                                                                                       # Ensure index does not exceed limits.
         tin = float(T[k])
         nok = nom + '_' + str(format(T[k], '.2f'))                                                                                      # Format snapshot filename.
