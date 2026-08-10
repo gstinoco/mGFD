@@ -170,13 +170,9 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
 
     # 6. VTK and Graphical rendering
     if save:                                                                                                                            # Save solution to VTK format if requested.
-        ExportVTK.export_stationary_vtk(p, u_ap, u_ex, out_dir, basename="Perturbation_Solution",
-                                        cloud_path=cloud_path, verbose=verbose)                                                         # Save VTK data to disk.
-        
-        plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Perturbation_Approximation'),
+        if scale == '3':                                                                                                                # Only for scale 5.
+            plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Perturbation_Approximation'),
                                         title='Stationary Appx', verbose=verbose)                                                       # Save 3D scatter image.
-        
-        if scale == '5':                                                                                                                # Only for scale 5.
             plot_stationary(p, u_ex, save=True, nom=os.path.join(os.path.dirname(out_dir), 'Perturbation_Exact'),
                         title='Theoretical Solution', verbose=verbose)                                                                  # Create independent plot of exact solution.
 

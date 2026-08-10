@@ -150,12 +150,9 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
 
     # 6. VTK and Graphical rendering
     if save:                                                                                                                            # Save solution to VTK format if requested.
-        ExportVTK.export_transient_vtk(p, u_ap, u_ex, t, T_arr, out_dir,
-                                        basename="Heat_Solution", cloud_path=cloud_path, verbose=verbose)                               # Save VTK time series to disk.
-        plot_transient(p, u_ap, save=True, nom=os.path.join(out_dir, 'Heat_Approximation'),
+        if scale == '3':                                                                                                                # Only for scale 5.
+            plot_transient(p, u_ap, save=True, nom=os.path.join(out_dir, 'Heat_Approximation'),
                                         title='Transient Approximation', verbose=verbose)                                               # Save transient animation.
-        
-        if scale == '5':                                                                                                                # Only for scale 5.
             plot_transient(p, u_ex, save=True, nom=os.path.join(os.path.dirname(out_dir), 'Heat_Exact'),
                                         title='Theoretical Solution', verbose=verbose)                                                  # Save exact transient animation.
 
