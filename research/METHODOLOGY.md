@@ -58,16 +58,16 @@ $$ u(q_{i,j}) = u(p_i) + \Delta x_{i,j} u_x|_{p_i} + \Delta y_{i,j} u_y|_{p_i} +
 
 Substituting this expansion back into the discrete operator $L_0 u|_{p_i}$ and grouping the terms yields a set of algebraic constraints. For the truncation error to vanish perfectly, we generate the following system:
 
-$$
-\begin{aligned}
-A(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \frac{(\Delta x_{i,j})^2}{2} &= 0 \\
-B(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \Delta x_{i,j} \Delta y_{i,j} &= 0 \\
-C(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \frac{(\Delta y_{i,j})^2}{2} &= 0 \\
-D(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \Delta x_{i,j} &= 0 \\
-E(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \Delta y_{i,j} &= 0 \\
-F(p_i) - \sum_{j=0}^{n_i} \Gamma_{i,j} &= 0
-\end{aligned}
-$$
+```math
+    \begin{aligned}
+        A(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \frac{(\Delta x_{i,j})^2}{2} &= 0 \\
+        B(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \Delta x_{i,j} \Delta y_{i,j} &= 0 \\
+        C(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \frac{(\Delta y_{i,j})^2}{2} &= 0 \\
+        D(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \Delta x_{i,j} &= 0 \\
+        E(p_i) - \sum_{j=1}^{n_i} \Gamma_{i,j} \Delta y_{i,j} &= 0 \\
+        F(p_i) - \sum_{j=0}^{n_i} \Gamma_{i,j} &= 0
+    \end{aligned}
+```
 
 ---
 
@@ -77,29 +77,29 @@ The consistency conditions defined above can be assembled into a purely geometri
 
 <div align="center">
 
-$$
-\begin{pmatrix}
-\Delta x_{i,1} & \dots & \Delta x_{i,n_i} \\
-\Delta y_{i,1} & \dots & \Delta y_{i,n_i} \\
-(\Delta x_{i,1})^2 & \dots & (\Delta x_{i,n_i})^2 \\
-\Delta x_{i,1} \Delta y_{i,1} & \dots & \Delta x_{i,n_i} \Delta y_{i,n_i} \\
-(\Delta y_{i,1})^2 & \dots & (\Delta y_{i,n_i})^2
-\end{pmatrix}
-\begin{pmatrix}
-\Gamma_{i,1} \\
-\Gamma_{i,2} \\
-\vdots \\
-\Gamma_{i,n_i}
-\end{pmatrix}
-=
-\begin{pmatrix}
-D(p_i) \\
-E(p_i) \\
-2A(p_i) \\
-B(p_i) \\
-2C(p_i)
-\end{pmatrix}
-$$
+```math
+    \begin{pmatrix}
+        \Delta x_{i,1} & \dots & \Delta x_{i,n_i} \\
+        \Delta y_{i,1} & \dots & \Delta y_{i,n_i} \\
+        (\Delta x_{i,1})^2 & \dots & (\Delta x_{i,n_i})^2 \\
+        \Delta x_{i,1} \Delta y_{i,1} & \dots & \Delta x_{i,n_i} \Delta y_{i,n_i} \\
+        (\Delta y_{i,1})^2 & \dots & (\Delta y_{i,n_i})^2
+    \end{pmatrix}
+    \begin{pmatrix}
+        \Gamma_{i,1} \\
+        \Gamma_{i,2} \\
+        \vdots \\
+        \Gamma_{i,n_i}
+    \end{pmatrix}
+        =
+    \begin{pmatrix}
+        D(p_i) \\
+        E(p_i) \\
+        2A(p_i) \\
+        B(p_i) \\
+        2C(p_i)
+    \end{pmatrix}
+```
 
 </div>
 
