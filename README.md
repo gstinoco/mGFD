@@ -185,6 +185,10 @@ Here are the actual simulation outputs for Lake Pátzcuaro using the exact cloud
       <td><img src="https://raw.githubusercontent.com/gstinoco/mGFD/main/docs/Patzcuaro/Poisson_Approximation.png" alt="Patzcuaro Poisson" width="400"></td>
       <td><img src="https://raw.githubusercontent.com/gstinoco/mGFD/main/docs/Patzcuaro/Heat_Approximation.gif" alt="Patzcuaro Heat" width="400"></td>
     </tr>
+    <tr>
+      <td><img src="https://raw.githubusercontent.com/gstinoco/mGFD/main/docs/Patzcuaro/Poisson_Approximation_top.png" alt="Patzcuaro Poisson" width="400"></td>
+      <td><img src="https://raw.githubusercontent.com/gstinoco/mGFD/main/docs/Patzcuaro/Heat_Approximation_top.gif" alt="Patzcuaro Heat" width="400"></td>
+    </tr>
   </table>
 </div>
 
