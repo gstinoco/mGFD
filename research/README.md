@@ -314,6 +314,6 @@ If you use this laboratory or the **mGFD method** in your research, please cite 
 ```
 
 <div align="center">
-<i>Developed for the advancement of meshless numerical methods and scientific computing.</i>
+<i>Developed for the advancement of meshless numerical methods and scientific computing.</i><br/>
 <a href="https://github.com/gstinoco/mGFD/issues">Report a Bug</a> | <a href="mailto:gerardo.tinoco@umich.mx">Contact Author</a>
 </div>
