@@ -1,0 +1,32 @@
+RESUMEN DEL BENCHMARK
+=====================
+
+Tiempo total del benchmark: 856.05 segundos
+Pruebas exitosas: 500 de 500
+
+ESTADÍSTICAS POR ECUACIÓN:
+
+Poisson:
+  Tiempo promedio: 0.230s
+  Memoria promedio: 3.2MB
+  Error promedio: 1.86e-06
+
+Heat:
+  Tiempo promedio: 2.425s
+  Memoria promedio: 137.0MB
+  Error promedio: 1.17e-07
+
+Advection:
+  Tiempo promedio: 0.934s
+  Memoria promedio: 140.6MB
+  Error promedio: 7.63e-05
+
+Advection-Diffusion:
+  Tiempo promedio: 0.923s
+  Memoria promedio: 127.0MB
+  Error promedio: 8.22e-04
+
+Wave:
+  Tiempo promedio: 2.434s
+  Memoria promedio: 112.4MB
+  Error promedio: 3.18e-06

@@ -11,8 +11,8 @@ Data conventions:
             Point cloud with columns [x, y, flag]. flag = 0 for interior; flag = 1/2 for boundary.
     u_ap    (m,) or (m, t) ndarray
             Approximate numerical solution.
-    u_ex    (m,) or (m, t) ndarray
-            Exact reference solution.
+    u_ap    (m,) or (m, t) ndarray
+            Approximate numerical solution.
 
 Public API:
     export_stationary_vtk     Export a single-step (stationary) result to a .vtp file.
@@ -89,7 +89,7 @@ def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData
     
     return mesh                                                                                                                         # Return created mesh.
 
-def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, out_dir: str, basename: str = "Stationary_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basename: str = "Stationary_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
     """
     export_stationary_vtk
     Export a stationary PDE solution to a VTK (.vtp) file.
@@ -100,7 +100,6 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, out
     Input:
         p           m x 3           ndarray         Point cloud coordinates and boundary flags.
         u_ap        m               ndarray         Approximate solution values.
-        u_ex        m               ndarray         Exact solution values.
         out_dir                     str             Directory where the VTK file will be saved.
         basename                    str             Base filename for the output file.
         cloud_path                  str             (Optional) Path to the point cloud CSV, used to load cached boundary-aware triangulations.
@@ -112,8 +111,6 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, out
     
     # 2. Data attachment
     mesh.point_data['U_ap']           = u_ap                                                                                            # Store approximate solution.
-    mesh.point_data['U_ex']           = u_ex                                                                                            # Store exact solution.
-    mesh.point_data['Absolute_Error'] = np.abs(u_ap - u_ex)                                                                             # Store absolute error.
     
     # 3. VTK saving
     filepath = os.path.join(out_dir, f"{basename}.vtp")                                                                                 # Assemble full output path.
@@ -122,7 +119,7 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, out
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f"\tSaved VTK to {filepath}")                                                                                       # Report successful save.
 
-def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: int, T: np.ndarray, out_dir: str, basename: str = "Transient_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, t: int, T: np.ndarray, out_dir: str, basename: str = "Transient_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
     """
     export_transient_vtk
     Export a transient PDE solution to a time-series VTK (.pvd + .vtp) format.
@@ -133,7 +130,6 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: i
     Input:
         p           m x 3           ndarray         Point cloud coordinates and boundary flags.
         u_ap        m x t           ndarray         Approximate solution values over time.
-        u_ex        m x t           ndarray         Exact solution values over time.
         t                           int             Total number of time steps.
         T           t               ndarray         Array of physical time values.
         out_dir                     str             Directory where the VTK files will be saved.
@@ -161,8 +157,6 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, u_ex: np.ndarray, t: i
         time_val = float(T[k])                                                                                                          # Physical time value.
         
         mesh.point_data['U_ap']           = u_ap[:, k]                                                                                  # Store approximate solution at time k.
-        mesh.point_data['U_ex']           = u_ex[:, k]                                                                                  # Store exact solution at time k.
-        mesh.point_data['Absolute_Error'] = np.abs(u_ap[:, k] - u_ex[:, k])                                                             # Store absolute error at time k.
         
         filename = f"{basename}_{k:05d}.vtp"                                                                                            # Frame filename.
         filepath = os.path.join(out_dir, filename)                                                                                      # Assemble full path for the frame.
