@@ -157,11 +157,12 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     with open(metrics_path, 'w') as file:                                                                                               # Open metrics report file.
         json.dump(metrics, file, indent=4)                                                                                              # Write structured metrics as JSON.
 
-    # 6. VTK and Graphical rendering
-    if save:                                                                                                                            # Save solution to VTK format if requested.
-        if scale == '3':                                                                                                                # Only for scale 5.
-            plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Poisson_Approximation'),
+    # 6. Graphical rendering
+    if save:                                                                                                                            # Save graphical outputs if requested.
+        plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Poisson_Approximation'),
                         title='Stationary Appx', verbose=verbose)                                                                       # Save 3D scatter image.
+        
+        if scale == '5':                                                                                                                # Only for scale 5.
             plot_stationary(p, u_ex, save=True, nom=os.path.join(os.path.dirname(out_dir), 'Poisson_Exact'),
                         title='Theoretical Solution', verbose=verbose)                                                                  # Create independent plot of exact solution.
 

@@ -148,9 +148,9 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     with open(metrics_path, 'w') as file:                                                                                               # Open metrics report file.
         json.dump(metrics, file, indent=4)                                                                                              # Write structured metrics as JSON.
 
-    # 6. VTK and Graphical rendering
-    if save:                                                                                                                            # Save solution to VTK format if requested.
-        if scale == '3':                                                                                                                # Only for scale 5.
+    # 6. Graphical rendering
+    if save:                                                                                                                            # Save graphical outputs if requested.
+        if scale == '3':                                                                                                                # Only for scale 3.
             plot_transient(p, u_ap, save=True, nom=os.path.join(out_dir, 'Heat_Approximation'),
                                         title='Transient Approximation', verbose=verbose)                                               # Save transient animation.
             plot_transient(p, u_ex, save=True, nom=os.path.join(os.path.dirname(out_dir), 'Heat_Exact'),
