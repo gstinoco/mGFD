@@ -131,7 +131,7 @@ def TimeDerivative1(p: Union[np.ndarray, Any],
     
     # 3. Apply Boundary and Initial Conditions
     if callable(f):                                                                                                                     # If data is a function.
-        for k in np.arange(t):                                                                                                          # Loop through all time steps.
+        for k in range(t):                                                                                                          # Loop through all time steps.
             u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                                     # Boundary condition (Dirichlet).
         u_ap[:, 0] = np.asarray(f(p[:, 0], p[:, 1], T[0], coef))                                                                        # Initial condition across all nodes.
     elif isinstance(f, np.ndarray):                                                                                                     # If data is an array.
@@ -166,7 +166,7 @@ def TimeDerivative1(p: Union[np.ndarray, Any],
     if not implicit:                                                                                                                    # If an explicit scheme is requested.
         # Explicit scheme (Forward Euler)
         K2 = eye(m) + K                                                                                                                 # LHS Explicit Matrix.
-        for k in np.arange(1, t):                                                                                                       # Loop over all time steps.
+        for k in range(1, t):                                                                                                       # Loop over all time steps.
             un              = K2.dot(u_ap[:, k-1])                                                                                      # Explicit matrix-vector multiplication.
             u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes.
     else:                                                                                                                               # If an implicit scheme is requested.
@@ -184,7 +184,7 @@ def TimeDerivative1(p: Union[np.ndarray, Any],
         elif linear_solver not in ["bicgstab", "gmres"]:                                                                                # Invalid iterative solver choice.
             raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")           # Raise explicit error.
 
-        for k in np.arange(1, t):                                                                                                       # Loop over all time steps.
+        for k in range(1, t):                                                                                                       # Loop over all time steps.
             RHS             = B.dot(u_ap[:, k-1])                                                                                       # Right-hand side from previous step.
             RHS[boun_n]     = u_ap[boun_n, k]                                                                                           # Inject exact boundary conditions.
             

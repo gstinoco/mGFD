@@ -137,7 +137,7 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
     # 3. Apply Boundary and Initial Conditions
     # Evaluate f (initial position and boundaries)
     if callable(f):                                                                                                                     # If data is a function.
-        for k in np.arange(t):                                                                                                          # Loop through all time steps.
+        for k in range(t):                                                                                                          # Loop through all time steps.
             u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                                     # Boundary condition (Dirichlet).
         u_ap[:, 0] = np.asarray(f(p[:, 0], p[:, 1], T[0], coef))                                                                        # Initial condition across all nodes.
     elif isinstance(f, np.ndarray):                                                                                                     # If data is an array.
@@ -163,7 +163,7 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
         else:                                                                                                                           # Invalid shape.
             raise DimensionMismatchError(f"Data array 'g' must have shape ({m},).")                                                     # Raise explicit error.
     else:                                                                                                                               # If data is a constant scalar.
-        g_eval = g                                                                                                                      # Use scalar value.
+        g_eval = np.full(m, float(g))                                                                                                   # Use scalar value.
     
     # 4. Neighbor search
     if vec is None:                                                                                                                     # If no neighbor list is provided.
@@ -185,7 +185,7 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
         K2 = eye(m) + (1/2)*K                                                                                                           # Explicit matrix for k = 1.
         K4 = 2*eye(m) + K                                                                                                               # Explicit matrix for k = 2, ..., t.
         
-        for k in np.arange(1, t):                                                                                                       # Loop over all time steps.
+        for k in range(1, t):                                                                                                           # Loop over all time steps.
             if k == 1:                                                                                                                  # Initial time step logic (k=1).
                 g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
                 un              = K2.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # New time-level (k=1) using du/dt.
@@ -213,7 +213,7 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
         elif linear_solver not in ["bicgstab", "gmres"]:                                                                                # Invalid iterative solver choice.
             raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")           # Raise explicit error.
 
-        for k in np.arange(1, t):                                                                                                       # Loop over all time steps.
+        for k in range(1, t):                                                                                                       # Loop over all time steps.
             if k == 1:                                                                                                                  # Initial time step logic (k=1).
                 g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
                 RHS             = B1.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # Right-hand side from previous step + du/dt.
