@@ -73,7 +73,9 @@ def extract_cloud(p: np.ndarray) -> np.ndarray:
         if isinstance(p, xr.DataArray):                                                                                                 # If input is an xarray DataArray.
             return np.asarray(p.values)                                                                                                 # Extract and return the underlying numpy array.
 
-    return np.asarray(p)                                                                                                                # Return default numpy array fallback.
+    if isinstance(p, (list, tuple, np.ndarray)):                                                                                        # If input is a standard Python array-like.
+        return np.asarray(p)                                                                                                            # Return numpy array wrapper.
+    return p                                                                                                                            # Return original object unchanged (will fail validation downstream).
 
 def repack_solution(p_orig: np.ndarray, u_ap: np.ndarray):
     """
