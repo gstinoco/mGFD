@@ -37,8 +37,9 @@ Last Modification:
 import os                                                                                                                               # OS interfaces for file/directory paths.
 import glob                                                                                                                             # File pattern matching.
 import numpy as np                                                                                                                      # Core numerical operations.
+import json                                                                                                                             # JSON formatting.
 
-from typing import Optional, Union, Tuple, Iterator                                                                                     # Type hints.
+from typing import Optional, Union, Tuple, Iterator, Dict, Any, List, Callable                                                          # Type hints.
 
 def project_root() -> str:
     """
@@ -193,3 +194,103 @@ def iter_clouds(data_root: Optional[str] = None, scales: Union[Tuple[str, ...], 
                 
                 if base.endswith('_cloud.csv'):                                                                                         # Filter for cloud files.
                     yield dataset, scale, cloud_path                                                                                    # Yield dataset info and path.
+
+import json
+import logging
+from typing import Callable, Any, Dict
+
+logger = logging.getLogger(__name__)
+
+def run_batch_suite(
+    process_func: Callable,
+    data_root: str,
+    results_root: str,
+    scales: tuple,
+    **kwargs: Any
+) -> None:
+    """
+    run_batch_suite
+    Universal orchestrator for all runner batch scripts.
+    Iterates all point clouds in the datasets and invokes the solver logic.
+
+    Input:
+        process_func    1           Callable        The function to process each point cloud.
+        data_root       1           str             Input dataset root directory.
+        results_root    1           str             Output results root directory.
+        scales          1           tuple           Tuple of scale subfolders to process.
+        **kwargs        Any         dict            Dynamic configuration from main orchestrator.
+        
+    Output:
+        None
+    """
+    verbose = kwargs.pop('verbose', True)
+    save = kwargs.pop('save', True)
+    found = 0
+    
+    if verbose:
+        logger.info(f'Processing point clouds from {data_root} (scales={scales}).')
+        
+    for dataset, scale, cloud_path in iter_clouds(data_root, scales):
+        found += 1
+        process_func(dataset, scale, cloud_path, results_root, save, verbose=verbose, **kwargs)
+        
+    if found == 0:
+        if verbose:
+            logger.warning(f'No point clouds found in {data_root} for scales {scales}.')
+
+def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[str] = None, scale: Optional[str] = None, p: Optional[np.ndarray] = None) -> None:
+    """
+    save_metrics
+    Dumps the error metrics dictionary into a JSON file in the output directory.
+    If config_id is provided, appends the metrics to the JSON file under that key.
+
+    Input:
+        out_dir         1           str             Directory to save the metrics in.
+        metrics         1           dict            Dictionary with calculated errors/times.
+        config_id       1           str             Optional key for parameter sweeps.
+        scale           1           str             Optional scale identifier.
+        p               m x 3       ndarray         Optional point cloud to extract statistics.
+        
+    Output:
+        None
+    """
+    if 'Compute_Time_Secs' in metrics:                                                                                                  # Standardize metrics.
+        metrics['Time_Callable'] = metrics.pop('Compute_Time_Secs')                                                                     # Standardize metrics.
+    metrics.pop('Max_Abs_Error', None)                                                                                                  # Standardize metrics.
+    metrics.pop('Mean_Abs_Error', None)                                                                                                 # Standardize metrics.
+    if 'Time_Mean_Abs_Error' in metrics:                                                                                                # Standardize metrics.
+        metrics.pop('Time_Mean_Abs_Error', None)                                                                                        # Standardize metrics.
+        metrics.pop('Time_Max_Abs_Error', None)                                                                                         # Standardize metrics.
+    metrics_path = os.path.join(out_dir, 'Metrics.json')                                                                                # Define the absolute path for the metrics file.
+    if config_id:                                                                                                                       # Check if a configuration ID was provided.
+        data = {}                                                                                                                       # Initialize empty dictionary for sweep data.
+        if os.path.exists(metrics_path):                                                                                                # Check if the JSON file already exists.
+            with open(metrics_path, 'r') as f:                                                                                          # Open the existing file in read mode.
+                try:                                                                                                                    # Attempt to load the JSON content.
+                    data = json.load(f)                                                                                                 # Load data into the dictionary.
+                except json.JSONDecodeError:                                                                                            # Catch decoding errors (e.g., empty file).
+                    pass                                                                                                                # Ignore error and start fresh.
+        if scale:                                                                                                                       # If scale is provided, nest it.
+            scale_key = f'Scale_{scale}'                                                                                                # Format scale key.
+            if scale_key not in data:                                                                                                   # Create scale if missing.
+                data[scale_key] = {}                                                                                                    # Initialize empty dictionary.
+            if p is not None and "Cloud_Statistics" not in data[scale_key]:                                                             # Add statistics.
+                data[scale_key]["Cloud_Statistics"] = {                                                                                 # Statistics block.
+                    "Total_Nodes": len(p),                                                                                              # Total count.
+                    "Interior_Nodes": int(np.sum(p[:, 2] == 0)),                                                                        # Interior count.
+                    "Boundary_Nodes": int(np.sum(p[:, 2] != 0)),                                                                        # Boundary count.
+                    "X_Min": float(np.min(p[:, 0])),                                                                                    # Min X.
+                    "X_Max": float(np.max(p[:, 0])),                                                                                    # Max X.
+                    "Y_Min": float(np.min(p[:, 1])),                                                                                    # Min Y.
+                    "Y_Max": float(np.max(p[:, 1]))                                                                                     # Max Y.
+                }                                                                                                                       # End block.
+            if "Metrics" not in data[scale_key]:                                                                                        # Initialize metrics block.
+                data[scale_key]["Metrics"] = {}                                                                                         # Initialize empty dict.
+            data[scale_key]["Metrics"][config_id] = metrics                                                                             # Add metrics.
+        else:                                                                                                                           # Legacy mode.
+            data[config_id] = metrics                                                                                                   # Add metrics.
+        with open(metrics_path, 'w') as f:                                                                                              # Open the file in write mode.
+            json.dump(data, f, indent=4)                                                                                                # Dump the updated data to the file.
+    else:                                                                                                                               # Legacy mode (no config_id).
+        with open(metrics_path, 'w') as f:                                                                                              # Open the file in write mode.
+            json.dump(metrics, f, indent=4)                                                                                             # Dump the single metrics dictionary.

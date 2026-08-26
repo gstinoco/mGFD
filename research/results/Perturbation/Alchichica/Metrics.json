@@ -1,0 +1,257 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 2564,
+            "Interior_Nodes": 2281,
+            "Boundary_Nodes": 283,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_12_spsolve_upwind_True": {
+                "RMSE": 0.00013236046123393585,
+                "Time_Array": 0.03251145800459199,
+                "Time_Pandas": 0.031826874997932464,
+                "Time_Callable": 0.033524291997309774
+            },
+            "nvec_12_spsolve_upwind_False": {
+                "RMSE": 0.00013236046123393585,
+                "Time_Array": 0.030963208992034197,
+                "Time_Pandas": 0.03318066700012423,
+                "Time_Callable": 0.03717133300960995
+            },
+            "nvec_12_bicgstab_upwind_True": {
+                "RMSE": 0.00013236249011051783,
+                "Time_Array": 0.018146874994272366,
+                "Time_Pandas": 0.018160667008487508,
+                "Time_Callable": 0.017756916990038007
+            },
+            "nvec_12_bicgstab_upwind_False": {
+                "RMSE": 0.00013236249011051783,
+                "Time_Array": 0.0181940000038594,
+                "Time_Pandas": 0.018354708008700982,
+                "Time_Callable": 0.01896749998559244
+            },
+            "nvec_16_spsolve_upwind_True": {
+                "RMSE": 0.0001483546624750811,
+                "Time_Array": 0.036009666975587606,
+                "Time_Pandas": 0.035033457999816164,
+                "Time_Callable": 0.03577945797587745
+            },
+            "nvec_16_spsolve_upwind_False": {
+                "RMSE": 0.0001483546624750811,
+                "Time_Array": 0.0350814999837894,
+                "Time_Pandas": 0.040467207989422604,
+                "Time_Callable": 0.036395125003764406
+            },
+            "nvec_16_bicgstab_upwind_True": {
+                "RMSE": 0.00014835524469271642,
+                "Time_Array": 0.02035633401828818,
+                "Time_Pandas": 0.020186583016766235,
+                "Time_Callable": 0.02624574999208562
+            },
+            "nvec_16_bicgstab_upwind_False": {
+                "RMSE": 0.00014835524469271642,
+                "Time_Array": 0.02342329200473614,
+                "Time_Pandas": 0.020181291998596862,
+                "Time_Callable": 0.026040625001769513
+            },
+            "nvec_20_spsolve_upwind_True": {
+                "RMSE": 0.0001542516583655125,
+                "Time_Array": 0.05163016702863388,
+                "Time_Pandas": 0.04557024998939596,
+                "Time_Callable": 0.05398958298610523
+            },
+            "nvec_20_spsolve_upwind_False": {
+                "RMSE": 0.0001542516583655125,
+                "Time_Array": 0.04288195801200345,
+                "Time_Pandas": 0.043793666001874954,
+                "Time_Callable": 0.05058995800209232
+            },
+            "nvec_20_bicgstab_upwind_True": {
+                "RMSE": 0.00015425167974523262,
+                "Time_Array": 0.02807287499308586,
+                "Time_Pandas": 0.031081292021553963,
+                "Time_Callable": 0.029177082993555814
+            },
+            "nvec_20_bicgstab_upwind_False": {
+                "RMSE": 0.00015425167974523262,
+                "Time_Array": 0.022404624993214384,
+                "Time_Pandas": 0.02323837499716319,
+                "Time_Callable": 0.0239679999940563
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 9757,
+            "Interior_Nodes": 9193,
+            "Boundary_Nodes": 564,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_12_spsolve_upwind_True": {
+                "RMSE": 9.568320438080216e-05,
+                "Time_Array": 0.13245091700810008,
+                "Time_Pandas": 0.1265805840084795,
+                "Time_Callable": 0.14380749998963438
+            },
+            "nvec_12_spsolve_upwind_False": {
+                "RMSE": 9.568320438080216e-05,
+                "Time_Array": 0.1419534579908941,
+                "Time_Pandas": 0.12847766699269414,
+                "Time_Callable": 0.13841362498351373
+            },
+            "nvec_12_bicgstab_upwind_True": {
+                "RMSE": 9.568369626645737e-05,
+                "Time_Array": 0.09662666701478884,
+                "Time_Pandas": 0.08956733299419284,
+                "Time_Callable": 0.07991795800626278
+            },
+            "nvec_12_bicgstab_upwind_False": {
+                "RMSE": 9.568369626645737e-05,
+                "Time_Array": 0.10103054199134931,
+                "Time_Pandas": 0.09584158298093826,
+                "Time_Callable": 0.071830000000773
+            },
+            "nvec_16_spsolve_upwind_True": {
+                "RMSE": 0.0001023926930974019,
+                "Time_Array": 0.19224175001727417,
+                "Time_Pandas": 0.19403066698578186,
+                "Time_Callable": 0.17603433300973848
+            },
+            "nvec_16_spsolve_upwind_False": {
+                "RMSE": 0.0001023926930974019,
+                "Time_Array": 0.19200425001326948,
+                "Time_Pandas": 0.18977125000674278,
+                "Time_Callable": 0.1580542910087388
+            },
+            "nvec_16_bicgstab_upwind_True": {
+                "RMSE": 0.00010239225161663114,
+                "Time_Array": 0.07885216700378805,
+                "Time_Pandas": 0.08848270800081082,
+                "Time_Callable": 0.08236645799479447
+            },
+            "nvec_16_bicgstab_upwind_False": {
+                "RMSE": 0.00010239225161663114,
+                "Time_Array": 0.08109183300985023,
+                "Time_Pandas": 0.08051820800756104,
+                "Time_Callable": 0.08324670800357126
+            },
+            "nvec_20_spsolve_upwind_True": {
+                "RMSE": 9.83404438050075e-05,
+                "Time_Array": 0.2513180419919081,
+                "Time_Pandas": 0.27279533399268985,
+                "Time_Callable": 0.2170223330031149
+            },
+            "nvec_20_spsolve_upwind_False": {
+                "RMSE": 9.83404438050075e-05,
+                "Time_Array": 0.26951637500314973,
+                "Time_Pandas": 0.2689585839980282,
+                "Time_Callable": 0.21321362498565577
+            },
+            "nvec_20_bicgstab_upwind_True": {
+                "RMSE": 9.834123008484069e-05,
+                "Time_Array": 0.0979992909997236,
+                "Time_Pandas": 0.09525637500337325,
+                "Time_Callable": 0.10774645800120197
+            },
+            "nvec_20_bicgstab_upwind_False": {
+                "RMSE": 9.834123008484069e-05,
+                "Time_Array": 0.1041029579937458,
+                "Time_Pandas": 0.12735987501218915,
+                "Time_Callable": 0.09191945800557733
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 21267,
+            "Interior_Nodes": 20556,
+            "Boundary_Nodes": 711,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_12_spsolve_upwind_True": {
+                "RMSE": 5.074894118368443e-05,
+                "Time_Array": 0.3537921249808278,
+                "Time_Pandas": 0.3029997079866007,
+                "Time_Callable": 0.33610491597210057
+            },
+            "nvec_12_spsolve_upwind_False": {
+                "RMSE": 5.074894118368443e-05,
+                "Time_Array": 0.3667201249918435,
+                "Time_Pandas": 0.32491212501190603,
+                "Time_Callable": 0.31445479198009707
+            },
+            "nvec_12_bicgstab_upwind_True": {
+                "RMSE": 5.074914315407447e-05,
+                "Time_Array": 0.18969920798554085,
+                "Time_Pandas": 0.1889027500001248,
+                "Time_Callable": 0.23023504100274295
+            },
+            "nvec_12_bicgstab_upwind_False": {
+                "RMSE": 5.074914315407447e-05,
+                "Time_Array": 0.18155058298725635,
+                "Time_Pandas": 0.18214358401019126,
+                "Time_Callable": 0.24206445799791254
+            },
+            "nvec_16_spsolve_upwind_True": {
+                "RMSE": 5.1946023677209546e-05,
+                "Time_Array": 0.4685912079876289,
+                "Time_Pandas": 0.40897674998268485,
+                "Time_Callable": 0.3751654999796301
+            },
+            "nvec_16_spsolve_upwind_False": {
+                "RMSE": 5.1946023677209546e-05,
+                "Time_Array": 0.4707545000128448,
+                "Time_Pandas": 0.4070619579870254,
+                "Time_Callable": 0.37486166702001356
+            },
+            "nvec_16_bicgstab_upwind_True": {
+                "RMSE": 5.194576388197438e-05,
+                "Time_Array": 0.27424374999827705,
+                "Time_Pandas": 0.21423625000170432,
+                "Time_Callable": 0.26164966699434444
+            },
+            "nvec_16_bicgstab_upwind_False": {
+                "RMSE": 5.194576388197438e-05,
+                "Time_Array": 0.25355345898424275,
+                "Time_Pandas": 0.2045462090172805,
+                "Time_Callable": 0.2725188330223318
+            },
+            "nvec_20_spsolve_upwind_True": {
+                "RMSE": 5.601308749205905e-05,
+                "Time_Array": 0.6290593330049887,
+                "Time_Pandas": 0.5973295420117211,
+                "Time_Callable": 0.5498745839868207
+            },
+            "nvec_20_spsolve_upwind_False": {
+                "RMSE": 5.601308749205905e-05,
+                "Time_Array": 0.616214834008133,
+                "Time_Pandas": 0.6085671249893494,
+                "Time_Callable": 0.5653322080033831
+            },
+            "nvec_20_bicgstab_upwind_True": {
+                "RMSE": 5.601315929994899e-05,
+                "Time_Array": 0.34028045798186213,
+                "Time_Pandas": 0.26174879100290127,
+                "Time_Callable": 0.3250154579873197
+            },
+            "nvec_20_bicgstab_upwind_False": {
+                "RMSE": 5.601315929994899e-05,
+                "Time_Array": 0.23793612502049655,
+                "Time_Pandas": 0.2805751669802703,
+                "Time_Callable": 0.3008256659959443
+            }
+        }
+    }
+}

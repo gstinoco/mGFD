@@ -1,0 +1,16 @@
+{
+    "nvec": [
+        12,
+        16,
+        20
+    ],
+    "linear_solver": [
+        "spsolve",
+        "bicgstab"
+    ],
+    "save": true,
+    "upwind": [
+        true,
+        false
+    ]
+}

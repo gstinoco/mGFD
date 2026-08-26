@@ -44,17 +44,32 @@ Last Modification:
 ## Library importation.
 import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
+import time                                                                                                                             # Timing for SolverResult.
 
-from scipy.sparse import eye, diags                                                                                                     # Sparse matrix generation.
-from scipy.sparse.linalg import factorized                                                                                              # Direct sparse linear solver factorization.
-from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+from scipy.sparse import diags, eye                                                                                                     # Sparse matrix operations.
+from scipy.sparse.linalg import factorized, bicgstab, gmres, spsolve                                                                    # Direct and iterative sparse linear solvers.
+from typing import Callable, Optional, Tuple, List, Union, Any                                                                          # Type hinting.
 
+from mGFD.exceptions import CloudShapeError, InputTypeError, DimensionMismatchError, OperatorFormatError, ParameterError                # Custom exceptions.
+from mGFD.solvers.results import SolverResult                                                                                           # Standard solver output structure.
+from mGFD.core.adapters import extract_cloud, repack_solution                                                                           # Pandas/Xarray adapters.
 import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
 import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
-def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2]]), implicit: bool = False, lam: float = 0.5, upwind: bool = False, vec: Optional[np.ndarray] = None, nvec: int = 12, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+def TimeDerivative1(p: Union[np.ndarray, Any], 
+                    f: Union[Callable, np.ndarray, float, int, Any], 
+                    t: int, 
+                    coef: List[float], 
+                    operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2], [0]]), 
+                    upwind: bool = False, 
+                    vec: Optional[np.ndarray] = None, 
+                    nvec: int = 20, 
+                    implicit: bool = False, 
+                    lam: float = 0.5, 
+                    linear_solver: str = "spsolve",
+                    verbose: bool = True) -> SolverResult:
     """
     Numerical solution of partial differential equations with first-order time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -64,33 +79,38 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
     
     Input:
         p           m x 3           ndarray         Array with the coordinates of the nodes and the boundary flag.
-        f                           Callable        Function declared with the boundary and initial conditions.
+        f                           Union           Boundary/Initial condition f(x, y, t) or data array.
         t                           int             Number of time steps to compute.
         coef                        List            Physical coefficients for the problem formulation.
         operator    6 x 1           ndarray         Array with the weights for the operator.
-                                                        ([D, E, A, B, C, F]).
                                                         ([0, 0, 2, 0, 2, 0] is the default).
-        implicit                    bool            If True, uses an implicit (theta) time integration scheme.
-        lam                         float           Theta parameter for implicit scheme (0=explicit, 1=fully implicit, 0.5=Crank-Nicolson).
         upwind                      bool            If an Upwind stencil is requested.
         vec         m x nvec        ndarray         Cached neighbor list (optional).
         nvec                        int             Maximum number of neighbors for each node.
+        implicit                    bool            If True, uses an implicit scheme (Theta Method).
+        lam                         float           Theta parameter for implicit method (0.5 = Crank-Nicolson, 1.0 = Backward Euler).
+        linear_solver               str             Algebraic backend: 'spsolve', 'bicgstab', or 'gmres'.
         verbose                     bool            If True, prints solver progress.
     
     Output:
-        u_ap        m x t           ndarray         Array with the approximation computed by the routine.
-        vec         m x nvec        ndarray         Array with the correspondence of the neighbors of each node.  
+        SolverResult                Returns a structured result containing the approximation and the neighbor list.
     """
-
+    
+    start_time = time.perf_counter()                                                                                                    # Start solver timer.
+    
     # 0. Input validation
+    p_orig = p                                                                                                                          # Preserve original format.
+    p = extract_cloud(p)                                                                                                                # Extract NumPy array if Pandas/Xarray.
+    f = extract_cloud(f) if not callable(f) and not isinstance(f, (float, int)) else f                                                  # Extract array from Pandas/Xarray for f.
+    
     if not isinstance(p, np.ndarray) or p.ndim != 2 or p.shape[1] != 3:                                                                 # Validate point cloud array shape and type.
-        raise ValueError("Point cloud 'p' must be a 2D numpy array with 3 columns (x, y, flag).")                                       # Raise explicit error on bad input.
-    if not callable(f):                                                                                                                 # Validate forcing function.
-        raise TypeError("Forcing function 'f' must be a callable function.")                                                            # Raise explicit error on bad input.
+        raise CloudShapeError("Point cloud 'p' must be a 2D numpy array with 3 columns (x, y, flag).")                                  # Raise explicit error on bad input.
+    if not (callable(f) or isinstance(f, (np.ndarray, float, int))):                                                                    # Validate RHS type.
+        raise InputTypeError("Forcing function 'f' must be a callable, ndarray, or numeric constant.")                                  # Raise explicit error on bad input.
     if not isinstance(t, int) or t <= 0:                                                                                                # Validate time steps.
-        raise ValueError("Number of time steps 't' must be a positive integer.")                                                        # Raise explicit error on bad input.
+        raise ParameterError("Number of time steps 't' must be a positive integer.")                                                    # Raise explicit error on bad input.
     if not isinstance(operator, np.ndarray) or operator.shape[0] < 5:                                                                   # Validate operator array.
-        raise ValueError("Operator must be a numpy array with at least 5 coefficients.")                                                # Raise explicit error on bad input.
+        raise OperatorFormatError("Operator must be a numpy array with at least 5 coefficients.")                                       # Raise explicit error on bad input.
 
     # 1. Variable initialization
     m      = p.shape[0]                                                                                                                 # Total number of nodes.
@@ -110,10 +130,23 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
         b = -operator[1][0] if operator.ndim == 2 else -operator[1]                                                                     # Y-velocity (E coefficient).
     
     # 3. Apply Boundary and Initial Conditions
-    for k in np.arange(t):                                                                                                              # Loop through all time steps.
-        u_ap[boun_n, k] = f(p[boun_n, 0], p[boun_n, 1], T[k], coef)                                                                     # Boundary condition (Dirichlet).
-    
-    u_ap[:, 0] = f(p[:, 0], p[:, 1], T[0], coef)                                                                                        # Initial condition across all nodes.
+    if callable(f):                                                                                                                     # If data is a function.
+        for k in np.arange(t):                                                                                                          # Loop through all time steps.
+            u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                                     # Boundary condition (Dirichlet).
+        u_ap[:, 0] = np.asarray(f(p[:, 0], p[:, 1], T[0], coef))                                                                        # Initial condition across all nodes.
+    elif isinstance(f, np.ndarray):                                                                                                     # If data is an array.
+        if f.ndim == 2 and f.shape == (m, t):                                                                                           # Spatiotemporal data array.
+            u_ap[boun_n, :] = f[boun_n, :]                                                                                              # Spatiotemporal boundary conditions.
+            u_ap[:, 0] = f[:, 0]                                                                                                        # Initial conditions.
+        elif f.ndim == 1 and f.shape[0] == m:                                                                                           # Spatial constant data array.
+            for k in range(t):                                                                                                          # Loop over time.
+                u_ap[boun_n, k] = f[boun_n]                                                                                             # Constant boundary conditions.
+            u_ap[:, 0] = f                                                                                                              # Initial conditions.
+        if isinstance(f, np.ndarray) and f.shape not in [(m, t), (m,)]:                                                                 # Check if numeric matrix shape matches dimensions.
+            raise DimensionMismatchError(f"Data array 'f' must have shape ({m}, {t}) or ({m},).")                                       # Raise explicit error.
+    elif isinstance(f, (int, float)):                                                                                                   # If data is a constant scalar.
+        u_ap[boun_n, :] = f                                                                                                             # Constant boundary condition.
+        u_ap[:, 0] = f                                                                                                                  # Constant initial condition.
     
     # 4. Neighbor search
     if vec is None:                                                                                                                     # If no neighbor list is provided.
@@ -128,6 +161,8 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
     K         = dt * K_spatial                                                                                                          # Scale by time step.
     
     # 6. Time Integration (Generalized Finite Differences)
+    converged = True                                                                                                                    # Assume convergence by default.
+    
     if not implicit:                                                                                                                    # If an explicit scheme is requested.
         # Explicit scheme (Forward Euler)
         K2 = eye(m) + K                                                                                                                 # LHS Explicit Matrix.
@@ -144,14 +179,32 @@ def TimeDerivative1(p: np.ndarray, f: Callable, t: int, coef: List[float], opera
         A        = A.tocsc()                                                                                                            # Convert to CSC format for efficient SuperLU factorization.
         B        = Id_inner @ (eye(m) + (1 - lam) * K)                                                                                  # RHS Matrix: Zeros for boundaries, explicit part for inner.
         
-        solve    = factorized(A)                                                                                                        # Pre-factorize LHS for fast repeated solves.
+        if linear_solver == "spsolve":                                                                                                  # Direct pre-factorized solver.
+            solve = factorized(A)                                                                                                       # Pre-factorize LHS for fast repeated solves.
+        elif linear_solver not in ["bicgstab", "gmres"]:                                                                                # Invalid iterative solver choice.
+            raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")           # Raise explicit error.
+
         for k in np.arange(1, t):                                                                                                       # Loop over all time steps.
             RHS             = B.dot(u_ap[:, k-1])                                                                                       # Right-hand side from previous step.
             RHS[boun_n]     = u_ap[boun_n, k]                                                                                           # Inject exact boundary conditions.
-            un              = solve(RHS)                                                                                                # Solve global system for time level k.
-            u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes.
-        
+            
+            if linear_solver == "spsolve":                                                                                              # Direct pre-factorized solver.
+                un       = solve(RHS)                                                                                                   # Solve global system for time level k.
+            elif linear_solver == "bicgstab":                                                                                           # Iterative solver (BiCGStab).
+                un, info = bicgstab(A, RHS, x0=u_ap[:, k-1])                                                                            # Solve with previous step as initial guess.
+                if info != 0:                                                                                                           # If not strictly converged.
+                    converged = False                                                                                                   # Mark convergence failure.
+                    if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}) at time {k}.")                       # Warn on convergence issues.
+            elif linear_solver == "gmres":                                                                                              # Iterative solver (GMRES).
+                un, info = gmres(A, RHS, x0=u_ap[:, k-1])                                                                               # Solve with previous step as initial guess.
+                if info != 0:                                                                                                           # If not strictly converged.
+                    converged = False                                                                                                   # Mark convergence failure.
+                    if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}) at time {k}.")                          # Warn on convergence issues.
+                
+            u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes for time level k.     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info("\tSolver finished successfully.")                                                                                  # Print completion message.
         
-    return u_ap, vec                                                                                                                    # Return computed values.
+    compute_time = time.perf_counter() - start_time                                                                                     # Calculate total compute time.
+    u_ap_packed = repack_solution(p_orig, u_ap)                                                                                         # Repack into original Pandas/Xarray format.
+    return SolverResult(solution=u_ap_packed, neighbors=vec, converged=converged, compute_time=compute_time)                            # Return structured result.

@@ -41,13 +41,16 @@ import sys                                                                      
 import logging                                                                                                                          # Standard logging module.
 import importlib.util                                                                                                                   # Dynamic module import from a file path.
 
+import json                                                                                                                             # JSON parser for configuration loading.
+import argparse                                                                                                                         # Command-line arguments parser.
+
 from time import time                                                                                                                   # Wall-clock timing for runtimes.
-from typing import List                                                                                                                 # Type hints.
+from typing import List, Dict, Any                                                                                                      # Type hints.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Basic logger configuration.
 
-def import_module_from_file(file_path: str, verbose: bool = True) -> bool:
+def import_module_from_file(file_path: str, verbose: bool = True, **kwargs: Any) -> bool:
     """
     import_module_from_file
     Dynamically loads and executes a Python module from its absolute filepath. and execute it as a module.
@@ -55,6 +58,7 @@ def import_module_from_file(file_path: str, verbose: bool = True) -> bool:
     Input:
         file_path       1           str             Absolute path to the Python file to load.
         verbose         1           bool            If True, prints errors to console.
+        **kwargs        1           Any             Additional arguments to pass to the module's main().
 
     Output:
         ok              1           bool            True when the import succeeds, False otherwise.
@@ -83,7 +87,7 @@ def import_module_from_file(file_path: str, verbose: bool = True) -> bool:
         spec.loader.exec_module(module)                                                                                                 # Execute the module (runs top-level batch script).
         
         if hasattr(module, 'main'):                                                                                                     # Explicitly call main() if it exists.
-            module.main()
+            module.main(**kwargs)
         elif hasattr(module, f'test_single_cloud'):
             module.test_single_cloud()
             
@@ -95,13 +99,14 @@ def import_module_from_file(file_path: str, verbose: bool = True) -> bool:
         
         return False                                                                                                                    # Report failure.
 
-def main(verbose: bool = True) -> None:
+def main(verbose: bool = True, **kwargs: Any) -> None:
     """
     main
     Run the predefined list of reference batch scripts under runners/ and print a summary.
 
     Input:
         verbose         1           bool            If True, prints execution details to the console.
+        **kwargs        1           Any             Additional arguments passed directly to the runners.
 
     Output:
         None
@@ -111,8 +116,7 @@ def main(verbose: bool = True) -> None:
         'run_Heat.py',                                                                                                                  # Transient Heat reference.
         'run_Wave.py',                                                                                                                  # Transient Wave reference.
         'run_AdvDif.py',                                                                                                                # Transient Advection–Diffusion reference.
-        'run_Perturbation.py',                                                                                                          # Stationary perturbation case (Adv=True).
-        'run_Perturbation2.py'                                                                                                          # Stationary perturbation case (Adv=False).
+        'run_Perturbation.py'                                                                                                           # Stationary perturbation case (Adv=True).
     ]                                                                                                                                   # End of run list.
 
     current_dir: str = os.path.dirname(os.path.abspath(__file__))                                                                       # Directory where this script is located (repo root).
@@ -136,7 +140,7 @@ def main(verbose: bool = True) -> None:
             logger.info(f'\nExecuting {run_file}...')                                                                                   # Report script execution start.
         start_time = time()                                                                                                             # Start per-script timer.
 
-        if import_module_from_file(file_path, verbose=verbose):                                                                         # Import and execute the script module.
+        if import_module_from_file(file_path, verbose=verbose, **kwargs):                                                               # Import and execute the script module.
             end_time = time()                                                                                                           # Stop per-script timer.
             execution_time = end_time - start_time                                                                                      # Compute per-script runtime.
             
@@ -155,5 +159,40 @@ def main(verbose: bool = True) -> None:
         logger.info(f'Execution completed: {successful_runs} of {len(run_files)} scripts successfully executed')                        # Print success count.
         logger.info(f'Total execution time: {total_time:.2f} seconds')                                                                  # Print total runtime.
 
+def parse_and_run() -> None:
+    """
+    parse_and_run
+    Parses CLI arguments, loads the JSON configuration, merges them, and runs main().
+    """
+    parser = argparse.ArgumentParser(description="mGFD Batch Runner Orchestrator")                                                      # Create CLI parser.
+    parser.add_argument('--solver', type=str, default=None, choices=['spsolve', 'bicgstab', 'gmres'], help="Linear solver backend")     # Add solver flag.
+    parser.add_argument('--nvec', type=int, default=None, help="Number of neighbors (e.g. 12, 16, 20)")                                 # Add nvec flag.
+    parser.add_argument('--upwind', type=str, default=None, choices=['true', 'false'], help="Enable/disable upwind (for AdvDif)")       # Add upwind flag.
+    parser.add_argument('--verbose-solvers', action='store_true', help="Make individual solvers print their iterations")                # Add verbosity flag.
+    
+    args = parser.parse_args()                                                                                                          # Parse terminal arguments.
+    
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')                                               # Find config.json.
+    config: Dict[str, Any] = {}                                                                                                         # Initialize configuration dict.
+    
+    if os.path.exists(config_path):                                                                                                     # If config file exists.
+        try:
+            with open(config_path, 'r') as f:                                                                                           # Read file.
+                config = json.load(f)                                                                                                   # Parse JSON dict.
+        except Exception as e:                                                                                                          # Catch malformed JSON.
+            logger.error(f"Error loading config.json: {e}")                                                                             # Warn about broken JSON.
+            
+    # Overwrite config with explicitly provided CLI arguments
+    if args.solver is not None:
+        config['linear_solver'] = args.solver
+    if args.nvec is not None:
+        config['nvec'] = args.nvec
+    if args.upwind is not None:
+        config['upwind'] = (args.upwind.lower() == 'true')
+    if args.verbose_solvers:
+        config['verbose_solvers'] = True
+        
+    main(verbose=True, **config)                                                                                                        # Run the batch suite with the merged config.
+
 if __name__ == '__main__':                                                                                                              # Script entry point.
-    main(verbose=True)                                                                                                                  # Run the batch suite.
+    parse_and_run()                                                                                                                     # Execute parse sequence.

@@ -399,7 +399,7 @@ def run_comprehensive_benchmark(equations: Optional[List[str]] = None, save_resu
     logger.info(f"Ecuaciones: {equations}")                                                                                             # Report selected equation set.
     
     if data_root is None:                                                                                                               # Default data root when not provided.
-        data_root = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                     # Default to <repo_root>/Data.
+        data_root = os.path.join(os.path.dirname(BASE_DIR), 'Data')                                                                     # Default to <repo_root>/Data.
     
     SCALES               = ('1', '2', '3', '4', '5')                                                                                    # Scales to be tested.
     clouds               = list(iter_clouds(data_root, scales=SCALES))                                                                  # All point clouds.
@@ -438,7 +438,7 @@ def run_comprehensive_benchmark(equations: Optional[List[str]] = None, save_resu
     total_benchmark_time = benchmark_end_time - benchmark_start_time                                                                    # Total wall time.
     
     if save_results and results:                                                                                                        # Write output artifacts when requested and results exist.
-        output_dir = os.path.join(os.path.dirname(BASE_DIR), 'results', 'benchmarks')                                                   # Define output directory.
+        output_dir = os.path.join(os.path.dirname(BASE_DIR), 'Results', 'benchmarks')                                                   # Define output directory.
         os.makedirs(output_dir, exist_ok = True)                                                                                        # Create output directory if needed.
         
         equation_names = {                                                                                                              # Display names used in summary grouping.

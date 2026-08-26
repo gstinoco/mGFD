@@ -33,7 +33,16 @@ $$ L u = A u_{xx} + B u_{xy} + C u_{yy} + D u_x + E u_y + F u $$
 | **$D, E$** | $u_x, u_y$ | Advection / Convective velocity field |
 | **$F$** | $u$ | Reaction / Source / Sink term |
 
-In the mGFD scheme, we consider a non-uniform distribution of nodes $P = (x, y)$. For an arbitrary central node $p_i = (x_i, y_i)$, the continuous operator $L u$ is approximated discretely using a linear combination of function values at its local neighborhood:
+In the mGFD scheme, we consider a non-uniform distribution of nodes $P = (x, y)$ as shown below.
+
+<div align="center">
+  <img src="docs/images/methodology_nodes.png" alt="Arbitrary distribution of nodes" width="400" style="border-radius: 8px; margin: 15px 0;">
+  <br/>
+  <sub><em>Fig 1. Arbitrary distribution of nodes.</em></sub>
+</div>
+<br/>
+
+For an arbitrary central node $p_i = (x_i, y_i)$, the continuous operator $L u$ is approximated discretely using a linear combination of function values at its local neighborhood:
 
 > $$ L_0 u|_{p_i} = \Gamma_{i,0} u(p_i) + \sum_{j=1}^{n_i} \Gamma_{i,j} u(q_{i,j}) $$
 
@@ -103,6 +112,13 @@ The consistency conditions defined above can be assembled into a purely geometri
 
 </div>
 
+<div align="center">
+  <img src="docs/images/methodology_neighbors.png" alt="Selection of the neighbor nodes" width="400" style="border-radius: 8px; margin: 15px 0;">
+  <br/>
+  <sub><em>Fig 2. Selection of the neighbor nodes within an influence radius.</em></sub>
+</div>
+<br/>
+
 Because the number of neighbors $n_i$ is typically chosen to be strictly greater than the number of derivative constraints (5 equations for a 2D second-order problem), the system is underdetermined.
 
 > [!IMPORTANT]
@@ -130,7 +146,95 @@ The mGFD method mitigates this through a rigorously defined **Upwind Stencil** g
 | :---: | :--- | :--- |
 | **1** | **Flow Evaluation** | The velocity vector $\vec{v} = (v_x, v_y)$ is evaluated directly at the central node $p_i$. |
 | **2** | **Upstream Selection** | An imaginary line perpendicular to $\vec{v}$ is drawn through $p_i$. Only the nodes $q_{i,j}$ located *upstream* (in the opposite direction of the flow) are selected. |
+
+<div align="center">
+  <img src="docs/images/methodology_upwind.png" alt="Upwind neighbor selection" width="400" style="border-radius: 8px; margin: 15px 0;">
+  <br/>
+  <sub><em>Fig 3. Selection of the neighbor nodes for an upwind scheme.</em></sub>
+</div>
+<br/>
 | **3** | **Information Propagation** | This guarantees that relevant flow information propagates physically and stably in the advective direction. |
 
 > [!TIP]
 > By enforcing the consistency conditions exclusively on the upwind nodes, mGFD preserves rigorous mathematical stability without requiring artificial viscosity, stabilizing parameters, or ad-hoc upwind blending factors.
+
+---
+
+## 5. ⏳ Time Discretization (Transient Schemes)
+
+For time-dependent PDEs, the mGFD method couples the spatial discretization with finite difference time-stepping schemes. 
+
+### Parabolic Equations (First-Order in Time)
+For equations like the **Heat Equation**:
+
+<div align="center">
+
+$$ \frac{\partial u}{\partial t} = \nu \left( \frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} \right) $$
+
+</div>
+
+The time derivative is approximated using a forward finite difference scheme:
+
+<div align="center">
+
+$$ \frac{\partial u}{\partial t} \approx \frac{u^{k+1} - u^k}{\Delta t} $$
+
+</div>
+
+where $u^k$ represents the evaluation of $u$ at time $k\Delta t$. Substituting this into the spatial operator yields the explicit updating scheme:
+
+<div align="center">
+
+$$ u^{k+1}(p_i) = u^k(p_i) + \Delta t \sum_{j=0}^{n_i} \Gamma_{i,j} u^k(q_{i,j}) $$
+
+</div>
+
+### Hyperbolic Equations (Second-Order in Time)
+For equations like the **Wave Equation**:
+
+<div align="center">
+
+$$ \frac{\partial^2 u}{\partial t^2} = c^2 \left( \frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} \right) $$
+
+</div>
+
+The second-order time derivative requires a central difference approximation involving two historical time levels ($t^k$ and $t^{k-1}$):
+
+<div align="center">
+
+$$ \frac{\partial^2 u}{\partial t^2} \approx \frac{u^{k+1} - 2u^k + u^{k-1}}{(\Delta t)^2} $$
+
+</div>
+
+Solving for the future state $u^{k+1}$ gives:
+
+<div align="center">
+
+$$ u^{k+1}(p_i) = 2u^k(p_i) - u^{k-1}(p_i) + (c\Delta t)^2 \sum_{j=0}^{n_i} \Gamma_{i,j} u^k(q_{i,j}) $$
+
+</div>
+
+To compute the very first step ($u^1$), the initial velocity condition $\frac{\partial u}{\partial t}(x,y,0) = g(x,y)$ is incorporated using a central finite difference over a fictitious step $u^{-1}$.
+
+---
+
+## 6. 🧱 Discontinuous Coefficients (Multilayer Interfaces)
+
+The mGFD method natively handles multilayer domains where physical coefficients (e.g., diffusivity $\nu$) present sharp discontinuities across internal interfaces.
+
+To enforce the continuity of the normal flux across an interface boundary, the method equates the directional derivatives between the two adjoining layers:
+
+<div align="center">
+
+$$ \nu_1 \frac{\partial u}{\partial \hat{n}}(p_i) = \nu_2 \frac{\partial u}{\partial \hat{n}}(p_i) $$
+
+</div>
+
+<div align="center">
+  <img src="docs/images/methodology_ghost.png" alt="Ghost node selection" width="400" style="border-radius: 8px; margin: 15px 0;">
+  <br/>
+  <sub><em>Fig 4. Ghost node projection across an internal interface.</em></sub>
+</div>
+<br/>
+
+To resolve this numerically, **ghost nodes** are dynamically projected across the interface into the adjacent domain along the normal vector $\hat{n}$. The standard mGFD spatial discretization is then applied to the interface balance equation, establishing a coupled relationship between the true boundary nodes and the ghost nodes, ensuring continuous flux without requiring adaptive meshing.

@@ -49,6 +49,8 @@ Inside `research/data/<Region>/`, you will find subdirectories numbered `1` thro
 > **Scale Range:**
 > *   `1/`: The **coarsest** point cloud representation (ideal for fast prototyping and debugging).
 > *   `5/`: The **most dense** point cloud representation (used for high-fidelity physics and convergence validation).
+>
+> *Note on Graphical Outputs:* To optimize repository storage and processing times during massive automated sweeps, MP4 animations and PNG renderings are intentionally restricted exclusively to **Scale 3** using the `nvec_16_spsolve` baseline configuration.
 
 Numerical benchmarks iterate over these 5 scales to plot error convergence bounds ($\mathcal{O}(h^2)$) as the spatial step size $h$ approaches zero.
 

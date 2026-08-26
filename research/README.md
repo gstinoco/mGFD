@@ -48,7 +48,7 @@ To reproduce the results generated in the scientific publications, you can run t
 cd research/codes
 
 # Run all experiment batches at once
-python main.py
+python sweep.py
 
 # Run a specific experiment
 python runners/run_Poisson.py
@@ -60,7 +60,7 @@ The benchmark suite measures execution time and memory usage across different pr
 
 ```bash
 cd research/codes
-python benchmarks/benchmark.py
+python analyze_benchmarks.py  # (O script equivalente para visualización de métricas)
 ```
 
 The results (CSVs and text reports) are deposited in `results/benchmarks/`.
@@ -78,7 +78,7 @@ The `mGFD` suite is rigorously benchmarked. The following visual profile and dat
 
 ### :bar_chart: Global Averages (Summary)
 
-| Equation | :stopwatch: Avg. Time (s) | :floppy_disk: Avg. Memory (MB) | :triangular_ruler: Avg. Error ($L_\infty$) |
+| Equation | :stopwatch: Avg. Time (s) | :floppy_disk: Avg. Memory (MB) | :triangular_ruler: Avg. Error (RMSE) |
 |:---|:---:|:---:|:---:|
 | **Poisson** | `0.230` | `3.2` | `1.86e-06` |
 | **Advection** | `0.934` | `140.6` | `7.63e-05` |

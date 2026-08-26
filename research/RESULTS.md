@@ -24,7 +24,7 @@ $$ u_{xx} + u_{yy} = -f(x,y) $$
 In the mGFD laboratory, the test approximates the solution to $u_{xx} + u_{yy} = 10e^{2x+y}$, subject to the exact boundary conditions $u = 2e^{2x+y}$. 
 
 > [!TIP]
-> **Performance:** The solver yields smooth gradient fields with exceptional accuracy. Global average $L_\infty$ error across all tested regions is precisely bounded near **$1.86 \times 10^{-6}$**.
+> **Performance:** The solver yields smooth gradient fields with exceptional accuracy. Global average RMSE error across all tested regions is precisely bounded near **$1.86 \times 10^{-6}$**.
 
 ---
 
@@ -45,7 +45,7 @@ $f = e^{-2\pi^2\nu t}\cos(\pi x)\cos(\pi y)$
 <div align="center">
   <b>Heat Equation Solution over Lake Metztitlán</b><br/>
   <img src="docs/videos/Metztitlan_Heat.gif" alt="Heat solution (Metztitlan)" width="650" style="border-radius: 8px; margin: 15px 0;"><br/>
-  <sub><em>Averaged $L_\infty$ error at $t=1.0$: $1.17 \times 10^{-7}$</em></sub>
+  <sub><em>Averaged RMSE error at $t=1.0$: $1.17 \times 10^{-7}$</em></sub>
 </div>
 
 ---
@@ -66,7 +66,7 @@ $$ \frac{\partial^2 u}{\partial t^2} = c^2 \left( \frac{\partial^2 u}{\partial x
 <div align="center">
   <b>Wave Equation Solution over Lake Metztitlán</b><br/>
   <img src="docs/videos/Metztitlan_Wave.gif" alt="Wave solution (Metztitlan)" width="650" style="border-radius: 8px; margin: 15px 0;"><br/>
-  <sub><em>Averaged $L_\infty$ error at $t=1.0$: $3.18 \times 10^{-6}$</em></sub>
+  <sub><em>Averaged RMSE error at $t=1.0$: $3.18 \times 10^{-6}$</em></sub>
 </div>
 
 ---
@@ -107,7 +107,7 @@ The method successfully approximates the function gradient across the interface 
 
 The solver's performance is rigorously tested over **500 automated scenarios** across 20 lakes. Below is a detailed analytical breakdown of the computational efficiency profiling (Averaged execution on standard CPU hardware via the `scipy.sparse` backend):
 
-| Equation Class | Avg. Time (s) | Avg. Memory (MB) | Avg. Error ($L_\infty$) | Performance Analysis |
+| Equation Class | Avg. Time (s) | Avg. Memory (MB) | Avg. Error (RMSE) | Performance Analysis |
 |:---|:---:|:---:|:---:|:---|
 | **Poisson (Stationary)** | `0.230` | `3.2` | `1.86e-06` | **Exceptional Speed:** Solves the sparse linear system almost instantly with minimal memory footprint because there is no time-stepping overhead. |
 | **Advection (Steady)** | `0.934` | `140.6` | `7.63e-05` | **Moderate Overhead:** The Upwind stencil selection introduces slightly higher matrix condition numbers, temporarily raising the memory usage in the Krylov solver. |
@@ -116,6 +116,8 @@ The solver's performance is rigorously tested over **500 automated scenarios** a
 | **Wave (Transient)** | `2.434` | `112.4` | `3.18e-06` | **Stable Dynamics:** Handling two historical time states imposes execution times identical to the Heat equation, but memory stabilizes gracefully without diverging. |
 
 > [!NOTE]
+> **Unified Metrics Tracking:** All execution timings and RMSE errors are consolidated automatically per geographic region into `Metrics.json` files during massive batch processing via `sweep.py`.
+> 
 > The benchmark data demonstrates that the **mGFD scheme scales predictably**. Stationary problems resolve in fractions of a second, while transient problems bound their complexity near 2.5 seconds per run—all while maintaining errors in the $\mathcal{O}(10^{-6})$ magnitude.
 
 ### Execution Scaling & Error Convergence

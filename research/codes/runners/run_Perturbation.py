@@ -49,34 +49,33 @@ import time                                                                     
 import json                                                                                                                             # JSON serialization for metrics.
 import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Numerical arrays and math.
-from typing import Optional, List, Callable                                                                                             # Type hinting.
+import pandas as pd                                                                                                                     # Dataframes and series for new v0.10.0 interface.
+from typing import Optional, List, Callable, Any                                                                                        # Type hinting.
 
 import mGFD.io.export_vtk as ExportVTK                                                                                                  # VTK export utilities for ParaView.
 
 from mGFD import Stationary                                                                                                             # First-order transient solver to run the reference case.
 from mGFD.io.io import load_points                                                                                                      # Point cloud loading utility.
-from mGFD.viz.graph import plot_stationary                                                                                               # Plotting utilities for the results.
+from mGFD.viz.graph import plot_stationary                                                                                              # Plotting utilities for the results.
 
 BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                                             # Research root directory (for local utils).
 sys.path.append(BASE_DIR)                                                                                                               # Allow importing from research/codes/utils/.
 
 import utils.metrics as Errors                                                                                                          # Error metrics for stationary/transient runs.
 
-from utils.batch_utils import iter_clouds, load_neighbors, save_neighbors                                                               # Dataset loading + neighbor cache helpers.
+from utils.batch_utils import iter_clouds, load_neighbors, save_neighbors, run_batch_suite, save_metrics                                # Dataset loading + neighbor cache helpers.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Basic logger configuration.
 
 DATA_ROOT: str    = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                     # Input dataset root directory.
 RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                                  # Output results root directory.
-SCALES: tuple     = ('1', '2', '3', '4', '5')                                                                                           # Scales to process under each dataset.
-NVEC: int         = 12                                                                                                                  # Neighbor count used by the solver.
+SCALES: tuple     = ('1', '2', '3')                                                                                                     # Scales to process under each dataset.
 
 ## Variables for the problem.
 vx: float  = 1.0                                                                                                                        # Advection velocity in x.
 vy: float  = 0.0                                                                                                                        # Advection velocity in y.
 D: float   = 1e-5                                                                                                                       # Diffusion coefficient (very small -> boundary layers).
-TAG: str   = f'adv_vx{vx:g}_vy{vy:g}'                                                                                                   # Neighbor-cache tag tied to (vx, vy).
 
 def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
@@ -106,10 +105,10 @@ def f(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
     return -(1e-5) * (2 * np.exp((x - 1) / (1e-5)) - 2 * x**2 + y * (np.exp((x - 1) / (1e-5)) / (1e-5)**2 - 2) * (y - 1)) - y * (2 * x - np.exp((x - 1) / (1e-5)) / (1e-5)) * (y - 1)
 
-def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True) -> None:              # Run one cloud case and write outputs to Results/.
+def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True, **kwargs: Any) -> None:
     """
     process_cloud
-    Run the perturbation stationary problem (upwind=True) on a single point cloud file.
+    Run the stationary perturbation problem (upwind=True) on a single point cloud file.
 
     Input:
         dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
@@ -118,6 +117,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         results_path                str             Base output directory (typically <repo>/Results).
         save                        bool            Whether to save the solution arrays.
         verbose                     bool            If True, prints progress and errors to console.
+        **kwargs                    Any             Configuration values from main orchestrator.
 
     Output:
         None
@@ -132,76 +132,89 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
 
     # 1. Variable initialization
     region_id = f'{dataset}/{scale}'                                                                                                    # Region identifier.
-    out_dir   = os.path.join(results_path, 'Perturbation', dataset, scale)                                                              # Output directory for this region.
+    out_dir   = os.path.join(results_path, 'Perturbation', dataset)                                                                     # Output directory for this region.
     os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f'Working on region: {region_id}')                                                                                  # Progress message for the batch run.
 
+    nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
+    linear_solver   = kwargs.get('linear_solver', 'spsolve')                                                                            # Extract solver backend, default spsolve.
+    verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
+    upwind          = kwargs.get('upwind', True)                                                                                        # Extract upwind flag, default True for Perturbation.
+    config_id       = f'nvec_{nvec}_{linear_solver}_upwind_{upwind}'                                                                    # Create unique config identifier for the sweep.
+
     # 2. Data Loading & Neighbor Cache
     p    = load_points(cloud_path, verbose=False)                                                                                       # Load point cloud into (m, 3) array [x, y, flag].
-    vec0 = load_neighbors(cloud_path, NVEC, tag=TAG)                                                                                    # Load tagged cached neighbor list if present.
+    vec0 = load_neighbors(cloud_path, nvec)                                                                                             # Load cached neighbor list if present.
     L    = np.vstack([[vx], [vy], [-D], [0], [-D], [0]])                                                                                # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
     
     # 3. Solver Execution
-    start_time = time.time()                                                                                                            # Start execution timer.
+    # --- A. Using Callable ---
+    res_call = Stationary(                                                                                                              # Solve the stationary perturbation problem (Callable).
+        p, phi, f, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, verbose = verbose_solvers     # Execute with dynamic config.
+    )                                                                                                                                   # Extract solver result object.
     
-    u_ap, vec  = Stationary(                                                                                                            # Solve the stationary advection-dominated problem.
-        p, phi, f, operator = L, upwind = True, vec = vec0, nvec = NVEC, verbose = False                                                # Use cached neighbors and Upwind scheme.
-    )                                                                                                                                   # Unpack approximate solution and neighbor list.
+    # --- B. Using Numpy Arrays ---
+    phi_arr = phi(p[:, 0], p[:, 1])                                                                                                     # Precompute boundary array.
+    f_arr   = f(p[:, 0], p[:, 1])                                                                                                       # Precompute forcing term array.
+    res_arr = Stationary(                                                                                                               # Solve using array inputs.
+        p, phi_arr, f_arr, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, verbose = False       # Silent execution for array test.
+    )
+    assert np.allclose(res_call.solution, res_arr.solution), "Mismatch between Callable and Array solver outputs."                      # Validate output equivalence.
     
-    comp_time  = time.time() - start_time                                                                                               # Compute execution duration.
+    # --- C. Using Pandas DataFrames/Series ---
+    phi_pd = pd.Series(phi_arr.tolist())                                                                                                # Wrap array in Pandas Series.
+    f_pd   = pd.Series(f_arr.tolist())                                                                                                  # Wrap array in Pandas Series.
+    res_pd = Stationary(                                                                                                                # Solve using Pandas inputs.
+        p, phi_pd, f_pd, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, verbose = False         # Silent execution for Pandas test.
+    )
+    assert np.allclose(res_call.solution, res_pd.solution), "Mismatch between Callable and Pandas solver outputs."                      # Validate output equivalence.
+    
+    u_ap, vec  = res_call.solution, res_call.neighbors                                                                                  # Unpack approximate solution and neighbor list.
+    comp_time  = res_call.compute_time                                                                                                  # Get solver execution time from v0.10.0 dataclass.
     
     # 4. Exact Solution and Metrics
-    u_ex    = phi(p[:, 0], p[:, 1])                                                                                                     # Compute exact theoretical solution locally.
+    u_ex    = phi_arr                                                                                                                   # Compute exact theoretical solution locally (already computed as phi_arr).
     metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time=comp_time)                                             # Compute comprehensive stationary error metrics.
+    
+    # Track extra compute times for numpy/pandas to demonstrate overhead
+    metrics['Time_Array']  = res_arr.compute_time                                                                                       # Array execution time.
+    metrics['Time_Pandas'] = res_pd.compute_time                                                                                        # Pandas execution time.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f'\tError (RMSE): {metrics["RMSE"]}')                                                                               # Print RMSE error for quick inspection.
 
     # 5. Output persistence
-    if vec0 is None:                                                                                                                    # If we recomputed neighbors, persist them to disk.
-        save_neighbors(cloud_path, NVEC, vec, tag=TAG)                                                                                  # Save tagged neighbor cache for future runs.
+    if vec0 is None:                                                                                                                    # If there was no cache, persist computed neighbors.
+        save_neighbors(cloud_path, nvec, vec)                                                                                           # Save vec to the canonical cache file.
 
-    metrics_path = os.path.join(out_dir, 'Metrics.json')                                                                                # Output path for JSON metrics report.
-    
-    with open(metrics_path, 'w') as file:                                                                                               # Open metrics report file.
-        json.dump(metrics, file, indent=4)                                                                                              # Write structured metrics as JSON.
+    save_metrics(out_dir, metrics, config_id=config_id, scale=scale, p=p)                                                               # Save metrics using the common utility.
 
     # 6. Graphical rendering
     if save:                                                                                                                            # Save graphical outputs if requested.
         if scale == '3':                                                                                                                # Only for scale 3.
-            plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, 'Perturbation_Approximation'),
-                                        title='Stationary Appx', verbose=verbose)                                                       # Save 3D scatter image.
-            plot_stationary(p, u_ex, save=True, nom=os.path.join(os.path.dirname(out_dir), 'Perturbation_Exact'),
-                        title='Theoretical Solution', verbose=verbose)                                                                  # Create independent plot of exact solution.
+            if config_id.startswith('nvec_16_spsolve'):                                                                                 # Only plot baseline config.
+                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Approximation_{config_id}'),
+                            title='Stationary Appx', verbose=verbose)                                                                       # Save 3D scatter image.
+        
+            exact_nom = os.path.join(out_dir, 'Exact')                                                                                  # Define exact solution filename.
+            if not os.path.exists(exact_nom + '.png'):                                                                                  # Avoid regenerating the exact solution.
+                plot_stationary(p, u_ex, save=True, nom=exact_nom,
+                            title='Theoretical Solution', verbose=verbose)                                                              # Create independent plot of exact solution.
 
-def main() -> None:
+def main(**kwargs: Any) -> None:
     """
     main
     Entry point for the Perturbation batch script.
 
     Input:
-        None
+        **kwargs                    Any             Configuration values from main orchestrator.
 
     Output:
         None
     """
-    Save: bool    = True                                                                                                                # Choose whether VTK outputs must be saved.
-    Verbose: bool = True                                                                                                                # Choose whether prints should be visible.
-
-    if Verbose:                                                                                                                         # Check if verbosity is enabled.
-        logger.info(f'Processing point clouds from {DATA_ROOT} (scales={SCALES}).')                                                     # Print batch discovery info.
-        
-    found: int = 0                                                                                                                      # Counter to detect empty runs.
-    
-    for dataset, scale, cloud_path in iter_clouds(DATA_ROOT, SCALES):                                                                   # Iterate all discovered cloud CSVs.
-        found += 1                                                                                                                      # Count discovered inputs.
-        process_cloud(dataset, scale, cloud_path, RESULTS_ROOT, Save, verbose=Verbose)                                                  # Run one case and write outputs.
-        
-    if found == 0:                                                                                                                      # Provide a clear message when no inputs are found.
-        if Verbose:                                                                                                                     # Check if verbosity is enabled.
-            logger.warning(f'No point clouds found under {DATA_ROOT} for scales={SCALES}.')                                             # Report empty discovery outcome.
+    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, SCALES, **kwargs)                                                           # Execute universal batch orchestrator.
 
 if __name__ == "__main__":
     main()

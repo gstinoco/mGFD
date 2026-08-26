@@ -149,22 +149,24 @@ from mGFD.viz.graph import plot_stationary
 p = load_points("Patzcuaro_cloud.csv")
 
 # 2. Define the analytical boundary condition
+# Native support for Callables, Floats, or Arrays!
 phi = lambda x, y: np.exp(x + y)
 
 # 3. Define the forcing function (RHS)
 f_stat = lambda x, y: 2 * np.exp(x + y)
 
 # 4. Define the differential operator for Poisson (Laplacian)
-# Using [D, E, 2*A, B, 2*C, F]
-L_stat = np.vstack([[0], [0], [2], [0], [2], [0]])
+# Vector can be 5 or 6 elements: [D, E, A, B, C, F]
+L_stat = [0, 0, 2, 0, 2, 0]
 
 # 5. Execute the solver
 print("Solving Poisson Equation for Lake Pátzcuaro...")
-u_ap, vec = Stationary(p, phi, f_stat, operator=L_stat, verbose=True)
+# Returns a comprehensive SolverResult object
+res = Stationary(p, phi, f_stat, operator=L_stat, linear_solver='spsolve', verbose=True)
 
 # 6. Visualize the numerical approximation
 print("Rendering plot...")
-plot_stationary(p, u_ap, save=False, title='Pátzcuaro Poisson Solution', verbose=True)
+plot_stationary(p, res.solution, save=False, title='Pátzcuaro Poisson Solution', verbose=True)
 ```
 
 Run your script, and a Matplotlib 3D window will pop up showing the surface of your solution perfectly adapted to the irregular contours of the lake!
@@ -200,37 +202,37 @@ Here are the actual simulation outputs for Lake Pátzcuaro using the exact cloud
 
 ### 1. Core Solvers (`mGFD.solvers`)
 
-These functions are the mathematical heart of **mGFD**. They compute spatial derivatives using generalized finite differences over local neighborhoods.
+These functions are the mathematical heart of **mGFD**. They compute spatial derivatives using generalized finite differences over local neighborhoods. All solvers natively support `pandas.DataFrame` or `numpy.ndarray` as input and output.
+
+> [!TIP]
+> **mGFD 10.0.0 Architecture Highlights:**
+> - **`SolverResult` Output:** Solvers no longer return a bare tuple. They return a structured `SolverResult` object containing `.solution`, `.vec` (the neighbor list), `.execution_time`, and `.nodes_count`.
+> - **Flexible Boundary/Forcing Variables:** The `phi` and `f` variables natively accept a Python `Callable` (lambda), a constant `float`/`int`, or an evaluated `np.ndarray` / `pd.Series`.
+> - **Operator Input:** You can now pass standard Python lists or arrays of length 5 (no reaction term) or 6 (with reaction term).
+> - **Linear Solver Selection:** Easily switch the algebraic backend using the `linear_solver` kwarg (`'spsolve'` for exact sparse matrices, or `'bicgstab'` for low-memory iterative solving).
 
 #### `Stationary`
 Solves stationary problems (e.g., Poisson equation) with Dirichlet boundary conditions.
 ```python
 def Stationary(
-    p: np.ndarray, 
-    phi: Callable, 
-    f: Callable, 
+    p: Union[np.ndarray, Any], 
+    phi: Union[Callable, np.ndarray, float, int, Any], 
+    f: Union[Callable, np.ndarray, float, int, Any], 
     operator: np.ndarray, 
     upwind: bool = False, 
     vec: Optional[np.ndarray] = None, 
     nvec: int = 12, 
+    linear_solver: str = "spsolve",
     verbose: bool = False
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> SolverResult:
 ```
-*   `p` *(m x 3)*: Point cloud array with columns `[x, y, flag]`. Interior points have `flag=0`, boundary points have `flag=1` or `flag=2`.
-*   `phi`: A Python lambda/function `phi(x, y)` representing the analytical Dirichlet boundary condition.
-*   `f`: A Python lambda/function `f(x, y)` representing the right-hand side (forcing term).
-*   `operator` *(6 x 1)*: Differential operator vector `[D, E, A, B, C, F]`.
-*   `upwind`: Set to `True` for advection-dominated problems to automatically bias the neighbor search against the velocity field.
-*   `vec`: Precomputed neighbor list. If `None`, it is computed automatically.
-*   `nvec`: The target number of neighbors to find for each point (default: 12). If instability is detected, the solver may dynamically retry with expanded neighborhoods (up to 30).
-*   **Returns**: `(u_ap, vec)`, where `u_ap` is the computed numerical solution and `vec` is the neighborhood list.
 
 #### `TimeDerivative1`
 Solves first-order-in-time problems (e.g., Heat and Advection-Diffusion equations).
 ```python
 def TimeDerivative1(
-    p: np.ndarray, 
-    f: Callable, 
+    p: Union[np.ndarray, Any], 
+    f: Union[Callable, np.ndarray, float, int, Any], 
     t: int, 
     coef: List[float], 
     operator: np.ndarray, 
@@ -239,34 +241,29 @@ def TimeDerivative1(
     upwind: bool = False, 
     vec: Optional[np.ndarray] = None, 
     nvec: int = 12, 
+    linear_solver: str = "spsolve",
     verbose: bool = False
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> SolverResult:
 ```
-*   `f`: A time-dependent function `f(x, y, T, coef)` representing the exact solution (used for boundary conditions during time steps).
-*   `t`: The number of time steps. Transients use a normalized time grid `T = np.linspace(0, 1, t)`.
-*   `coef`: A list of physical coefficients passed to `f` (e.g., `[viscosity]`).
-*   `implicit`: If `True`, uses a fully implicit matrix solve (SciPy `bicgstab` is required). Highly recommended for stability.
-*   `lam`: The interpolation factor $\lambda$ for time-stepping ($\lambda = 0.5$ implies a Crank-Nicolson scheme).
 
 #### `TimeDerivative2`
 Solves second-order-in-time problems (e.g., Wave equation).
 ```python
 def TimeDerivative2(
-    p: np.ndarray, 
-    f: Callable, 
-    g: Callable, 
+    p: Union[np.ndarray, Any], 
+    f: Union[Callable, np.ndarray, float, int, Any], 
+    fd: Union[Callable, np.ndarray, float, int, Any], 
     t: int, 
     coef: List[float], 
     operator: np.ndarray, 
-    implicit: bool = False, 
-    lam: float = 0.5, 
     upwind: bool = False, 
     vec: Optional[np.ndarray] = None, 
     nvec: int = 12, 
+    linear_solver: str = "spsolve",
     verbose: bool = False
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> SolverResult:
 ```
-*   `g`: A function `g(x, y, T, coef)` representing the initial velocity of the system.
+*   `fd`: The time derivative of the initial condition (required for computing the $u^{-1}$ ghost step).
 
 ### 2. Cloud Generation (`mGFD.cloud_generator`)
 

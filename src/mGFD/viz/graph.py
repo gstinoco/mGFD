@@ -316,10 +316,16 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
                 out_nom = nom.replace('.mp4', f'{suffix}.mp4').replace('.gif', f'{suffix}.gif')                                         # Append suffix before extension.
                 if out_nom == nom: out_nom = nom + suffix                                                                               # Fallback suffix append.
                 
-            save_nom = out_nom if out_nom.endswith('.gif') else out_nom + '.gif'
-            ani.save(save_nom, writer='pillow', fps=10)                                                                                 # Save animation as GIF.
+            if animation.writers.is_available('ffmpeg'):                                                                                # Check if ffmpeg is available on the system.
+                writer   = 'ffmpeg'                                                                                                     # Use hardware-accelerated FFMpegWriter.
+                save_nom = out_nom if out_nom.endswith('.mp4') else out_nom + '.mp4'                                                    # Ensure output is MP4.
+            else:                                                                                                                       # Fallback for systems without FFMpeg.
+                writer   = 'pillow'                                                                                                     # Use standard PillowWriter.
+                save_nom = out_nom if out_nom.endswith('.gif') else out_nom + '.gif'                                                    # Ensure output is GIF.
+                
+            ani.save(save_nom, writer=writer, fps=10)                                                                                   # Save the compiled animation file.
             
-            if verbose:
+            if verbose:                                                                                                                 # Check verbosity flag.
                 logger.info(f'\tSaved animation to {save_nom}')                                                                         # Print confirmation of save.
                 
             plt.close(fig)                                                                                                              # Close figure to release memory.

@@ -58,7 +58,7 @@ import numba as nb                                                              
 
 from scipy.optimize import nnls                                                                                                         # Core numerical operations.
 from scipy.sparse import csr_matrix                                                                                                     # Core sparse matrix representations.
-from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+from typing import Callable, Optional, Tuple, List, Union                                                                               # Type hinting.
 from scipy.sparse.linalg import LinearOperator, bicgstab                                                                                # SciPy iterative solver interface.
 
 @nb.njit(cache=True, fastmath=True)
@@ -383,7 +383,7 @@ def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
     
     return K                                                                                                                            # Return dense stencil matrix.
 
-def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Callable, f: Callable) -> np.ndarray:
+def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Union[Callable, np.ndarray, float, int], f: Union[Callable, np.ndarray, float, int]) -> np.ndarray:
     """
     RHS
     Build the right-hand-side vector for a Dirichlet problem on a point cloud.
@@ -394,8 +394,8 @@ def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Callable, f:
         p           m x 3           ndarray             Point cloud [x, y, flag].
         boun_n      m               ndarray             Boundary mask (True on boundary nodes).
         inne_n      m               ndarray             Interior mask (True on interior nodes).
-        phi                         Callable            Boundary function phi(x, y).
-        f                           Callable            Forcing function f(x, y).
+        phi                         Union               Boundary condition phi(x, y) or constant/array data.
+        f                           Union               Forcing function f(x, y) or constant/array data.
     
     Output:
         R           m               ndarray             RHS vector consistent with Dirichlet enforcement.
@@ -405,8 +405,19 @@ def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Callable, f:
     R         = np.zeros([m])                                                                                                           # RHS initialization.
 
     # 2. Vector assignment
-    R[inne_n] = f(p[inne_n, 0], p[inne_n, 1])                                                                                           # Interior forcing term.
-    R[boun_n] = phi(p[boun_n, 0], p[boun_n, 1])                                                                                         # Boundary Dirichlet values.
+    if callable(f):                                                                                                                     # If forcing is a function.
+        R[inne_n] = f(p[inne_n, 0], p[inne_n, 1])                                                                                       # Interior forcing term via function.
+    elif isinstance(f, np.ndarray):                                                                                                     # If forcing is data array.
+        R[inne_n] = f[inne_n]                                                                                                           # Interior forcing term via data.
+    elif isinstance(f, (int, float)):                                                                                                   # If forcing is constant.
+        R[inne_n] = f                                                                                                                   # Interior forcing term via constant.
+
+    if callable(phi):                                                                                                                   # If boundary condition is a function.
+        R[boun_n] = phi(p[boun_n, 0], p[boun_n, 1])                                                                                     # Boundary Dirichlet values via function.
+    elif isinstance(phi, np.ndarray):                                                                                                   # If boundary condition is data array.
+        R[boun_n] = phi[boun_n]                                                                                                         # Boundary Dirichlet values via data.
+    elif isinstance(phi, (int, float)):                                                                                                 # If boundary condition is constant.
+        R[boun_n] = phi                                                                                                                 # Boundary Dirichlet values via constant.
 
     return R                                                                                                                            # Return assembled RHS.
 
