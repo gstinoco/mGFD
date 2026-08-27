@@ -203,6 +203,10 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
             q_idx    = np.zeros(4, dtype=np.int64)                                                                                      # Index trackers for the 4 quadrants.
             q_lens   = np.array([q1_c, q2_c, q3_c, q4_c], dtype=np.int64)                                                               # Number of points in each quadrant.
             
+            condition = 1e6                                                                                                             # Initialize condition to prevent Numba undefined behavior.
+            dx_arr    = np.zeros(nvec, dtype=np.float64)                                                                                # Preallocate array for DX.
+            dy_arr    = np.zeros(nvec, dtype=np.float64)                                                                                # Preallocate array for DY.
+            
             while sel_c < nvec:                                                                                                         # Until we hit maximum allowed neighbors.
                 added_any = False                                                                                                       # Flag to check if we added a new point in this round.
                 
@@ -226,12 +230,10 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
                             break                                                                                                       # Exit quadrant loop.
                             
                         if sel_c >= 9:                                                                                                  # Minimum neighbors required for stability.
-                            dx_arr = np.zeros(sel_c, dtype=np.float64)                                                                  # Temporary array for DX.
-                            dy_arr = np.zeros(sel_c, dtype=np.float64)                                                                  # Temporary array for DY.
                             for k in range(sel_c):                                                                                      # Collect relative coordinates.
                                 dx_arr[k] = p[selected[k], 0] - p[i, 0]                                                                 # DX computation.
                                 dy_arr[k] = p[selected[k], 1] - p[i, 1]                                                                 # DY computation.
-                            condition = _check_stencil_condition_jit(dx_arr, dy_arr)                                                    # Check 2x2 spatial condition.
+                            condition = _check_stencil_condition_jit(dx_arr[:sel_c], dy_arr[:sel_c])                                    # Check 2x2 spatial condition.
                             if condition < 100.0:                                                                                       # If spatial condition is well distributed.
                                 break                                                                                                   # Stop adding neighbors dynamically!
                                 
