@@ -1,5 +1,0 @@
-{
-    "linear_solver": "spsolve",
-    "nvec": 12,
-    "upwind": false
-}

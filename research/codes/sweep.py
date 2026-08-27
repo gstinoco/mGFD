@@ -191,6 +191,18 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         logger.info('\n' + '=' * 50)                                                                                                    # Visual separator.
         logger.info(f'Sweep completed: {successful_runs} of {total_runs} combinations successfully executed')                           # Report success count.
         logger.info(f'Total execution time: {total_time:.2f} seconds')                                                                  # Report total runtime.
+        
+    # Generate final summary CSV
+    if save_outputs:
+        try:
+            # We need to dynamically import batch_utils to call the summary function since sweep.py operates via subprocess/dynamic loading
+            sys.path.append(os.path.join(current_dir, 'utils'))
+            from batch_utils import generate_sweep_summary
+            results_root = os.path.join(os.path.dirname(current_dir), 'results')
+            generate_sweep_summary(results_root, verbose=verbose)
+        except Exception as e:
+            if verbose:
+                logger.error(f"Failed to generate final sweep summary CSV: {e}")
 
 if __name__ == '__main__':                                                                                                              # Check if script is run directly.
     main()                                                                                                                              # Execute main orchestrator.

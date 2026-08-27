@@ -294,3 +294,82 @@ def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[st
     else:                                                                                                                               # Legacy mode (no config_id).
         with open(metrics_path, 'w') as f:                                                                                              # Open the file in write mode.
             json.dump(metrics, f, indent=4)                                                                                             # Dump the single metrics dictionary.
+
+import pandas as pd
+from datetime import datetime
+
+def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
+    """
+    generate_sweep_summary
+    Crawls all Metrics.json files in the results directory and generates a master CSV summary.
+    This allows for rapid comparison of GPU vs CPU times and solver combinations.
+
+    Input:
+        results_root    1           str             Output results root directory.
+        verbose         1           bool            If True, prints progress.
+        
+    Output:
+        None
+    """
+    all_records = []                                                                                                                    # Initialize list for all records.
+    
+    if not os.path.exists(results_root):                                                                                                # Check if results root exists.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.warning(f"Results root {results_root} does not exist. Cannot generate summary.")                                     # Log warning.
+        return                                                                                                                          # Exit function.
+        
+    for equation in os.listdir(results_root):                                                                                           # Iterate through equations.
+        eq_path = os.path.join(results_root, equation)                                                                                  # Build equation path.
+        if not os.path.isdir(eq_path) or equation == 'benchmarks':                                                                      # Check if it is a valid directory.
+            continue                                                                                                                    # Skip if not.
+            
+        for dataset in os.listdir(eq_path):                                                                                             # Iterate through datasets.
+            dataset_path = os.path.join(eq_path, dataset)                                                                               # Build dataset path.
+            if not os.path.isdir(dataset_path):                                                                                         # Check if it is a directory.
+                continue                                                                                                                # Skip if not.
+                
+            metrics_file = os.path.join(dataset_path, 'Metrics.json')                                                                   # Build metrics file path.
+            if not os.path.exists(metrics_file):                                                                                        # Check if metrics file exists.
+                continue                                                                                                                # Skip if not.
+                
+            try:                                                                                                                        # Try to open and parse JSON.
+                with open(metrics_file, 'r') as f:                                                                                      # Open file in read mode.
+                    data = json.load(f)                                                                                                 # Parse JSON data.
+            except Exception as e:                                                                                                      # Catch any parsing errors.
+                if verbose:                                                                                                             # Check verbosity.
+                    logger.error(f"Failed to read {metrics_file}: {e}")                                                                 # Log error.
+                continue                                                                                                                # Skip to next file.
+                
+            for scale_key, scale_data in data.items():                                                                                  # Iterate through scales.
+                if not scale_key.startswith('Scale_'):                                                                                  # Validate scale key.
+                    continue                                                                                                            # Skip if invalid.
+                scale = scale_key.replace('Scale_', '')                                                                                 # Extract scale number.
+                
+                metrics_dict = scale_data.get('Metrics', {})                                                                            # Get metrics dictionary.
+                for config_id, metrics in metrics_dict.items():                                                                         # Iterate through configurations.
+                    record = {                                                                                                          # Initialize record dictionary.
+                        'Equation': equation,                                                                                           # Store equation name.
+                        'Dataset': dataset,                                                                                             # Store dataset name.
+                        'Scale': scale,                                                                                                 # Store scale string.
+                        'Config_ID': config_id                                                                                          # Store configuration ID.
+                    }                                                                                                                   # End record initialization.
+                    
+                    for k, v in metrics.items():                                                                                        # Iterate through metrics.
+                        record[k] = v                                                                                                   # Append metric to record.
+                        
+                    all_records.append(record)                                                                                          # Append record to list.
+                    
+    if not all_records:                                                                                                                 # Check if records list is empty.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.warning("No metrics found to summarize.")                                                                            # Log warning.
+        return                                                                                                                          # Exit function.
+        
+    df = pd.DataFrame(all_records)                                                                                                      # Convert records to DataFrame.
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")                                                                                # Generate timestamp string.
+    out_file = os.path.join(results_root, f"sweep_summary_{timestamp}.csv")                                                             # Build output file path.
+    df.to_csv(out_file, index=False)                                                                                                    # Export DataFrame to CSV.
+    
+    if verbose:                                                                                                                         # Check verbosity.
+        logger.info(f"\nSuccessfully generated master sweep summary CSV at:")                                                           # Log success message.
+        logger.info(f" -> {out_file}")                                                                                                  # Log output path.
+        logger.info(f"Total aggregated configurations: {len(df)}")                                                                      # Log total records.

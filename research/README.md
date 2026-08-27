@@ -70,7 +70,7 @@ The orchestrator reads `codes/sweep_config.json` to generate a combinatorial exe
 > [!TIP]
 > **Benchmarking GPU vs CPU:** Simply add `"cuda"` to the `"device"` array. The sweep will automatically run the problem on the CPU, and then re-run it on the GPU, outputting CSVs that allow for direct speedup comparisons.
 
-The results (CSVs containing metrics like `RMSE`, `execution_time_seconds`, and `peak_memory_mb`) are automatically exported to the `results/` directory at the root of the repository.
+The raw metrics are exported as JSON files inside `results/`. **However, for your convenience, `sweep.py` will automatically crawl all generated JSONs at the end of the execution and compile a master `sweep_summary_YYYYMMDD_HHMMSS.csv` inside the `results/` folder.** This file contains a tabular view of all combinations (Equation, Scale, Device, Matrix-Free, Time, Error, etc.), making it incredibly easy to plot and analyze CPU vs GPU performance.
 
 ---
 
