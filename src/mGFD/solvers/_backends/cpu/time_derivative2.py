@@ -225,8 +225,8 @@ def solve_cpu(p: np.ndarray,                                                    
             A2       = A2.tocsc()                                                                                                       # Convert to CSC format for efficient SuperLU factorization.
             B2       = Id_inner @ (2*eye(m) + (1 - lam) * K)                                                                            # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
             
-            M1       = compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None                                   # type: ignore
-            M2       = compute_preconditioner(A2, preconditioner) if preconditioner else None                                           # type: ignore
+            M1       = None if linear_solver == "spsolve" else (compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None) # type: ignore
+            M2       = None if linear_solver == "spsolve" else (compute_preconditioner(A2, preconditioner) if preconditioner else None) # type: ignore
             
             if linear_solver == "spsolve":                                                                                              # Direct solver (spsolve).
                 solve1   = factorized(A1.tocsc())                                                                                       # Pre-factorize implicit matrix for k = 1.

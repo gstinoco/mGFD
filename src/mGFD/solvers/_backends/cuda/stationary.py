@@ -104,7 +104,7 @@ def solve_cuda(p: np.ndarray,                                                   
     R = cp.asarray(R)                                                                                                                   # Transfer vector to GPU.
     
     converged = True                                                                                                                    # Default to true.
-    M = compute_preconditioner(K, preconditioner) if preconditioner else None                                                           # Optional precond.
+    M = None if linear_solver == "spsolve" else (compute_preconditioner(K, preconditioner) if preconditioner else None)                 # Optional precond.
 
     if linear_solver == "spsolve":                                                                                                      # Direct solver.
         un = cp_spsolve(K, R)                                                                                                           # CuPy spsolve.

@@ -139,7 +139,7 @@ def solve_cuda(p: np.ndarray,                                                   
         # We compute the preconditioner on CPU sparse matrices if needed, since cupy lacks an ILU preconditioner directly accessible sometimes,
         # but the local preconditioner builder handles it returning a cp.LinearOperator if cuda is available.
         # We pass the CuPy matrix A to compute_preconditioner.
-        M = compute_preconditioner(A, preconditioner) if preconditioner else None                                                       # type: ignore
+        M = None if linear_solver == "spsolve" else (compute_preconditioner(A, preconditioner) if preconditioner else None)             # type: ignore
         
         if linear_solver == "spsolve":                                                                                                  # Direct pre-factorized solver.
             solve = cp_factorized(A)                                                                                                    # Pre-factorize LHS for fast repeated solves.

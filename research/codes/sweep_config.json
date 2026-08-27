@@ -1,7 +1,5 @@
 {
     "nvec": [
-        12,
-        16,
         20
     ],
     "linear_solver": [

@@ -162,8 +162,8 @@ def solve_cuda(p: np.ndarray,                                                   
         boun_n = cp.asarray(boun_n)                                                                                                     # Transfer boundary nodes to GPU.
         inne_n = cp.asarray(inne_n)                                                                                                     # Transfer inner nodes to GPU.
         
-        M1       = compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None                                       # type: ignore
-        M2       = compute_preconditioner(A2, preconditioner) if preconditioner else None                                               # type: ignore
+        M1       = None if linear_solver == "spsolve" else (compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None) # type: ignore
+        M2       = None if linear_solver == "spsolve" else (compute_preconditioner(A2, preconditioner) if preconditioner else None)     # type: ignore
         
         if linear_solver == "spsolve":                                                                                                  # Direct solver (spsolve).
             solve1   = cp_factorized(A1.tocsc())                                                                                        # Pre-factorize implicit matrix for k = 1.

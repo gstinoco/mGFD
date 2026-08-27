@@ -155,12 +155,15 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         total_runs += len(combinations)                                                                                                 # Accumulate total executions.
         
         for nvec, solver, device, mf, pre, upwind in combinations:                                                                      # Iterate over configurations.
-            if mf and device == 'cuda':                                                                                                 # Skip invalid combinations.
-                continue                                                                                                                # matrix_free is only supported on CPU.
-            if mf and solver == 'spsolve':                                                                                              # Skip invalid combinations.
-                continue                                                                                                                # matrix_free does not support direct solver.
-            if mf and pre is not None:                                                                                                  # Skip invalid combinations.
-                continue                                                                                                                # matrix_free does not support preconditioners.
+            # -------------------------------------------------------------------------------------------------------------------------- # Advanced filtering rules
+            if mf:                                                                                                                      # matrix_free=True scales very poorly (O(N^2) in pure Python).
+                continue                                                                                                                # Discard to avoid 30s+ hangups on large meshes.
+            if device == 'cuda' and solver == 'spsolve':                                                                                # spsolve (direct solver) is notoriously slow on GPUs.
+                continue                                                                                                                # Discard spsolve for CUDA.
+            if device == 'cuda' and solver in ['bicgstab', 'gmres'] and pre not in ['jacobi', None]:                                    # ILU is slow to compute on GPUs.
+                continue                                                                                                                # Prioritize Jacobi or None for CUDA iterative solvers.
+            if solver == 'spsolve' and pre is not None:                                                                                 # Direct solvers don't use preconditioners.
+                continue                                                                                                                # Discard unnecessary preconditioner computations.
                 
             if upwind is not None:                                                                                                      # Determine if upwind applies.
                 config_str = f'nvec={nvec}, solver={solver}, dev={device}, mf={mf}, pre={pre}, up={upwind}'                             # Format config with upwind.

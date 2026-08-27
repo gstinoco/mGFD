@@ -164,7 +164,7 @@ def solve_cpu(p: np.ndarray,                                                    
             A        = A.tocsc()                                                                                                        # Convert to CSC format for efficient SuperLU factorization.
             B        = Id_inner @ (eye(m) + (1 - lam) * K)                                                                              # RHS Matrix: Zeros for boundaries, explicit part for inner.
             
-            M        = compute_preconditioner(A, preconditioner) if preconditioner else None                                            # type: ignore
+            M        = None if linear_solver == "spsolve" else (compute_preconditioner(A, preconditioner) if preconditioner else None)  # type: ignore
             
             if linear_solver == "spsolve":                                                                                              # Direct pre-factorized solver.
                 solve = factorized(A)                                                                                                   # Pre-factorize LHS for fast repeated solves.

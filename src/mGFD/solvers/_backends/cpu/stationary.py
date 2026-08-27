@@ -98,7 +98,7 @@ def solve_cpu(p: np.ndarray,                                                    
     if matrix_free and preconditioner is not None:                                                                                      # Check precond compatibility.
         raise ParameterError("Preconditioners are not currently supported in matrix_free=True mode.")                                   # Raise error.
         
-    M = None if matrix_free else (compute_preconditioner(K, preconditioner) if preconditioner else None)                                # Compute precond.
+    M = None if (matrix_free or linear_solver == "spsolve") else (compute_preconditioner(K, preconditioner) if preconditioner else None) # Compute precond.
 
     if linear_solver == "spsolve":                                                                                                      # Direct solver.
         if matrix_free: raise ParameterError("Direct solver 'spsolve' is incompatible with matrix_free=True.")                          # Validate.
