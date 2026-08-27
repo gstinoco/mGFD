@@ -42,7 +42,7 @@ import os                                                                       
 import numpy as np                                                                                                                      # Core numerical operations.
 
 from scipy.spatial import Delaunay                                                                                                      # Delaunay triangulation algorithm.
-from mGFD.core.neighbors import find_distances                                                                                          # Distance estimator.
+from mGFD.spatial.neighbors import find_distances                                                                                       # Distance estimator.
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
 
 def poly_area(x: np.ndarray, y: np.ndarray) -> float:
@@ -168,15 +168,15 @@ def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optiona
 
     # 6. Return and cache saving
     if len(global_triangles) > 0:                                                                                                       # Check if any valid triangles were found.
-        global_triangles_arr = np.array(global_triangles, dtype = np.int32)                                                                 # Convert list to NumPy array.
+        global_triangles_arr = np.array(global_triangles, dtype = np.int32)                                                             # Convert list to NumPy array.
         
         if cache_path:                                                                                                                  # Check if cache path is defined.
             try:                                                                                                                        # Attempt operation.
-                np.savetxt(cache_path, global_triangles_arr, delimiter = ',', fmt = '%d')                                                   # Save triangulation to cache.
+                np.savetxt(cache_path, global_triangles_arr, delimiter = ',', fmt = '%d')                                               # Save triangulation to cache.
             except Exception:                                                                                                           # Ignore exceptions.
                 pass                                                                                                                    # Do nothing.
         
-        return global_triangles_arr                                                                                                         # Return computed triangulation.
+        return global_triangles_arr                                                                                                     # Return computed triangulation.
 
     return None                                                                                                                         # Return None.
 

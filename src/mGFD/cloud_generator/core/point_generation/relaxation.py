@@ -35,13 +35,13 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation.                                                                                                                      # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation. # Core numerical operations.
 
 from scipy.spatial import Voronoi                                                                                                       # Voronoi diagram computation.
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 
 from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
-from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.                                             # Fast polygon checker.
+from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations. # Fast polygon checker.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.
 def _compute_relaxation_step_jit(int_pts: np.ndarray, point_region: np.ndarray, flat_regions: np.ndarray, offsets: np.ndarray, vertices: np.ndarray, poly_coords: np.ndarray) -> tuple:

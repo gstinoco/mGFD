@@ -41,7 +41,7 @@ Last Modification:
 import numpy as np                                                                                                                      # Core numerical operations.
 import pytest                                                                                                                           # Unit testing framework.
 
-from mGFD.core.neighbors import compute_neighbors, compute_upwind_neighbors, find_distances                                             # Neighbor search core modules.
+from mGFD.spatial.neighbors import compute_neighbors, compute_upwind_neighbors, find_distances                                             # Neighbor search core modules.
 
 def generate_square_cloud(n: int = 11) -> np.ndarray:
     """

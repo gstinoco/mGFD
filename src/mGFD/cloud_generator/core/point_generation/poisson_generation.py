@@ -39,8 +39,9 @@ import numpy as np                                                              
 
 from scipy.spatial import cKDTree                                                                                                       # Import KDTree for distance checks.
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
+from shapely.geometry.base import BaseGeometry                                                                                          # Base geometry class for typing.
 from scipy.stats.qmc import PoissonDisk                                                                                                 # Import SciPy Poisson Disk generator.
-from typing import List, Tuple, Optional, Any                                                                                           # Type hinting.
+from typing import List, Tuple, Optional, Any, Union, cast                                                                              # Type hinting.
 from concurrent.futures import ProcessPoolExecutor                                                                                      # Parallel execution.
 
 from mGFD.cloud_generator.core.point_generation.relaxation import lloyd_relaxation                                                      # Node relaxation.
@@ -105,11 +106,22 @@ def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary
         
         mask = np.zeros((height_px, width_px), dtype=np.uint8)                                                                          # Initialize the OpenCV mask array.
         
-        def to_pixel_coords(coords: List[Tuple[float, float]]) -> np.ndarray:                                                           # Coordinate transformation helper.
+        def to_pixel_coords(coords: List[Tuple[float, ...]]) -> np.ndarray:                                                           # Coordinate transformation helper.
+            """
+            to_pixel_coords
+            
+            Transforms geographic coordinates to OpenCV image pixel coordinates.
+            
+            Input:
+                coords      n x 2           List[Tuple[float, ...]]         List of world coordinates (x, y).
+                
+            Output:
+                pts         n x 1 x 2       ndarray                         Pixel coordinates array formatted for OpenCV.
+            """
             pixel_coords = []                                                                                                           # List to store pixel coordinates.
-            for x, y in coords:                                                                                                         # Iterate over world coordinates.
-                px = int(round((x - minx) / resolution))                                                                                # Convert x to pixel index.
-                py = int(round((y - miny) / resolution))                                                                                # Convert y to pixel index.
+            for pt in coords:                                                                                                           # Iterate over world coordinates.
+                px = round((pt[0] - minx) / resolution)                                                                                 # Convert x to pixel index.
+                py = round((pt[1] - miny) / resolution)                                                                                 # Convert y to pixel index.
                 pixel_coords.append([px, py])                                                                                           # Add to list.
             return np.array(pixel_coords, dtype=np.int32)                                                                               # Return integer array.
             
@@ -301,11 +313,11 @@ def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[floa
             polygon_with_holes = main_polygon                                                                                           # Proceed with the solid main polygon.
         
         # 7. Generate interior points avoiding holes using Poisson Disk Sampling
-        interior_points = generate_interior_points_poisson(polygon_with_holes, cloud_size)                                              # Fill space with Poisson sampling.
+        interior_points = generate_interior_points_poisson(cast(Polygon, polygon_with_holes), cloud_size)                               # Fill space with Poisson sampling.
         
         # Apply Lloyd's relaxation
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.
-            interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), polygon_with_holes, iterations=5).tolist()
+            interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), cast(Polygon, polygon_with_holes), iterations=5).tolist()
                                                                                                                                         # Apply smoothing.
 
         return boundary_points, interior_points, cloud_size                                                                             # Return generated data.

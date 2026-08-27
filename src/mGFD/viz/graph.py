@@ -50,13 +50,13 @@ import logging                                                                  
 import numpy as np                                                                                                                      # Core numerical operations.
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import matplotlib                                                                                                         # Plotting interface.
+import matplotlib                                                                                                                       # Plotting interface.
 
 from matplotlib import animation                                                                                                        # Animation framework.
 from matplotlib.animation import FuncAnimation                                                                                          # Animation helper.
 from typing import Callable, Optional, Tuple, List, Any                                                                                 # Type hinting.
 
-from mGFD.core.utils import get_valid_triangulation, get_aspect_and_bounds                                                              # Geometry utilities.
+from mGFD.utils.core_utils import get_valid_triangulation, get_aspect_and_bounds                                                        # Geometry utilities.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
@@ -305,6 +305,17 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                              # Create figure and 3D axis for animation.
             
             def update(frame: int) -> None:
+                """
+                update
+                
+                Updates the scatter plot colors for a given animation frame.
+                
+                Input:
+                    frame                       int             The current frame index to render.
+                    
+                Output:
+                                                None
+                """
                 tin = float(T[frame])                                                                                                   # Get the current time step value.
                 fig.suptitle(f'{title} at t = {tin:1.3f} s ({view_name})', fontsize=16, fontweight='bold', y=0.95)                      # Set main title for the figure.
                 draw_frame(fig, ax, frame, angle_view=angle_view)                                                                       # Render the current frame.
@@ -342,8 +353,8 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
             tin = float(T[k])                                                                                                           # Get physical time value.
             fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)                          # Set main title for the figure.
             fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)                         # Set main title for the top view figure.
-            draw_frame(fig, ax1, int(k), angle_view=True)                                                                               # Render the current frame.
-            draw_frame(fig_top, ax1_t, int(k), angle_view=False)                                                                        # Render top view frame.
+            draw_frame(fig, ax1, k, angle_view=True)                                                                                    # Render the current frame.
+            draw_frame(fig_top, ax1_t, k, angle_view=False)                                                                             # Render top view frame.
             plt.pause(0.01)                                                                                                             # Pause to allow UI to update.
             
         tin = float(T[-1])                                                                                                              # Get final time value.

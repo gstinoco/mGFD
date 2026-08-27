@@ -36,7 +36,7 @@ Last Modification:
 import os                                                                                                                               # Operating system interfaces.
 import cv2                                                                                                                              # OpenCV for fast rasterization and masking.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation.                                                                                                                      # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation. # Core numerical operations.
 
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 from typing import List, Tuple, Optional, Any                                                                                           # Type hinting.
@@ -45,7 +45,7 @@ from concurrent.futures import ProcessPoolExecutor                              
 from mGFD.cloud_generator.utils.utils import calculate_cloud_size, create_closed_contour                                                # Utility functions.
 from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                                # Boundary generation.
 from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
-from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.                                             # Geometric operations.
+from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations. # Geometric operations.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.
 def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, poly_coords: np.ndarray) -> np.ndarray:
@@ -129,12 +129,23 @@ def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:
         mask   = np.zeros((height, width), dtype=np.uint8)                                                                              # Initialize the mask array.
         
         # 3. Function to convert world coords to pixel coords
-        def to_pixel_coords(coords: List[Tuple[float, float]]) -> np.ndarray:                                                           # Helper for coordinate transformation.
+        def to_pixel_coords(coords: List[Tuple[float, ...]]) -> np.ndarray:
+            """
+            to_pixel_coords
+            
+            Transforms geographic coordinates to OpenCV image pixel coordinates.
+            
+            Input:
+                coords      n x 2           List[Tuple[float, ...]]         List of world coordinates (x, y).
+                
+            Output:
+                pts         n x 1 x 2       ndarray                         Pixel coordinates array formatted for OpenCV.
+            """
             pixel_coords = []                                                                                                           # List for pixel coordinates.
             
-            for x, y in coords:                                                                                                         # Iterate over world coordinates.
-                px = int(round((x - x_min) / cloud_size))                                                                               # Map x to pixel index.
-                py = int(round((y - y_min) / cloud_size))                                                                               # Map y to pixel index.
+            for pt in coords:                                                                                                           # Iterate over world coordinates.
+                px = round((pt[0] - x_min) / cloud_size)                                                                                # Map x to pixel index.
+                py = round((pt[1] - y_min) / cloud_size)                                                                                # Map y to pixel index.
                 pixel_coords.append([px, py])                                                                                           # Add to pixel list.
             
             return np.array(pixel_coords, dtype=np.int32)                                                                               # Return as integer NumPy array.

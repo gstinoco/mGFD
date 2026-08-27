@@ -54,7 +54,7 @@ import pyvista as pv                                                            
 
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
 
-from mGFD.core.utils import get_valid_triangulation                                                                                     # Geometry utilities.
+from mGFD.utils.core_utils import get_valid_triangulation                                                                               # Geometry utilities.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 

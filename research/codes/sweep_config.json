@@ -9,13 +9,17 @@
         "bicgstab"
     ],
     "device": [
-        "cpu"
+        "cpu",
+        "cuda"
     ],
     "matrix_free": [
-        false
+        false,
+        true
     ],
     "preconditioner": [
-        null
+        null,
+        "ilu",
+        "jacobi"
     ],
     "save": true,
     "upwind": [

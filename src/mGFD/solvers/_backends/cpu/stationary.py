@@ -1,0 +1,85 @@
+import logging                                                                                                                          # Standard logging module.
+import numpy as np                                                                                                                      # Core numerical operations.
+
+from scipy.sparse.linalg import spsolve, bicgstab, gmres                                                                                # Sparse linear solvers.
+from typing import Callable, Optional, Tuple, Union                                                                                     # Type hinting.
+
+from mGFD.exceptions import ParameterError                                                                                              # Custom exceptions.
+import mGFD.spatial.gammas as Gammas                                                                                                    # Gammas calculation and sparse matrix builder.
+from mGFD.solvers._backends.cpu.preconditioners import compute_preconditioner                                                           # CPU Preconditioners.
+import mGFD.spatial.neighbors as Neighbors                                                                                              # Neighbor search routines.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
+
+def solve_cpu(p: np.ndarray, 
+              phi: Union[Callable, np.ndarray, float, int],
+              f: Union[Callable, np.ndarray, float, int],
+              operator: np.ndarray,
+              upwind: bool,
+              vec: Optional[np.ndarray],
+              nvec: int,
+              linear_solver: str,
+              preconditioner: Optional[str],
+              matrix_free: bool,
+              verbose: bool) -> Tuple[np.ndarray, np.ndarray, bool]:
+    """CPU backend for Stationary solver."""
+    
+    m = len(p[:, 0])                                                                                                                    # Total nodes.
+    if verbose:                                                                                                                         # Verbosity.
+        logger.info(f"Solving Stationary problem for {m} nodes on CPU...")                                                              # Progress info.
+    
+    u_ap = np.zeros([m])                                                                                                                # u_ap init.
+    boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Boundary nodes.
+    inne_n = p[:, 2] == 0                                                                                                               # Inner nodes.
+
+    if upwind:                                                                                                                          # Upwind check.
+        a = operator[0][0] if operator.ndim == 2 else operator[0]                                                                       # Vel x.
+        b = operator[1][0] if operator.ndim == 2 else operator[1]                                                                       # Vel y.
+
+    if callable(phi):                                                                                                                   # If boundary condition is a function.
+        u_ap[boun_n] = np.asarray(phi(p[boun_n, 0], p[boun_n, 1]))                                                                      # Apply function.
+    elif isinstance(phi, np.ndarray):                                                                                                   # Array.
+        u_ap[boun_n] = phi[boun_n]                                                                                                      # Apply array.
+    elif isinstance(phi, (int, float)):                                                                                                 # Constant.
+        u_ap[boun_n] = phi                                                                                                              # Apply constant.
+
+    if vec is None:                                                                                                                     # No vec provided.
+        if upwind: vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                                              # Upwind neighbors.
+        else: vec = Neighbors.compute_neighbors(p, nvec)                                                                                # Central neighbors.
+
+    L = operator[:-1]                                                                                                                   # Extracted operator.
+    if matrix_free:                                                                                                                     # Matrix-free mode.
+        from scipy.sparse.linalg import LinearOperator                                                                                  # Import LinearOperator.
+        K_matvec = Gammas.compute_K_matvec(p, vec, L)                                                                                   # Gen matvec.
+        K = LinearOperator(shape=(m, m), matvec=K_matvec, dtype=np.float64)                                                             # type: ignore
+    else:                                                                                                                               # Standard dense memory.
+        K = Gammas.compute_sparse_matrix(p, vec, L)                                                                                     # K sparse.
+        
+    R = Gammas.RHS(p, boun_n, inne_n, phi, f)                                                                                           # Right side.
+    
+    converged = True                                                                                                                    # Default to true.
+    if matrix_free and preconditioner is not None:                                                                                      # Check precond compatibility.
+        raise ParameterError("Preconditioners are not currently supported in matrix_free=True mode.")                                   # Raise error.
+        
+    M = None if matrix_free else (compute_preconditioner(K, preconditioner) if preconditioner else None)                                # Compute precond.
+
+    if linear_solver == "spsolve":                                                                                                      # Direct solver.
+        if matrix_free: raise ParameterError("Direct solver 'spsolve' is incompatible with matrix_free=True.")                          # Validate.
+        un = spsolve(K, R)                                                                                                              # SciPy spsolve.
+    elif linear_solver == "bicgstab":                                                                                                   # Iterative BiCGStab.
+        un, info = bicgstab(K, R, M=M)                                                                                                  # SciPy bicgstab.
+        if info != 0:                                                                                                                   # If fail.
+            converged = False                                                                                                           # Mark fail.
+            if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}).")                                           # Log fail.
+    elif linear_solver == "gmres":                                                                                                      # Iterative GMRES.
+        un, info = gmres(K, R, M=M)                                                                                                     # SciPy gmres.
+        if info != 0:                                                                                                                   # If fail.
+            converged = False                                                                                                           # Mark fail.
+            if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}).")                                              # Log fail.
+    else:                                                                                                                               # Unknown.
+        raise ParameterError(f"Unsupported linear_solver '{linear_solver}'.")                                                           # Raise error.
+
+    u_ap[inne_n] = un[inne_n]                                                                                                           # Unpack to interior.
+    if verbose: logger.info("\tCPU Solver finished successfully.")                                                                      # Success.
+    
+    return u_ap, vec, converged                                                                                                         # Return core data.

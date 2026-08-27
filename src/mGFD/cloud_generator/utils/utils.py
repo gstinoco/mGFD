@@ -169,7 +169,7 @@ def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Option
         refinement_candidates.append(density_based_refinement * 0.1)                                                                    # Secondary: Density-based calculation.
         
         if cloud_size_based_refinement:                                                                                                 # If cloud size estimate exists.
-            refinement_candidates.append(float(cloud_size) * 0.05 if cloud_size else 0.0)                                               # Tertiary: Cloud size based (if available).
+            refinement_candidates.append(cloud_size * 0.05 if cloud_size else 0.0)                                               # Tertiary: Cloud size based (if available).
         
         # 7. Use a weighted approach or median
         if cloud_size:                                                                                                                  # Favor cloud size if provided.

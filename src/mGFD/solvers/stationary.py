@@ -45,14 +45,14 @@ import logging                                                                  
 import numpy as np                                                                                                                      # Core numerical operations.
 import time                                                                                                                             # Timing for SolverResult.
 
-from scipy.sparse.linalg import spsolve, bicgstab, gmres                                                                                # Sparse linear solvers.
+
 from typing import Callable, Optional, Tuple, List, Union, Any                                                                          # Type hinting.
 
 from mGFD.exceptions import CloudShapeError, InputTypeError, DimensionMismatchError, OperatorFormatError, ParameterError                # Custom exceptions.
 from mGFD.solvers.results import SolverResult                                                                                           # Standard solver output structure.
-from mGFD.core.adapters import extract_cloud, repack_solution                                                                           # Pandas/Xarray adapters.
-import mGFD.core.gammas as Gammas                                                                                                       # Gammas calculation and sparse matrix builder.
-import mGFD.core.neighbors as Neighbors                                                                                                 # Neighbor search routines.
+from mGFD.utils.adapters import extract_cloud, repack_solution                                                                          # Pandas/Xarray adapters.
+
+
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
@@ -116,99 +116,13 @@ def Stationary(p: Union[np.ndarray, Any],
     if device == "cuda" and matrix_free:                                                                                                # Validate matrix_free and cuda.
         raise ParameterError("matrix_free=True is incompatible with device='cuda'.")                                                    # CuPy requires explicit sparse matrices.
 
-    # 1. Variable initialization
-    m      = len(p[:, 0])                                                                                                               # The total number of nodes is calculated.
-    
-    if verbose:                                                                                                                         # Check if verbosity is enabled.
-        logger.info(f"Solving Stationary problem for {m} nodes...")                                                                     # Print solver progress.
-        
-    u_ap   = np.zeros([m])                                                                                                              # u_ap initialization with zeros.
-    boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Save the boundary nodes.
-    inne_n = p[:, 2] == 0                                                                                                               # Save the inner nodes.
-
-    # 2. Extract advection velocities for Upwind scheme.
-    if upwind:                                                                                                                          # If an Upwind stencil is requested.
-        a = operator[0][0] if operator.ndim == 2 else operator[0]                                                                       # Value of the velocity on x.
-        b = operator[1][0] if operator.ndim == 2 else operator[1]                                                                       # Value of the velocity on y.
-
-    # 3. Apply Boundary Conditions
-    if callable(phi):                                                                                                                   # If boundary condition is a function.
-        u_ap[boun_n] = np.asarray(phi(p[boun_n, 0], p[boun_n, 1]))                                                                      # The boundary condition is assigned via function.
-    elif isinstance(phi, np.ndarray):                                                                                                   # If boundary condition is an array.
-        u_ap[boun_n] = phi[boun_n]                                                                                                      # The boundary condition is assigned via array.
-    elif isinstance(phi, (int, float)):                                                                                                 # If boundary condition is a constant.
-        u_ap[boun_n] = phi                                                                                                              # The boundary condition is assigned via constant.
-    
-    # 4. Neighbor search for all the nodes.
-    if vec is None:                                                                                                                     # If no neighbor list is provided.
-        if upwind:                                                                                                                      # If an Upwind stencil is requested.
-            vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                                                     # Neighbor search with the proper routine.
-        else:                                                                                                                           # All the other cases.
-            vec = Neighbors.compute_neighbors(p, nvec)                                                                                  # Neighbor search with the proper routine.
-
-    # 5. Computation of Gamma values
-    L = operator[:-1]                                                                                                                   # The values of the differential operator are assigned.
-    if matrix_free:                                                                                                                     # If matrix-free computation is requested.
-        from scipy.sparse.linalg import LinearOperator                                                                                  # Import LinearOperator.
-        K_matvec = Gammas.compute_K_matvec(p, vec, L)                                                                                   # Generate the on-the-fly matrix-vector closure.
-        K = LinearOperator(shape=(m, m), matvec=K_matvec, dtype=np.float64)                                                             # type: ignore
-    else:                                                                                                                               # Standard dense matrix allocation.
-        K = Gammas.compute_sparse_matrix(p, vec, L)                                                                                     # K computation with the required Gammas (Sparse).
-        if device == "cuda":                                                                                                            # If GPU acceleration is requested.
-            try:
-                import cupy as cp                                                                                                       # Import CuPy array library.
-                from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix                                                              # Import CuPy sparse matrix.
-            except ImportError:                                                                                                         # If not installed.
-                raise ImportError("CuPy is not installed. Please install it with 'pip install mGFD[gpu]' to use device='cuda'.")        # Friendly error message.
-            K = cp_csr_matrix(K)                                                                                                        # Transfer explicit matrix K to the GPU.
-    
-    R = Gammas.RHS(p, boun_n, inne_n, phi, f)                                                                                           # Right-hand side of the equation.
-    if device == "cuda":                                                                                                                # If GPU acceleration is requested.
-        R = cp.asarray(R)                                                                                                               # Transfer RHS vector R to the GPU.
-    
-    converged = True                                                                                                                    # Assume convergence by default.
-    if matrix_free and preconditioner is not None:                                                                                      # Validate preconditioner in matrix-free mode.
-        raise ParameterError("Preconditioners are not currently supported in matrix_free=True mode.")                                   # Preconditioners need explicit matrix elements.
-        
-    M = None if matrix_free else (Gammas.compute_preconditioner(K, preconditioner) if preconditioner else None)                         # type: ignore
-
-    # 6. Solution of the linear system (Generalized Finite Differences)
-    if linear_solver == "spsolve":                                                                                                      # Direct SciPy solver.
-        if matrix_free:                                                                                                                 # If matrix-free computation is enabled.
-            raise ParameterError("Direct solver 'spsolve' is incompatible with matrix_free=True. Use 'gmres' or 'bicgstab'.")           # Direct solvers need the explicit sparse matrix.
-        if device == "cuda":                                                                                                            # GPU Direct Solver.
-            from cupyx.scipy.sparse.linalg import spsolve as cp_spsolve                                                                 # Import CuPy spsolve.
-            un = cp_spsolve(K, R)                                                                                                       # Solve via CuPy.
-        else:                                                                                                                           # CPU Direct Solver.
-            un = spsolve(K, R)                                                                                                          # Direct sparse solve of the linear system.
-    elif linear_solver == "bicgstab":                                                                                                   # Iterative SciPy solver (BiCGStab).
-        if device == "cuda":                                                                                                            # GPU Iterative Solver.
-            from cupyx.scipy.sparse.linalg import bicgstab as cp_bicgstab                                                               # Import CuPy bicgstab.
-            un, info = cp_bicgstab(K, R, M=M)                                                                                           # Iterative solve via CuPy.
-        else:                                                                                                                           # CPU Iterative Solver.
-            un, info = bicgstab(K, R, M=M)                                                                                              # Iterative sparse solve of the linear system.
-        if info != 0:                                                                                                                   # If not strictly converged.
-            converged = False                                                                                                           # Mark convergence failure.
-            if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}).")                                           # Warn user.
-    elif linear_solver == "gmres":                                                                                                      # Iterative SciPy solver (GMRES).
-        if device == "cuda":                                                                                                            # GPU Iterative Solver.
-            from cupyx.scipy.sparse.linalg import gmres as cp_gmres                                                                     # Import CuPy gmres.
-            un, info = cp_gmres(K, R, M=M)                                                                                              # Iterative solve via CuPy.
-        else:                                                                                                                           # CPU Iterative Solver.
-            un, info = gmres(K, R, M=M)                                                                                                 # Iterative sparse solve of the linear system.
-        if info != 0:                                                                                                                   # If not strictly converged.
-            converged = False                                                                                                           # Mark convergence failure.
-            if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}).")                                              # Warn user.
-    else:                                                                                                                               # Unsupported solver request.
-        raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")               # Raise explicit error.
-        
-    if device == "cuda":                                                                                                                # If a GPU was used.
-        un = getattr(un, "get")()                                                                                                       # Pull the solution vector back to CPU RAM.
-
-    u_ap[inne_n] = un[inne_n]                                                                                                           # Save the computed solution to the interior nodes.
-    
-    if verbose:                                                                                                                         # Check if verbosity is enabled.
-        logger.info("\tSolver finished successfully.")                                                                                  # Print completion message.
+    # 1. Enrutamiento (Dispatch)
+    if device == "cpu":
+        from mGFD.solvers._backends.cpu.stationary import solve_cpu
+        u_ap, vec, converged = solve_cpu(p, phi, f, operator, upwind, vec, nvec, linear_solver, preconditioner, matrix_free, verbose)
+    else:
+        from mGFD.solvers._backends.cuda.stationary import solve_cuda
+        u_ap, vec, converged = solve_cuda(p, phi, f, operator, upwind, vec, nvec, linear_solver, preconditioner, matrix_free, verbose)
         
     compute_time = time.perf_counter() - start_time                                                                                     # Calculate total compute time.
     u_ap_packed = repack_solution(p_orig, u_ap)                                                                                         # Repack into original Pandas/Xarray format.

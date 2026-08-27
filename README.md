@@ -499,9 +499,10 @@ mGFD/
 ├── docs/                     # Media assets for the README (images, gifs)
 ├── src/mGFD/                 # The core Python library (uploaded to PyPI)
 │   ├── cloud_generator/      # PDE domain creation (natural, regular, etc.)
-│   ├── core/                 # Krylov solvers, KDTree neighbors, stencils
+│   ├── spatial/              # Spatial discretization: KDTree neighbors, stencils
 │   ├── io/                   # CSV and VTK import/export operations
-│   ├── solvers/              # The high-level PDE solvers (Stationary, TimeDerivative)
+│   ├── solvers/              # The high-level PDE solvers (with private _backends)
+│   ├── utils/                # Pandas/Xarray adapters and helper functions
 │   └── viz/                  # Matplotlib 3D and 2D rendering
 ├── research/                 # The academic reproducible suite
 │   ├── codes/                # Batch benchmarking scripts (e.g. main.py)

@@ -78,8 +78,8 @@ def handle_generate(args: argparse.Namespace) -> None:
         
     # 2. Header and info output
     if not args.quiet:
-        logger.info("mGFD CloudGenerator - Generate")                                                                                  # Log header text for generation.
-        logger.info("==============================")                                                                                  # Log separator line.
+        logger.info("mGFD CloudGenerator - Generate")                                                                                   # Log header text for generation.
+        logger.info("==============================")                                                                                   # Log separator line.
         logger.info(f"Input:    {args.input}")                                                                                          # Log the input file path.
         logger.info(f"Output:   {args.output}")                                                                                         # Log the output file path.
         logger.info(f"Method:   {args.method}")                                                                                         # Log the selected method.
@@ -137,8 +137,8 @@ def handle_reduce(args: argparse.Namespace) -> None:
         
     # 2. Header and info output
     if not args.quiet:
-        logger.info("mGFD CloudGenerator - Reduce")                                                                                    # Log header text for reduction.
-        logger.info("============================")                                                                                    # Log separator line.
+        logger.info("mGFD CloudGenerator - Reduce")                                                                                     # Log header text for reduction.
+        logger.info("============================")                                                                                     # Log separator line.
         logger.info(f"Input:      {args.input}")                                                                                        # Log the input file path.
         logger.info(f"Output:     {args.output}")                                                                                       # Log the output file path.
         logger.info(f"Multiplier: {args.multiplier}")                                                                                   # Log the reduction multiplier.
@@ -168,7 +168,7 @@ def handle_reduce(args: argparse.Namespace) -> None:
             if not args.quiet:
                 logger.info(f"Visualizations saved to {output_base}.png and {output_base}.svg")                                         # Log saved visual plots.
         else:                                                                                                                           # If reduction returned None (failed).
-            logger.error("\nError: Failed to reduce cloud. Check logs for details.")                                                   # Log error message.
+            logger.error("\nError: Failed to reduce cloud. Check logs for details.")                                                    # Log error message.
             sys.exit(1)                                                                                                                 # Exit with an error code.
             
     # 5. Exception handling

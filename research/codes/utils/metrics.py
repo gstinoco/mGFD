@@ -52,7 +52,7 @@ import numpy as np                                                              
 
 from typing import Optional, Dict, Any, Union                                                                                           # Type hints.
 
-from mGFD.core.utils import poly_area                                                                                                   # Polygon area calculator.
+from mGFD.utils.core_utils import poly_area                                                                                                   # Polygon area calculator.
 
 def compute_rmse_transient(p: Union[np.ndarray, list], vec: Union[np.ndarray, list], u_ap: Union[np.ndarray, list], u_ex: Union[np.ndarray, list]) -> np.ndarray:
     """

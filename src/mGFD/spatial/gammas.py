@@ -509,6 +509,10 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
         n    = int(b_np.shape[0])                                                                                                       # System size.
         
         class MatrixFreeOp(LinearOperator):                                                                                             # Define a custom LinearOperator subclass.
+            """
+            MatrixFreeOp
+            Custom LinearOperator subclass for SciPy iterative solvers.
+            """
             def __init__(self):
                 """
                 __init__
@@ -655,6 +659,17 @@ def compute_K_matvec(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> Callable[
     diag, w = CloudStencil(p, vec, L, reg_factor=1e-8)                                                                                  # Retrieve the raw stencil weight values.
     
     def matvec(x: np.ndarray) -> np.ndarray:                                                                                            # Define the closure over x.
+        """
+        matvec
+        
+        Closure function for the matrix-vector multiplication K * x without explicitly building K.
+        
+        Input:
+            x           m               ndarray         Input vector to be multiplied.
+            
+        Output:
+            y           m               ndarray         Resulting vector from K * x.
+        """
         return _compute_K_matvec_numba(x, diag, w, vec)                                                                                 # Delegate to Numba JIT loop.
         
     return matvec                                                                                                                       # Return the callable operator.
@@ -692,66 +707,4 @@ def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_
 
     return csr_matrix((data, (rows, cols)), shape=(m, m))                                                                               # Construct and return the compressed sparse row matrix.
 
-def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[Union[LinearOperator, Any]]:
-    """
-    compute_preconditioner
-    Generates a Krylov preconditioner (LinearOperator) from a sparse matrix K to accelerate GMRES or BiCGStab.
 
-    Input:
-        K           m x m           csr_matrix          The original sparse stiffness matrix.
-        method                      str                 The preconditioning method: 'ilu' or 'jacobi'.
-
-    Output:
-        M           m x m           LinearOperator      The preconditioner object (or None if method is None).
-    """
-    if method is None or method.lower() == "none":                                                                                      # If no preconditioner is requested.
-        return None                                                                                                                     # Return None.
-
-    method = method.lower()                                                                                                             # Normalize string.
-    m = K.shape[0]                                                                                                                      # Matrix dimension.
-
-    if method == "ilu":                                                                                                                 # Incomplete LU Factorization.
-        # ILU is mathematically robust for asymmetric ill-conditioned matrices.
-        is_cupy = type(K).__module__.startswith('cupy')                                                                                 # Check if GPU matrix.
-        if is_cupy:                                                                                                                     # If GPU matrix.
-            try:
-                from cupyx.scipy.sparse.linalg import spilu as cp_spilu                                                                 # Import CuPy spilu.
-                from cupyx.scipy.sparse.linalg import LinearOperator as cp_LinearOperator                                               # Import CuPy LinearOperator.
-                ilu_decomp = cp_spilu(K.tocsc())                                                                                        # Compute ILU decomposition on GPU.
-                
-                def M_x(x):                                                                                                             # Define the solve operator.
-                    return ilu_decomp.solve(x)                                                                                          # Return the solved value.
-                
-                return cp_LinearOperator((m, m), M_x)                                                                                   # Return the CuPy LinearOperator.
-            
-            except RuntimeError:                                                                                                        # If ILU factorization fails.
-                return None                                                                                                             # Fallback to no preconditioner.
-        else:                                                                                                                           # CPU matrix.
-            try:
-                ilu_decomp = spilu(K.tocsc())                                                                                           # Compute ILU decomposition (requires CSC).
-                
-                def M_x(x):                                                                                                             # Define the solve operator.
-                    return ilu_decomp.solve(x)                                                                                          # Return the solved value.
-                
-                return LinearOperator((m, m), M_x)                                                                                      # Return the SciPy LinearOperator.
-            except RuntimeError:                                                                                                        # If ILU factorization fails (e.g., exactly singular).
-                return None                                                                                                             # Fallback to no preconditioner.
-
-    elif method == "jacobi":                                                                                                            # Jacobi / Diagonal Scaling.
-        # Jacobi is very cheap but less effective for highly asymmetric systems.
-        is_cupy = type(K).__module__.startswith('cupy')                                                                                 # Check if GPU matrix.
-        diag = K.diagonal()                                                                                                             # Extract the main diagonal.
-        diag[diag == 0] = 1e-12                                                                                                         # Prevent division by zero.
-        inv_diag = 1.0 / diag                                                                                                           # Compute the inverse diagonal.
-        
-        def M_x(x):                                                                                                                     # Define the scaling operator.
-            return inv_diag * x                                                                                                         # Return the scaled value.
-        
-        if is_cupy:                                                                                                                     # If GPU matrix.
-            from cupyx.scipy.sparse.linalg import LinearOperator as cp_LinearOperator                                                   # Import CuPy LinearOperator.
-            return cp_LinearOperator((m, m), M_x)                                                                                       # Return CuPy operator.
-        else:                                                                                                                           # CPU matrix.
-            return LinearOperator((m, m), M_x)                                                                                          # Return the SciPy LinearOperator.
-
-    else:
-        raise ValueError(f"Unknown preconditioning method: {method}. Choose 'ilu' or 'jacobi'.")                                        # Raise error on bad input.

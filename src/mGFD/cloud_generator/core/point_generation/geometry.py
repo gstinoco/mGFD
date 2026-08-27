@@ -54,6 +54,18 @@ def create_fast_polygon_checker(polygon: Polygon) -> Callable:
     hole_paths = [Path(np.array(interior.coords)) for interior in polygon.interiors]                                                    # Create Paths for all the polygon holes.
     
     def contains(x: float, y: float) -> bool:                                                                                           # Define the inner checker function.
+        """
+        contains
+        
+        Checks if a given coordinate (x, y) is inside the polygon using JIT ray casting.
+        
+        Input:
+            x                           float           X coordinate of the test point.
+            y                           float           Y coordinate of the test point.
+            
+        Output:
+            is_inside                   bool            True if the point is strictly inside the domain, False otherwise.
+        """
         pt = (x, y)                                                                                                                     # Create a coordinate tuple.
         if not ext_path.contains_point(pt): return False                                                                                # Return False if outside the exterior.
         for hp in hole_paths:                                                                                                           # Iterate through all the hole paths.

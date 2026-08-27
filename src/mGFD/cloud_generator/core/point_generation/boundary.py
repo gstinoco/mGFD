@@ -34,7 +34,7 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation.                                                                                                                      # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation. # Core numerical operations.
 
 from typing import List, Tuple                                                                                                          # Type hinting.
 

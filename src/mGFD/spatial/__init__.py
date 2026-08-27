@@ -1,9 +1,13 @@
 """
-mGFD.core — Core Mathematical Operations
+Spatial Discretization Module — mGFD Spatial
 
 Overview:
-    This module contains the critical mathematical subroutines for the mGFD method,
-    including sparse matrix assemblies, neighborhood searches, and mathematical utilities.
+    This package contains the core geometric operations for Generalized Finite Differences (GFD).
+    It includes KDTree-based neighbor search algorithms (`neighbors.py`) and the assembly of 
+    stencil weights / spatial derivatives (`gammas.py`).
+
+Public API:
+    None
 
 Credits:
     All the codes presented below were developed by:
@@ -12,7 +16,7 @@ Credits:
         Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
-    
+
     With the funding of:
         Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
         Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
@@ -27,7 +31,7 @@ Credits:
         https://doi.org/10.1016/j.camwa.2025.07.034
 
 Date:
-    March, 2026.
+    August, 2026.
 Last Modification:
     August, 2026.
 """
