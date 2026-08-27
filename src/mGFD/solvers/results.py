@@ -41,8 +41,9 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
-from dataclasses import dataclass                                                                                                       # Dataclass structure definition.
+
 from typing import Iterator                                                                                                             # Typing for iteration unpacking.
+from dataclasses import dataclass                                                                                                       # Dataclass structure definition.
 
 @dataclass
 class SolverResult:

@@ -47,10 +47,10 @@ Last Modification:
 
 ## Library importation.
 import logging                                                                                                                          # Standard logging module.
-import numpy as np                                                                                                                      # Core numerical operations.
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import matplotlib                                                                                                                       # Plotting interface.
+import numpy as np                                                                                                                      # Core numerical operations.
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 
 from matplotlib import animation                                                                                                        # Animation framework.
 from matplotlib.animation import FuncAnimation                                                                                          # Animation helper.

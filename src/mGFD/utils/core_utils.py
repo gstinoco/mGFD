@@ -42,8 +42,9 @@ import os                                                                       
 import numpy as np                                                                                                                      # Core numerical operations.
 
 from scipy.spatial import Delaunay                                                                                                      # Delaunay triangulation algorithm.
-from mGFD.spatial.neighbors import find_distances                                                                                       # Distance estimator.
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+
+from mGFD.spatial.neighbors import find_distances                                                                                       # Distance estimator.
 
 def poly_area(x: np.ndarray, y: np.ndarray) -> float:
     """

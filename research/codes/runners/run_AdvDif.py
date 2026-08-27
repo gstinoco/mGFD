@@ -148,7 +148,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
     matrix_free     = kwargs.get('matrix_free', False)                                                                                  # Extract matrix_free flag, default False.
     preconditioner  = kwargs.get('preconditioner', None)                                                                                # Extract preconditioner, default None.
-    config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}_upwind_{upwind}'                                                                    # Create unique config identifier for the sweep.
+    config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}_upwind_{upwind}'                       # Create unique config identifier for the sweep.
 
     vec0 = load_neighbors(cloud_path, nvec)                                                                                             # Load cached neighbor list if present.
     L    = np.vstack([[-a], [-b], [2 * v], [0], [2 * v], [0]])                                                                          # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
@@ -203,7 +203,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         if scale == '3':                                                                                                                # Only for scale 3.
             if config_id.startswith('nvec_16_spsolve'):                                                                                 # Only plot baseline config.
                 plot_transient(p, u_ap, save=True, nom=os.path.join(out_dir, f'Approximation_{config_id}'), 
-                                            title='Transient Approximation', verbose=verbose)                                               # Save transient animation.        
+                                            title='Transient Approximation', verbose=verbose)                                           # Save transient animation.        
             exact_nom = os.path.join(out_dir, 'Exact')                                                                                  # Define exact solution filename.
             if not os.path.exists(exact_nom + '.mp4'):                                                                                  # Avoid regenerating the exact solution.
                 plot_transient(p, u_ex, save=True, nom=exact_nom,

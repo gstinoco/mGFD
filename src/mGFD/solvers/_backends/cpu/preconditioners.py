@@ -1,13 +1,46 @@
 """
 Preconditioners — CPU preconditioner utilities
+
+Overview:
+    Utilities to compute Krylov preconditioners on the CPU.
+
+Public API:
+    compute_preconditioner      Generates a SciPy LinearOperator preconditioner.
+
+Credits:
+    All the codes presented below were developed by:
+        Dr. Gerardo Tinoco-Guerrero
+        Dr. Francisco Javier Domínguez-Mota
+        Dr. José Alberto Guzmán-Torres
+        Universidad Michoacana de San Nicolás de Hidalgo
+        gerardo.tinoco@umich.mx
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
+Date:
+    May, 2024.
+Last Modification:
+    August, 2026.
 """
 
-import numpy as np
-from scipy.sparse import csr_matrix
-from scipy.sparse.linalg import spilu, LinearOperator
-from typing import Optional, Union, Any
+## Library importation.
+import numpy as np                                                                                                                      # Core numerical operations.
 
-def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[Union[LinearOperator, Any]]:
+from scipy.sparse import csr_matrix                                                                                                     # SciPy sparse matrices.
+from typing import Optional, Union, Any                                                                                                 # Type hinting.
+from scipy.sparse.linalg import spilu, LinearOperator                                                                                   # SciPy sparse linear solvers.
+
+def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[Union[LinearOperator, Any]]:                             # Function definition.
     """
     compute_preconditioner
     Generates a Krylov preconditioner (LinearOperator) from a sparse matrix K to accelerate GMRES or BiCGStab.
@@ -26,7 +59,7 @@ def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[U
     m = K.shape[0]                                                                                                                      # Matrix dimension.
 
     if method == "ilu":                                                                                                                 # Incomplete LU Factorization.
-        try:
+        try:                                                                                                                            # Attempt CuPy import.
             ilu_decomp = spilu(K.tocsc())                                                                                               # Compute ILU decomposition (requires CSC).
             
             def M_x(x):                                                                                                                 # Define the solve operator.

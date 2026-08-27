@@ -50,9 +50,9 @@ import numpy as np                                                              
 
 from typing import Any                                                                                                                  # Type hinting.
 
-from mGFD.cloud_generator.core.generator import generate_cloud_natural, generate_cloud_regular                                          # Import generation functions.
 from mGFD.cloud_generator.core.reduction import reduce_points_by_region                                                                 # Import reduction function.
 from mGFD.cloud_generator.viz.visualization import create_visualization                                                                 # Import visualization creator.
+from mGFD.cloud_generator.core.generator import generate_cloud_natural, generate_cloud_regular                                          # Import generation functions.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 

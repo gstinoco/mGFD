@@ -1,16 +1,53 @@
+"""
+Stationary — CUDA Backend for Stationary PDEs
+
+Overview:
+    CUDA implementation for solving stationary PDEs using CuPy sparse solvers.
+
+Public API:
+    solve_cuda                  Core CUDA execution routine for the stationary solver.
+
+Credits:
+    All the codes presented below were developed by:
+        Dr. Gerardo Tinoco-Guerrero
+        Dr. Francisco Javier Domínguez-Mota
+        Dr. José Alberto Guzmán-Torres
+        Universidad Michoacana de San Nicolás de Hidalgo
+        gerardo.tinoco@umich.mx
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
+Date:
+    May, 2024.
+Last Modification:
+    August, 2026.
+"""
+
+## Library importation.
 import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
 
 from typing import Callable, Optional, Tuple, Union                                                                                     # Type hinting.
 
-from mGFD.exceptions import ParameterError                                                                                              # Custom exceptions.
 import mGFD.spatial.gammas as Gammas                                                                                                    # Gammas calculation and sparse matrix builder.
-from mGFD.solvers._backends.cuda.preconditioners import compute_preconditioner                                                          # CUDA Preconditioners.
 import mGFD.spatial.neighbors as Neighbors                                                                                              # Neighbor search routines.
+
+from mGFD.exceptions import ParameterError                                                                                              # Custom exceptions.
+from mGFD.solvers._backends.cuda.preconditioners import compute_preconditioner                                                          # CUDA Preconditioners.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
-def solve_cuda(p: np.ndarray, 
+def solve_cuda(p: np.ndarray,                                                                                                           # Function definition.
                phi: Union[Callable, np.ndarray, float, int],
                f: Union[Callable, np.ndarray, float, int],
                operator: np.ndarray,
