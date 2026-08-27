@@ -72,7 +72,8 @@ Using this exact nomenclature, `mGFD` can solve three main families of problems 
 
 * **☁️ Integrated Cloud Generator:** A powerful engine to automatically generate 2D point clouds from geographic contour boundaries.
 * **📐 Pure Meshless Solvers:** Discretize and solve PDEs using only local neighbor stencils. No mesh required!
-* **🏎️ High Performance:** Fully optimized with Numba JIT compilation and parallelized with LLVM multithreading and KDTree C++ backends.
+* **🏎️ Extreme Performance & Matrix-Free:** Fully optimized with Numba JIT compilation, LLVM multithreading, and KDTree C++ backends. Supports `matrix_free=True` mode to solve massive point clouds on standard CPUs without running out of RAM.
+* **⚡ GPU Acceleration:** Native CUDA support via CuPy. Offload massive sparse matrix factorizations and iterative solvers to your NVIDIA GPU by simply passing `device="cuda"`.
 * **🧩 Modular Architecture:** Highly professional PEP-8 compliant sub-package architecture.
 
 ---
@@ -81,11 +82,20 @@ Using this exact nomenclature, `mGFD` can solve three main families of problems 
 
 **mGFD** relies on a robust scientific stack (`numpy`, `scipy`, `shapely`, `opencv-python-headless`).
 
-The easiest way to install the package is directly from PyPI:
+The easiest way to install the standard CPU package is directly from PyPI:
 
 ```bash
 pip install mGFD
 ```
+
+### ⚡ Optional: Enabling GPU Acceleration
+
+To use the high-performance GPU solvers (`device="cuda"`), you must have an NVIDIA GPU and install `cupy` matching your CUDA toolkit version. For example, if you have CUDA 12.x installed:
+
+```bash
+pip install cupy-cuda12x
+```
+*(For CUDA 11.x, use `cupy-cuda11x`. See the [CuPy Installation Guide](https://docs.cupy.dev/en/stable/install.html) for more details).*
 
 To install the package from source (useful for development):
 
@@ -205,11 +215,13 @@ Here are the actual simulation outputs for Lake Pátzcuaro using the exact cloud
 These functions are the mathematical heart of **mGFD**. They compute spatial derivatives using generalized finite differences over local neighborhoods. All solvers natively support `pandas.DataFrame` or `numpy.ndarray` as input and output.
 
 > [!TIP]
-> **mGFD 10.0.0 Architecture Highlights:**
-> - **`SolverResult` Output:** Solvers no longer return a bare tuple. They return a structured `SolverResult` object containing `.solution`, `.vec` (the neighbor list), `.execution_time`, and `.nodes_count`.
-> - **Flexible Boundary/Forcing Variables:** The `phi` and `f` variables natively accept a Python `Callable` (lambda), a constant `float`/`int`, or an evaluated `np.ndarray` / `pd.Series`.
-> - **Operator Input:** You can now pass standard Python lists or arrays of length 5 (no reaction term) or 6 (with reaction term).
-> - **Linear Solver Selection:** Easily switch the algebraic backend using the `linear_solver` kwarg (`'spsolve'` for exact sparse matrices, or `'bicgstab'` for low-memory iterative solving).
+> **mGFD 0.11.0 Architecture Highlights:**
+> - **GPU Acceleration:** Fully integrated `device="cuda"` support to offload algebraic bottlenecks to NVIDIA GPUs via CuPy.
+> - **Krylov Preconditioning:** Optional `preconditioner="ilu"` or `"jacobi"` to vastly improve `GMRES` and `BiCGStab` convergence.
+> - **Matrix-Free Computing:** Implemented `matrix_free=True` mode for all solvers, utilizing Numba JIT-compiled on-the-fly matrix-vector multiplications to drastically reduce memory usage.
+> - **Adaptive Neighborhoods:** KDTree search algorithms now dynamically build density-aware, condition-aware stencils. The `nvec` parameter is now an upper bound rather than a strict count.
+> 
+> *(Along with all v0.10.0 improvements: structured `SolverResult` outputs, flexible Callable/array inputs, and robust algebraic solver selection).*
 
 #### `Stationary`
 Solves stationary problems (e.g., Poisson equation) with Dirichlet boundary conditions.
@@ -223,6 +235,9 @@ def Stationary(
     vec: Optional[np.ndarray] = None, 
     nvec: int = 12, 
     linear_solver: str = "spsolve",
+    preconditioner: Optional[str] = None,
+    matrix_free: bool = False,
+    device: str = "cpu",
     verbose: bool = False
 ) -> SolverResult:
 ```
@@ -242,6 +257,9 @@ def TimeDerivative1(
     vec: Optional[np.ndarray] = None, 
     nvec: int = 12, 
     linear_solver: str = "spsolve",
+    preconditioner: Optional[str] = None,
+    matrix_free: bool = False,
+    device: str = "cpu",
     verbose: bool = False
 ) -> SolverResult:
 ```
@@ -252,7 +270,7 @@ Solves second-order-in-time problems (e.g., Wave equation).
 def TimeDerivative2(
     p: Union[np.ndarray, Any], 
     f: Union[Callable, np.ndarray, float, int, Any], 
-    fd: Union[Callable, np.ndarray, float, int, Any], 
+    g: Union[Callable, np.ndarray, float, int, Any], 
     t: int, 
     coef: List[float], 
     operator: np.ndarray, 
@@ -260,6 +278,9 @@ def TimeDerivative2(
     vec: Optional[np.ndarray] = None, 
     nvec: int = 12, 
     linear_solver: str = "spsolve",
+    preconditioner: Optional[str] = None,
+    matrix_free: bool = False,
+    device: str = "cpu",
     verbose: bool = False
 ) -> SolverResult:
 ```
@@ -396,6 +417,60 @@ def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optiona
 ```
 *   **What it does:** Computes a constrained Delaunay triangulation of the point cloud, aggressively filtering out triangles that fall outside concave boundaries or inside holes (islands).
 *   **Caching system:** Computing Delaunay simplices on large clouds is extremely expensive. When `mGFD` computes a valid triangulation, it automatically caches the resulting simplices into a `_triangulation.csv` file next to your original cloud. Subsequent calls to plotting or VTK exports will load this cache, saving massive amounts of computation time.
+
+---
+
+## ⚡ High Performance & GPU Acceleration Guide
+
+When scaling up to massive geographic regions (hundreds of thousands of points) or ultra-dense domains, memory (RAM) and computation time become the primary bottlenecks. **mGFD** introduces two powerful paradigms to solve PDEs on these massive datasets.
+
+### 1. Matrix-Free Operations (CPU Optimization)
+Standard linear algebraic solvers construct a massive $M \times M$ sparse matrix. Even when sparse, storing this structure for 1,000,000 points consumes gigabytes of memory. 
+
+By setting `matrix_free=True`, **mGFD** completely bypasses the creation of the global Sparse Matrix. Instead, it utilizes Numba JIT-compiled parallel closures to compute matrix-vector multiplications ($K \cdot x$) directly on the fly using the point cloud geometry.
+
+**Best for**: Systems with limited RAM but decent multi-core processors.
+**Available Solvers**: Requires an iterative Krylov subspace solver (e.g., `linear_solver="bicgstab"` or `"gmres"`).
+```python
+# Extremely RAM-efficient solve on the CPU
+res = Stationary(
+    p, phi, f_stat, operator=L_stat, 
+    linear_solver="bicgstab", 
+    matrix_free=True, 
+    device="cpu"
+)
+```
+
+### 2. GPU Acceleration (NVIDIA CUDA)
+If you have an NVIDIA GPU and installed `cupy`, you can offload the entire linear algebra resolution to VRAM. **mGFD** handles the memory transfers seamlessly. 
+
+**Best for**: Massive speedups on large domains if you have the VRAM to hold the sparse matrix.
+**Available Solvers**: Works exceptionally well with direct solvers (`linear_solver="spsolve"`) and iterative solvers.
+```python
+# Extremely fast solve on the GPU
+res = Stationary(
+    p, phi, f_stat, operator=L_stat, 
+    linear_solver="spsolve", 
+    device="cuda"
+)
+```
+*(Note: `matrix_free=True` cannot currently be combined with `device="cuda"`, as Matrix-Free relies on CPU Numba multithreading).*
+
+### 3. Preconditioners for Iterative Solvers
+When using iterative solvers (`bicgstab`, `gmres`) on highly irregular clouds, the matrix condition number can degrade, leading to slow convergence or failure. **mGFD** provides built-in preconditioners to rescue these situations:
+- **Jacobi (`preconditioner="jacobi"`)**: Extremely fast, diagonal scaling. Works well for both `matrix_free` CPU and `cuda` GPU solves.
+- **Incomplete LU (`preconditioner="ilu"`)**: Powerful factorization technique. Recommended for ill-conditioned matrices on CPU (`matrix_free=False`), and fully supported on GPU (`cuda`).
+
+```python
+# The ultimate robust solver setup for tough hyperbolic problems on GPU:
+res = TimeDerivative2(
+    p, f_func, g_func, t_steps, [c], operator=L_wave,
+    linear_solver="gmres",
+    preconditioner="ilu",
+    device="cuda",
+    implicit=True
+)
+```
 
 ---
 

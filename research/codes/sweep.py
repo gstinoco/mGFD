@@ -115,6 +115,9 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         
     nvec_list    = config.get('nvec', [12])                                                                                             # Extract neighbor list, default to [12].
     solver_list  = config.get('linear_solver', ['spsolve'])                                                                             # Extract solver list, default to ['spsolve'].
+    device_list  = config.get('device', ['cpu'])                                                                                        # Extract device list.
+    mf_list      = config.get('matrix_free', [False])                                                                                   # Extract matrix_free list.
+    pre_list     = config.get('preconditioner', [None])                                                                                 # Extract preconditioner list.
     upwind_list  = config.get('upwind', [True, False])                                                                                  # Extract upwind list, default to [True, False].
     save_outputs = config.get('save', False)                                                                                            # Extract save flag, default to False.
     kwargs['save'] = save_outputs                                                                                                       # Inject save flag into kwargs.
@@ -145,25 +148,32 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
             continue                                                                                                                    # Move to the next script.
 
         if run_file in ['run_AdvDif.py', 'run_Perturbation.py']:                                                                        # These scripts require upwind parameter.
-            combinations = list(itertools.product(nvec_list, solver_list, upwind_list))                                                 # Generate combinations including upwind.
+            combinations = list(itertools.product(nvec_list, solver_list, device_list, mf_list, pre_list, upwind_list))                 # Generate combinations including upwind.
         else:                                                                                                                           # Other scripts don't use upwind.
-            combinations = list(itertools.product(nvec_list, solver_list, [None]))                                                      # Generate combinations without upwind.
+            combinations = list(itertools.product(nvec_list, solver_list, device_list, mf_list, pre_list, [None]))                      # Generate combinations without upwind.
             
         total_runs += len(combinations)                                                                                                 # Accumulate total executions.
         
-        for nvec, solver, upwind in combinations:                                                                                       # Iterate over configurations.
+        for nvec, solver, device, mf, pre, upwind in combinations:                                                                      # Iterate over configurations.
+            if device == 'cuda' and mf:                                                                                                 # Skip invalid combinations.
+                continue                                                                                                                # matrix_free is only supported on CPU.
+                
             if upwind is not None:                                                                                                      # Determine if upwind applies.
-                config_str = f'nvec={nvec}, solver={solver}, upwind={upwind}'                                                           # Format config with upwind.
+                config_str = f'nvec={nvec}, solver={solver}, dev={device}, mf={mf}, pre={pre}, up={upwind}'                             # Format config with upwind.
             else:                                                                                                                       # Upwind doesn't apply.
-                config_str = f'nvec={nvec}, solver={solver}'                                                                            # Format config without upwind.
+                config_str = f'nvec={nvec}, solver={solver}, dev={device}, mf={mf}, pre={pre}'                                          # Format config without upwind.
                 
             if verbose:                                                                                                                 # Check verbosity.
                 logger.info(f'\nExecuting {run_file} with [{config_str}]...')                                                           # Log current execution.
             
             start_time = time()                                                                                                         # Start per-script timer.
             run_kwargs = kwargs.copy()                                                                                                  # Copy global kwargs to avoid side-effects.
-            run_kwargs['nvec']          = nvec                                                                                          # Inject neighbor count into kwargs.
-            run_kwargs['linear_solver'] = solver                                                                                        # Inject solver backend into kwargs.
+            run_kwargs['nvec']           = nvec                                                                                         # Inject neighbor count into kwargs.
+            run_kwargs['linear_solver']  = solver                                                                                       # Inject solver backend into kwargs.
+            run_kwargs['device']         = device                                                                                       # Inject device into kwargs.
+            run_kwargs['matrix_free']    = mf                                                                                           # Inject matrix_free into kwargs.
+            run_kwargs['preconditioner'] = pre                                                                                          # Inject preconditioner into kwargs.
+            
             if upwind is not None:                                                                                                      # If upwind is required for this runner.
                 run_kwargs['upwind']    = upwind                                                                                        # Inject upwind flag into kwargs.
             

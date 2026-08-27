@@ -8,6 +8,15 @@
         "spsolve",
         "bicgstab"
     ],
+    "device": [
+        "cpu"
+    ],
+    "matrix_free": [
+        false
+    ],
+    "preconditioner": [
+        null
+    ],
     "save": true,
     "upwind": [
         true,

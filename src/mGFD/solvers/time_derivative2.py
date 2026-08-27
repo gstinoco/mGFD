@@ -59,17 +59,20 @@ import mGFD.core.neighbors as Neighbors                                         
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def TimeDerivative2(p: Union[np.ndarray, Any], 
-                    f: Union[Callable, np.ndarray, float, int, Any], 
-                    g: Union[Callable, np.ndarray, float, int, Any], 
-                    t: int, 
-                    coef: List[float], 
-                    operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2], [0]]), 
-                    upwind: bool = False, 
-                    vec: Optional[np.ndarray] = None, 
-                    nvec: int = 20, 
-                    implicit: bool = False, 
-                    lam: float = 0.5, 
+                    f: Union[Callable, np.ndarray, float, int, Any],
+                    g: Union[Callable, np.ndarray, float, int, Any],
+                    t: int,
+                    coef: List[float],
+                    operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2], [0]]),
+                    upwind: bool = False,
+                    vec: Optional[np.ndarray] = None,
+                    nvec: int = 20,
+                    implicit: bool = False,
+                    lam: float = 0.5,
                     linear_solver: str = "spsolve",
+                    preconditioner: Optional[str] = None,
+                    matrix_free: bool = False,
+                    device: str = "cpu",
                     verbose: bool = True) -> SolverResult:
     """
     Numerical solution of partial differential equations with second-order time derivatives using a Meshless Generalized Finite Difference Scheme.
@@ -92,6 +95,10 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
         upwind                      bool            If an Upwind stencil is requested.
         vec         m x nvec        ndarray         Cached neighbor list (optional).
         nvec                        int             Maximum number of neighbors for each node.
+        linear_solver               str             Algebraic backend: 'spsolve', 'bicgstab', or 'gmres'.
+        preconditioner              Optional[str]   Preconditioner method: 'ilu', 'jacobi', or None.
+        matrix_free                 bool            If True, uses on-the-fly matrix-vector multiplication (requires iterative solver).
+        device                      str             'cpu' or 'cuda'. If 'cuda', offloads solvers to the GPU (requires CuPy).
         verbose                     bool            If True, prints solver progress.
     
     Output:
@@ -116,6 +123,10 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
         raise ParameterError("Number of time steps 't' must be a positive integer.")                                                    # Raise explicit error on bad input.
     if not isinstance(operator, np.ndarray) or operator.shape[0] < 5:                                                                   # Validate operator array.
         raise OperatorFormatError("Operator must be a numpy array with at least 5 coefficients.")                                       # Raise explicit error on bad input.
+    if device not in ["cpu", "cuda"]:                                                                                                   # Validate device choice.
+        raise ParameterError("Unsupported device. Choose 'cpu' or 'cuda'.")                                                             # Raise explicit error.
+    if device == "cuda" and matrix_free:                                                                                                # Validate matrix_free and cuda.
+        raise ParameterError("matrix_free=True is incompatible with device='cuda'.")                                                    # CuPy requires explicit sparse matrices.
 
     # 1. Variable initialization
     m      = p.shape[0]                                                                                                                 # Total number of nodes.
@@ -137,7 +148,7 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
     # 3. Apply Boundary and Initial Conditions
     # Evaluate f (initial position and boundaries)
     if callable(f):                                                                                                                     # If data is a function.
-        for k in range(t):                                                                                                          # Loop through all time steps.
+        for k in range(t):                                                                                                              # Loop through all time steps.
             u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                                     # Boundary condition (Dirichlet).
         u_ap[:, 0] = np.asarray(f(p[:, 0], p[:, 1], T[0], coef))                                                                        # Initial condition across all nodes.
     elif isinstance(f, np.ndarray):                                                                                                     # If data is an array.
@@ -174,82 +185,191 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
 
     # 5. Compute differentiation matrix (K)
     L         = operator[:-1]                                                                                                           # Original operator weights.
-    K_spatial = Gammas.compute_sparse_matrix(p, vec, L)                                                                                 # Build sparse spatial differentiation matrix.
-    K         = (dt**2) * K_spatial                                                                                                     # Scale by time step squared.
+    if matrix_free:
+        from scipy.sparse.linalg import LinearOperator                                                                                  # Import LinearOperator.
+        K_matvec = Gammas.compute_K_matvec(p, vec, L)                                                                                   # Generate the on-the-fly matrix-vector closure.
+    else:
+        K_spatial = Gammas.compute_sparse_matrix(p, vec, L)                                                                             # Build sparse spatial differentiation matrix.
+        K         = (dt**2) * K_spatial                                                                                                 # Scale by time step squared.
     
     # 6. Time Integration (Generalized Finite Differences)
     converged = True                                                                                                                    # Assume convergence by default.
+    if matrix_free and preconditioner is not None:
+        raise ParameterError("Preconditioners are not currently supported in matrix_free=True mode.")                                   # Preconditioners need explicit matrix elements.
     
     if not implicit:                                                                                                                    # If an explicit scheme is requested.
         # Explicit scheme
-        K2 = eye(m) + (1/2)*K                                                                                                           # Explicit matrix for k = 1.
-        K4 = 2*eye(m) + K                                                                                                               # Explicit matrix for k = 2, ..., t.
-        
-        for k in range(1, t):                                                                                                           # Loop over all time steps.
-            if k == 1:                                                                                                                  # Initial time step logic (k=1).
-                g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
-                un              = K2.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # New time-level (k=1) using du/dt.
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
-            else:                                                                                                                       # Following time steps (k>=2).
-                un              = K4.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                               # New time-level (k>=2) using Leapfrog/Verlet.
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
+        if matrix_free:
+            for k in range(1, t):                                                                                                       # Loop over all time steps.
+                if k == 1:                                                                                                              # Initial time step logic (k=1).
+                    g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                  # Evaluate velocity for first step.
+                    un              = u_ap[:, k - 1] + 0.5 * (dt**2) * K_matvec(u_ap[:, k - 1]) + dt*g_val                              # New time-level (k=1) matrix-free.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+                else:                                                                                                                   # Following time steps (k>=2).
+                    un              = 2 * u_ap[:, k - 1] + (dt**2) * K_matvec(u_ap[:, k - 1]) - u_ap[:, k - 2]                          # New time-level (k>=2) matrix-free.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+        else:
+            K2 = eye(m) + (1/2)*K                                                                                                       # Explicit matrix for k = 1.
+            K4 = 2*eye(m) + K                                                                                                           # Explicit matrix for k = 2, ..., t.
+            
+            if device == "cuda":                                                                                                        # If GPU acceleration is requested.
+                try:
+                    import cupy as cp                                                                                                   # Import CuPy dynamically.
+                    from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix                                                          # Import CuPy CSR matrix.
+                except ImportError:                                                                                                     # If not installed.
+                    raise ImportError("CuPy is not installed. Please install it with 'pip install mGFD[gpu]'.")                         # Friendly error message.
+                K2 = cp_csr_matrix(K2)                                                                                                  # Transfer explicit matrix to GPU.
+                K4 = cp_csr_matrix(K4)                                                                                                  # Transfer explicit matrix to GPU.
+                u_ap = cp.asarray(u_ap)                                                                                                 # Transfer solution matrix to GPU.
+            
+            for k in range(1, t):                                                                                                       # Loop over all time steps.
+                if k == 1:                                                                                                              # Initial time step logic (k=1).
+                    g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                  # Evaluate velocity for first step.
+                    un              = K2.dot(u_ap[:, k - 1]) + dt*g_val                                                                 # New time-level (k=1) using du/dt.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+                else:                                                                                                                   # Following time steps (k>=2).
+                    un              = K4.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                           # New time-level (k>=2) using Leapfrog/Verlet.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
     else:                                                                                                                               # If an implicit scheme is requested.
         # Implicit scheme
-        Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
-        Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
-        
-        # Step k = 1 Formulation (with du/dt condition)
-        A1       = Id_inner @ (eye(m) - lam * (1/2) * K) + Id_bound                                                                     # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
-        B1       = Id_inner @ (eye(m) + (1 - lam) * (1/2) * K)                                                                          # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
-        
-        # Step k >= 2 Formulation
-        A2       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k>=2).
-        A2       = A2.tocsc()                                                                                                           # Convert to CSC format for efficient SuperLU factorization.
-        B2       = Id_inner @ (2*eye(m) + (1 - lam) * K)                                                                                # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
-        
-        if linear_solver == "spsolve":                                                                                                  # Direct pre-factorized solver.
-            solve1   = factorized(A1.tocsc())                                                                                           # Pre-factorize implicit matrix for k = 1.
-            solve2   = factorized(A2)                                                                                                   # Pre-factorize implicit matrix for k = 2, ..., t.
-        elif linear_solver not in ["bicgstab", "gmres"]:                                                                                # Invalid iterative solver choice.
-            raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")           # Raise explicit error.
-
-        for k in range(1, t):                                                                                                       # Loop over all time steps.
-            if k == 1:                                                                                                                  # Initial time step logic (k=1).
-                g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
-                RHS             = B1.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # Right-hand side from previous step + du/dt.
-                RHS[boun_n]     = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k=1.
+        if matrix_free:
+            if linear_solver == "spsolve":
+                raise ParameterError("Direct solver 'spsolve' is incompatible with matrix_free=True.")                                  # Direct solvers need explicit matrix.
+            
+            def A1_matvec(x):                                                                                                           # Define the matvec closure for k=1 LHS matrix.
+                y = x - lam * (1/2) * (dt**2) * K_matvec(x)                                                                             # Theta parameter applied to inner nodes.
+                y[boun_n] = x[boun_n]                                                                                                   # Identity applied to boundary nodes.
+                return y                                                                                                                # Return the result.
                 
-                if linear_solver == "spsolve":                                                                                                  # Direct pre-factorized solver.
-                    un       = solve1(RHS)                                                                                                      # Solve global system for time level k=1.
-                elif linear_solver == "bicgstab":                                                                                               # Iterative solver (BiCGStab).
-                    un, info = bicgstab(A1, RHS)                                                                                                # Solve system.
-                    if info != 0:                                                                                                               # If not strictly converged.
-                        converged = False                                                                                                       # Mark convergence failure.
-                        if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}) at time {k}.")                           # Warn on convergence issues.
-                elif linear_solver == "gmres":                                                                                                  # Iterative solver (GMRES).
-                    un, info = gmres(A1, RHS)                                                                                                   # Solve system.
-                    if info != 0:                                                                                                               # If not strictly converged.
-                        converged = False                                                                                                       # Mark convergence failure.
-                        if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}) at time {k}.")                              # Warn on convergence issues.
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
-            else:                                                                                                                       # Following time steps (k>=2).
-                RHS             = B2.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                               # Right-hand side from previous steps.
-                RHS[boun_n]     = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
+            def A2_matvec(x):                                                                                                           # Define the matvec closure for k>=2 LHS matrix.
+                y = x - lam * (dt**2) * K_matvec(x)                                                                                     # Theta parameter applied to inner nodes.
+                y[boun_n] = x[boun_n]                                                                                                   # Identity applied to boundary nodes.
+                return y                                                                                                                # Return the result.
                 
-                if linear_solver == "spsolve":                                                                                          # Direct solver (spsolve).
-                    un = solve2(RHS)                                                                                                    # Solve system.
-                elif linear_solver == "bicgstab":                                                                                       # Iterative solver (BiCGStab).
-                    un, info = bicgstab(A2, RHS, x0=u_ap[:, k-1])                                                                       # Solve system.
+            A1 = LinearOperator(shape=(m, m), matvec=A1_matvec, dtype=np.float64)                                                       # type: ignore
+            A2 = LinearOperator(shape=(m, m), matvec=A2_matvec, dtype=np.float64)                                                       # type: ignore
+            M1 = None                                                                                                                   # No preconditioner in matrix-free mode.
+            M2 = None                                                                                                                   # No preconditioner in matrix-free mode.
+            
+            for k in range(1, t):                                                                                                       # Loop over all time steps.
+                if k == 1:                                                                                                              # Initial time step logic (k=1).
+                    g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                  # Evaluate velocity for first step.
+                    u_prev = u_ap[:, k - 1]                                                                                             # Previous step solution.
+                    RHS = u_prev + (1 - lam) * (1/2) * (dt**2) * K_matvec(u_prev) + dt*g_val                                            # Matrix-free RHS calculation for k=1.
+                    RHS[boun_n] = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k=1.
+                    if linear_solver == "bicgstab":                                                                                     # Iterative solver (BiCGStab).
+                        un, info = bicgstab(A1, RHS, M=M1)                                                                              # Solve system.
+                    elif linear_solver == "gmres":                                                                                      # Iterative solver (GMRES).
+                        un, info = gmres(A1, RHS, M=M1)                                                                                 # Solve system.
                     if info != 0:                                                                                                       # If not strictly converged.
                         converged = False                                                                                               # Mark convergence failure.
-                        if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}) at time {k}.")                   # Warn on convergence issues.
-                elif linear_solver == "gmres":                                                                                          # Iterative solver (GMRES).
-                    un, info = gmres(A2, RHS, x0=u_ap[:, k-1])                                                                          # Solve system.
+                        if verbose: logger.warning(f"{linear_solver.upper()} did not converge perfectly (code {info}) at time {k}.")    # Warn on convergence issues.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+                else:                                                                                                                   # Following time steps (k>=2).
+                    u_prev1 = u_ap[:, k - 1]                                                                                            # Previous step solution.
+                    u_prev2 = u_ap[:, k - 2]                                                                                            # Previous step solution.
+                    RHS = 2 * u_prev1 + (1 - lam) * (dt**2) * K_matvec(u_prev1) - u_prev2                                               # Matrix-free RHS calculation for k>=2.
+                    RHS[boun_n] = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
+                    if linear_solver == "bicgstab":                                                                                     # Iterative solver (BiCGStab).
+                        un, info = bicgstab(A2, RHS, x0=u_prev1, M=M2)                                                                  # Solve system.
+                    elif linear_solver == "gmres":                                                                                      # Iterative solver (GMRES).
+                        un, info = gmres(A2, RHS, x0=u_prev1, M=M2)                                                                     # Solve system.
                     if info != 0:                                                                                                       # If not strictly converged.
                         converged = False                                                                                               # Mark convergence failure.
-                        if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}) at time {k}.")                      # Warn on convergence issues.
+                        if verbose: logger.warning(f"{linear_solver.upper()} did not converge perfectly (code {info}) at time {k}.")    # Warn on convergence issues.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+        else:
+            Id_inner = diags(inne_n.astype(float))                                                                                      # Diagonal mask for inner nodes.
+            Id_bound = diags(boun_n.astype(float))                                                                                      # Diagonal mask for boundary nodes.
+            
+            # Step k = 1 Formulation (with du/dt condition)
+            A1       = Id_inner @ (eye(m) - lam * (1/2) * K) + Id_bound                                                                 # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
+            B1       = Id_inner @ (eye(m) + (1 - lam) * (1/2) * K)                                                                      # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
+            
+            # Step k >= 2 Formulation
+            A2       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                         # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k>=2).
+            A2       = A2.tocsc()                                                                                                       # Convert to CSC format for efficient SuperLU factorization.
+            B2       = Id_inner @ (2*eye(m) + (1 - lam) * K)                                                                            # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
+            
+            if device == "cuda":                                                                                                        # If GPU acceleration is requested.
+                try:
+                    import cupy as cp                                                                                                   # Import CuPy dynamically.
+                    from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix, csr_matrix as cp_csr_matrix                             # Import CuPy sparse matrices.
+                    from cupyx.scipy.sparse.linalg import spsolve as cp_spsolve, bicgstab as cp_bicgstab, gmres as cp_gmres             # Import CuPy solvers.
+                except ImportError:                                                                                                     # If not installed.
+                    raise ImportError("CuPy is not installed. Please install it with 'pip install mGFD[gpu]'.")                         # Friendly error message.
+                A1 = cp_csc_matrix(A1)                                                                                                  # Transfer LHS to GPU.
+                A2 = cp_csc_matrix(A2)                                                                                                  # Transfer LHS to GPU.
+                B1 = cp_csr_matrix(B1)                                                                                                  # Transfer RHS operator to GPU.
+                B2 = cp_csr_matrix(B2)                                                                                                  # Transfer RHS operator to GPU.
+                u_ap = cp.asarray(u_ap)                                                                                                 # Transfer solution matrix to GPU.
+            
+            M1       = Gammas.compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None                            # type: ignore
+            M2       = Gammas.compute_preconditioner(A2, preconditioner) if preconditioner else None                                    # type: ignore
+            
+            if linear_solver == "spsolve":                                                                                              # Direct pre-factorized solver.
+                if device == "cuda":                                                                                                    # GPU Factorization.
+                    from cupyx.scipy.sparse.linalg import factorized as cp_factorized                                                   # Import CuPy factorized.
+                    solve1   = cp_factorized(A1.tocsc())                                                                                # Pre-factorize implicit matrix for k = 1 on GPU.
+                    solve2   = cp_factorized(A2)                                                                                        # Pre-factorize implicit matrix for k >= 2 on GPU.
+                else:                                                                                                                   # CPU Factorization.
+                    solve1   = factorized(A1.tocsc())                                                                                   # Pre-factorize implicit matrix for k = 1.
+                    solve2   = factorized(A2)                                                                                           # Pre-factorize implicit matrix for k = 2, ..., t.
+            elif linear_solver not in ["bicgstab", "gmres"]:                                                                            # Invalid iterative solver choice.
+                raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")       # Raise explicit error.
+                
+            for k in range(1, t):                                                                                                       # Loop over all time steps.
+                if k == 1:                                                                                                              # Initial time step logic (k=1).
+                    g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                  # Evaluate velocity for first step.
+                    RHS             = B1.dot(u_ap[:, k - 1]) + dt*g_val                                                                 # Right-hand side from previous step + du/dt.
+                    RHS[boun_n]     = u_ap[boun_n, k]                                                                                   # Inject exact boundary condition for time k=1.
                     
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
+                    if linear_solver == "spsolve":                                                                                      # Direct pre-factorized solver.
+                        un       = solve1(RHS)                                                                                          # Solve global system for time level k=1.
+                    elif linear_solver == "bicgstab":                                                                                   # Iterative solver (BiCGStab).
+                        if device == "cuda":                                                                                            # GPU Iterative Solver.
+                            un, info = cp_bicgstab(A1, RHS, M=M1)                                                                       # Solve system.
+                        else:                                                                                                           # CPU Iterative Solver.
+                            un, info = bicgstab(A1, RHS, M=M1)                                                                          # Solve system.
+                        if info != 0:                                                                                                   # If not strictly converged.
+                            converged = False                                                                                           # Mark convergence failure.
+                            if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}) at time {k}.")               # Warn on convergence issues.
+                    elif linear_solver == "gmres":                                                                                      # Iterative solver (GMRES).
+                        if device == "cuda":                                                                                            # GPU Iterative Solver.
+                            un, info = cp_gmres(A1, RHS, M=M1)                                                                          # Solve system.
+                        else:                                                                                                           # CPU Iterative Solver.
+                            un, info = gmres(A1, RHS, M=M1)                                                                             # Solve system.
+                        if info != 0:                                                                                                   # If not strictly converged.
+                            converged = False                                                                                           # Mark convergence failure.
+                            if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}) at time {k}.")                  # Warn on convergence issues.
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+                else:                                                                                                                   # Following time steps (k>=2).
+                    RHS             = B2.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                           # Right-hand side from previous steps.
+                    RHS[boun_n]     = u_ap[boun_n, k]                                                                                   # Inject exact boundary condition for time k>=2.
+                    
+                    if linear_solver == "spsolve":                                                                                      # Direct solver (spsolve).
+                        un = solve2(RHS)                                                                                                # Solve system.
+                    elif linear_solver == "bicgstab":                                                                                   # Iterative solver (BiCGStab).
+                        if device == "cuda":                                                                                            # GPU Iterative Solver.
+                            un, info = cp_bicgstab(A2, RHS, x0=u_ap[:, k-1], M=M2)                                                      # Solve system.
+                        else:                                                                                                           # CPU Iterative Solver.
+                            un, info = bicgstab(A2, RHS, x0=u_ap[:, k-1], M=M2)                                                         # Solve system.
+                        if info != 0:                                                                                                   # If not strictly converged.
+                            converged = False                                                                                           # Mark convergence failure.
+                            if verbose: logger.warning(f"BiCGStab did not converge perfectly (code {info}) at time {k}.")               # Warn on convergence issues.
+                    elif linear_solver == "gmres":                                                                                      # Iterative solver (GMRES).
+                        if device == "cuda":                                                                                            # GPU Iterative Solver.
+                            un, info = cp_gmres(A2, RHS, x0=u_ap[:, k-1], M=M2)                                                         # Solve system.
+                        else:                                                                                                           # CPU Iterative Solver.
+                            un, info = gmres(A2, RHS, x0=u_ap[:, k-1], M=M2)                                                            # Solve system.
+                        if info != 0:                                                                                                   # If not strictly converged.
+                            converged = False                                                                                           # Mark convergence failure.
+                            if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}) at time {k}.")                  # Warn on convergence issues.
+                        
+                    u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
+                    
+    if device == "cuda":                                                                                                                # If array is in VRAM.
+        u_ap = getattr(u_ap, "get")()                                                                                                   # Retrieve array to CPU RAM.
 
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info("\tSolver finished successfully.")                                                                                  # Print completion message.

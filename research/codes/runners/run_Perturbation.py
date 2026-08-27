@@ -142,7 +142,10 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     linear_solver   = kwargs.get('linear_solver', 'spsolve')                                                                            # Extract solver backend, default spsolve.
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     upwind          = kwargs.get('upwind', True)                                                                                        # Extract upwind flag, default True for Perturbation.
-    config_id       = f'nvec_{nvec}_{linear_solver}_upwind_{upwind}'                                                                    # Create unique config identifier for the sweep.
+    device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
+    matrix_free     = kwargs.get('matrix_free', False)                                                                                  # Extract matrix_free flag, default False.
+    preconditioner  = kwargs.get('preconditioner', None)                                                                                # Extract preconditioner, default None.
+    config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}_upwind_{upwind}'                                                                    # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
     p    = load_points(cloud_path, verbose=False)                                                                                       # Load point cloud into (m, 3) array [x, y, flag].
@@ -152,14 +155,14 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # 3. Solver Execution
     # --- A. Using Callable ---
     res_call = Stationary(                                                                                                              # Solve the stationary perturbation problem (Callable).
-        p, phi, f, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, verbose = verbose_solvers     # Execute with dynamic config.
+        p, phi, f, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = verbose_solvers     # Execute with dynamic config.
     )                                                                                                                                   # Extract solver result object.
     
     # --- B. Using Numpy Arrays ---
     phi_arr = phi(p[:, 0], p[:, 1])                                                                                                     # Precompute boundary array.
     f_arr   = f(p[:, 0], p[:, 1])                                                                                                       # Precompute forcing term array.
     res_arr = Stationary(                                                                                                               # Solve using array inputs.
-        p, phi_arr, f_arr, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, verbose = False       # Silent execution for array test.
+        p, phi_arr, f_arr, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False       # Silent execution for array test.
     )
     assert np.allclose(res_call.solution, res_arr.solution), "Mismatch between Callable and Array solver outputs."                      # Validate output equivalence.
     
@@ -167,7 +170,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     phi_pd = pd.Series(phi_arr.tolist())                                                                                                # Wrap array in Pandas Series.
     f_pd   = pd.Series(f_arr.tolist())                                                                                                  # Wrap array in Pandas Series.
     res_pd = Stationary(                                                                                                                # Solve using Pandas inputs.
-        p, phi_pd, f_pd, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, verbose = False         # Silent execution for Pandas test.
+        p, phi_pd, f_pd, operator = L, upwind = upwind, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False         # Silent execution for Pandas test.
     )
     assert np.allclose(res_call.solution, res_pd.solution), "Mismatch between Callable and Pandas solver outputs."                      # Validate output equivalence.
     

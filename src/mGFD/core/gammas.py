@@ -58,8 +58,8 @@ import numba as nb                                                              
 
 from scipy.optimize import nnls                                                                                                         # Core numerical operations.
 from scipy.sparse import csr_matrix                                                                                                     # Core sparse matrix representations.
-from typing import Callable, Optional, Tuple, List, Union                                                                               # Type hinting.
-from scipy.sparse.linalg import LinearOperator, bicgstab                                                                                # SciPy iterative solver interface.
+from typing import Callable, Optional, Tuple, List, Union, Any                                                                          # Type hinting.
+from scipy.sparse.linalg import LinearOperator, bicgstab, spilu                                                                         # SciPy iterative solver interface.
 
 @nb.njit(cache=True, fastmath=True)
 def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray:
@@ -608,6 +608,57 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
 
     return x                                                                                                                            # Return final iterate.
 
+@nb.njit(parallel=True, fastmath=True)
+def _compute_K_matvec_numba(x: np.ndarray, diag: np.ndarray, w: np.ndarray, vec: np.ndarray) -> np.ndarray:
+    """
+    _compute_K_matvec_numba
+    Numba JIT-compiled closure helper to compute the matrix-vector multiplication K * x in parallel.
+    
+    Input:
+        x           m               ndarray         Input vector to multiply.
+        diag        m               ndarray         Main diagonal elements of the implicit sparse matrix.
+        w           m x nvec        ndarray         Stencil weight elements (off-diagonal).
+        vec         m x nvec        ndarray         Neighbor list mapping for the off-diagonal elements.
+        
+    Output:
+        y           m               ndarray         Resulting vector from K * x.
+    """
+    # 1. Variable initialization
+    m    = x.shape[0]                                                                                                                   # Total number of nodes.
+    nvec = vec.shape[1]                                                                                                                 # Maximum number of neighbors.
+    y    = np.zeros(m, dtype=np.float64)                                                                                                # Output vector initialization.
+    
+    # 2. Parallel Matrix-Vector Multiplication
+    for i in nb.prange(m):                                                                                                              # type: ignore # Iterate over all nodes.
+        val = diag[i] * x[i]                                                                                                            # Initialize with the main diagonal contribution.
+        for j in range(nvec):                                                                                                           # Iterate over the node's stencil.
+            col = vec[i, j]                                                                                                             # Fetch target neighbor index.
+            if col != -1:                                                                                                               # If valid neighbor slot.
+                val += w[i, j] * x[col]                                                                                                 # Accumulate neighbor contribution.
+        y[i] = val                                                                                                                      # Save computed row value.
+        
+    return y                                                                                                                            # Return resulting vector.
+
+def compute_K_matvec(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:
+    """
+    compute_K_matvec
+    Generates an on-the-fly matrix-vector product closure for K * x without building K explicitly.
+
+    Input:
+        p           m x 3           ndarray             Array with the coordinates of the nodes and the boundary flag.
+        vec         m x nvec        ndarray             Neighbor indices per node (padded with -1).
+        L           5               ndarray             Array with the weights for the operator.
+
+    Output:
+        matvec                      Callable            A function that accepts an array x and returns K * x.
+    """
+    diag, w = CloudStencil(p, vec, L, reg_factor=1e-8)                                                                                  # Retrieve the raw stencil weight values.
+    
+    def matvec(x: np.ndarray) -> np.ndarray:                                                                                            # Define the closure over x.
+        return _compute_K_matvec_numba(x, diag, w, vec)                                                                                 # Delegate to Numba JIT loop.
+        
+    return matvec                                                                                                                       # Return the callable operator.
+
 def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_matrix:
     """
     compute_sparse_matrix
@@ -640,3 +691,58 @@ def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_
     data    = np.concatenate([data, diag])                                                                                              # Append the main diagonal (central) weights.
 
     return csr_matrix((data, (rows, cols)), shape=(m, m))                                                                               # Construct and return the compressed sparse row matrix.
+
+def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[Union[LinearOperator, Any]]:
+    """
+    compute_preconditioner
+    Generates a Krylov preconditioner (LinearOperator) from a sparse matrix K to accelerate GMRES or BiCGStab.
+
+    Input:
+        K           m x m           csr_matrix          The original sparse stiffness matrix.
+        method                      str                 The preconditioning method: 'ilu' or 'jacobi'.
+
+    Output:
+        M           m x m           LinearOperator      The preconditioner object (or None if method is None).
+    """
+    if method is None or method.lower() == "none":                                                                                      # If no preconditioner is requested.
+        return None                                                                                                                     # Return None.
+
+    method = method.lower()                                                                                                             # Normalize string.
+    m = K.shape[0]                                                                                                                      # Matrix dimension.
+
+    if method == "ilu":                                                                                                                 # Incomplete LU Factorization.
+        # ILU is mathematically robust for asymmetric ill-conditioned matrices.
+        is_cupy = type(K).__module__.startswith('cupy')                                                                                 # Check if GPU matrix.
+        if is_cupy:                                                                                                                     # If GPU matrix.
+            try:
+                from cupyx.scipy.sparse.linalg import spilu as cp_spilu                                                                 # Import CuPy spilu.
+                from cupyx.scipy.sparse.linalg import LinearOperator as cp_LinearOperator                                               # Import CuPy LinearOperator.
+                ilu_decomp = cp_spilu(K.tocsc())                                                                                        # Compute ILU decomposition on GPU.
+                M_x = lambda x: ilu_decomp.solve(x)                                                                                     # Define the solve operator.
+                return cp_LinearOperator((m, m), M_x)                                                                                   # Return the CuPy LinearOperator.
+            except RuntimeError:                                                                                                        # If ILU factorization fails.
+                return None                                                                                                             # Fallback to no preconditioner.
+        else:                                                                                                                           # CPU matrix.
+            try:
+                ilu_decomp = spilu(K.tocsc())                                                                                           # Compute ILU decomposition (requires CSC).
+                M_x = lambda x: ilu_decomp.solve(x)                                                                                     # Define the solve operator.
+                return LinearOperator((m, m), M_x)                                                                                      # Return the SciPy LinearOperator.
+            except RuntimeError:                                                                                                        # If ILU factorization fails (e.g., exactly singular).
+                return None                                                                                                             # Fallback to no preconditioner.
+
+    elif method == "jacobi":                                                                                                            # Jacobi / Diagonal Scaling.
+        # Jacobi is very cheap but less effective for highly asymmetric systems.
+        is_cupy = type(K).__module__.startswith('cupy')                                                                                 # Check if GPU matrix.
+        diag = K.diagonal()                                                                                                             # Extract the main diagonal.
+        diag[diag == 0] = 1e-12                                                                                                         # Prevent division by zero.
+        inv_diag = 1.0 / diag                                                                                                           # Compute the inverse diagonal.
+        M_x = lambda x: inv_diag * x                                                                                                    # Define the scaling operator.
+        
+        if is_cupy:                                                                                                                     # If GPU matrix.
+            from cupyx.scipy.sparse.linalg import LinearOperator as cp_LinearOperator                                                   # Import CuPy LinearOperator.
+            return cp_LinearOperator((m, m), M_x)                                                                                       # Return CuPy operator.
+        else:                                                                                                                           # CPU matrix.
+            return LinearOperator((m, m), M_x)                                                                                          # Return the SciPy LinearOperator.
+
+    else:
+        raise ValueError(f"Unknown preconditioning method: {method}. Choose 'ilu' or 'jacobi'.")                                        # Raise error on bad input.

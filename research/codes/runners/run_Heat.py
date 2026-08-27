@@ -117,7 +117,10 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
     linear_solver   = kwargs.get('linear_solver', 'spsolve')                                                                            # Extract solver backend, default spsolve.
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
-    config_id       = f'nvec_{nvec}_{linear_solver}'                                                                                    # Create unique config identifier for the sweep.
+    device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
+    matrix_free     = kwargs.get('matrix_free', False)                                                                                  # Extract matrix_free flag, default False.
+    preconditioner  = kwargs.get('preconditioner', None)                                                                                # Extract preconditioner, default None.
+    config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}'                                                                                    # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
     p    = load_points(cloud_path, verbose=False)                                                                                       # Load point cloud into (m, 3) array [x, y, flag].
@@ -127,7 +130,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # 3. Solver Execution
     # --- A. Using Callable ---
     res_call = TimeDerivative1(                                                                                                         # Solve the transient heat problem (Callable).
-        p, f, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, verbose = verbose_solvers
+        p, f, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = verbose_solvers
     )                                                                                                                                   # Extract solver result object.
     
     # --- Precompute exact solution array for Array/Pandas tests and Metrics ---
@@ -138,14 +141,14 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         
     # --- B. Using Numpy Arrays ---
     res_arr = TimeDerivative1(                                                                                                          # Solve using array inputs.
-        p, f_arr, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, verbose = False
+        p, f_arr, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False
     )
     assert np.allclose(res_call.solution, res_arr.solution), "Mismatch between Callable and Array solver outputs."                      # Validate output equivalence.
     
     # --- C. Using Pandas DataFrames/Series ---
     f_pd = pd.DataFrame(f_arr)                                                                                                          # Wrap spatiotemporal array in Pandas DataFrame.
     res_pd = TimeDerivative1(                                                                                                           # Solve using Pandas inputs.
-        p, f_pd, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, verbose = False
+        p, f_pd, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False
     )
     assert np.allclose(res_call.solution, res_pd.solution), "Mismatch between Callable and Pandas solver outputs."                      # Validate output equivalence.
     

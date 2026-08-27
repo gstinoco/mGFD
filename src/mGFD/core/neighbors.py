@@ -54,9 +54,9 @@ Last Modification:
     August, 2026.
 """
 
-#                                                                                                                                       # Library importation.
+## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation.                                                                                                                      # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation.
 
 from scipy.spatial import KDTree                                                                                                        # Spatial indexing for fast neighbor queries.
 from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
@@ -94,11 +94,55 @@ def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float,
                     break                                                                                                               # Exit neighbor loop.
     return vec                                                                                                                          # Return populated neighbor list.
 
+@nb.njit(cache=True, fastmath=True)
+def _check_stencil_condition_jit(dx: np.ndarray, dy: np.ndarray) -> float:
+    """
+    _check_stencil_condition_jit
+    Numba JIT-compiled helper to compute the condition number of the local geometric matrix.
+    
+    Input:
+        dx          n x 1           ndarray         x-offsets of the selected neighbors.
+        dy          n x 1           ndarray         y-offsets of the selected neighbors.
+        
+    Output:
+        cond                        float           Condition number of the M^T M geometric matrix.
+    """
+    # 1. Variable initialization
+    n = len(dx)                                                                                                                         # Get the number of provided neighbors.
+    if n < 5:                                                                                                                           # Minimum neighbors for 2D Taylor polynomial.
+        return np.inf                                                                                                                   # Return infinite condition number.
+        
+    a = 0.0                                                                                                                             # Initialization of the (0,0) covariance element.
+    b = 0.0                                                                                                                             # Initialization of the (0,1) covariance element.
+    c = 0.0                                                                                                                             # Initialization of the (1,1) covariance element.
+    
+    # 2. Covariance matrix computation
+    for j in range(n):                                                                                                                  # Iterate over all local neighbors.
+        a += dx[j] * dx[j]                                                                                                              # Accumulate xx cross term.
+        b += dx[j] * dy[j]                                                                                                              # Accumulate xy cross term.
+        c += dy[j] * dy[j]                                                                                                              # Accumulate yy cross term.
+        
+    T = a + c                                                                                                                           # Trace of the 2x2 covariance matrix.
+    D = a * c - b * b                                                                                                                   # Determinant of the 2x2 covariance matrix.
+    
+    if D <= 0.0:                                                                                                                        # If determinant is negative or zero.
+        return np.inf                                                                                                                   # Return infinite condition number.
+        
+    # 3. Eigenvalues and condition number
+    sqrt_disc = np.sqrt(max(0.0, T * T - 4 * D))                                                                                        # Square root of the discriminant.
+    L1        = (T + sqrt_disc) / 2.0                                                                                                   # Largest eigenvalue computation.
+    L2        = (T - sqrt_disc) / 2.0                                                                                                   # Smallest eigenvalue computation.
+    
+    if L2 <= 1e-14 * L1:                                                                                                                # Check for extremely ill-conditioned matrix.
+        return np.inf                                                                                                                   # Return infinite condition number.
+        
+    return L1 / L2                                                                                                                      # Return geometric condition number.
+
 @nb.njit(cache=True, fastmath=True, parallel=True)
 def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int, target_per_quad: int) -> np.ndarray:
     """
     _find_neighbors_balanced_jit
-    Numba JIT-compiled helper to extract quadrant-balanced neighbors from KDTree candidate pool.
+    Numba JIT-compiled helper to extract quadrant-balanced and condition-aware neighbors.
     
     Input:
         p           m x 3           ndarray         Array with the coordinates of the nodes and the boundary flag.
@@ -124,7 +168,7 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
             idx = indices[i, j]                                                                                                         # Fetch candidate index.
             d   = distances[i, j]                                                                                                       # Fetch candidate distance.
             
-            if idx >= 0 and idx < m and d <= 1.5 * dist:                                                                                # Check valid distance constraint.
+            if idx >= 0 and idx < m and d <= 5.0 * dist:                                                                                # Generous distance constraint for stabilization.
                 cand[cand_count]   = idx                                                                                                # Store candidate index.
                 dist_c[cand_count] = d                                                                                                  # Store candidate distance.
                 cand_count        += 1                                                                                                  # Increment candidate count.
@@ -155,34 +199,53 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
                     q4_c += 1                                                                                                           # Increment SE counter.
             
             selected = np.zeros(nvec, dtype=np.int64) - 1                                                                               # Array to store selected neighbors.
-            sel_c = 0                                                                                                                   # Counter for selected neighbors.
+            sel_c    = 0                                                                                                                # Counter for selected neighbors.
+            q_idx    = np.zeros(4, dtype=np.int64)                                                                                      # Index trackers for the 4 quadrants.
+            q_lens   = np.array([q1_c, q2_c, q3_c, q4_c], dtype=np.int64)                                                               # Number of points in each quadrant.
             
-            for q_arr, q_len in [(q1, q1_c), (q2, q2_c), (q3, q3_c), (q4, q4_c)]:                                                       # Iterate over quadrants.
-                take = min(q_len, target_per_quad)                                                                                      # Number of points to take from this quadrant.
+            while sel_c < nvec:                                                                                                         # Until we hit maximum allowed neighbors.
+                added_any = False                                                                                                       # Flag to check if we added a new point in this round.
                 
-                for j in range(take):                                                                                                   # Loop over quadrant points.
-                    if sel_c < nvec:                                                                                                    # If space is available.
-                        selected[sel_c] = q_arr[j]                                                                                      # Add point to selected list.
-                        sel_c          += 1                                                                                             # Increment selected counter.
-            
-            if sel_c < nvec:                                                                                                            # If more points are needed.
-                for j in range(cand_count):                                                                                             # Iterate over all candidates.
-                    idx              = cand[j]                                                                                          # Candidate index.
-                    already_selected = False                                                                                            # Flag to check if already selected.
-                    
-                    for k in range(sel_c):                                                                                              # Check against selected points.
-                        if selected[k] == idx:                                                                                          # If found.
-                            already_selected = True                                                                                     # Set flag.
-                            break                                                                                                       # Exit check loop.
-                    
-                    if not already_selected and sel_c < nvec:                                                                           # If not selected and space available.
+                for quad in range(4):                                                                                                   # Round-robin over quadrants.
+                    if q_idx[quad] < q_lens[quad]:                                                                                      # If quadrant has available points.
+                        if quad == 0:                                                                                                   # Quadrant NE.
+                            idx = q1[q_idx[quad]]                                                                                       # Fetch candidate index from NE.
+                        elif quad == 1:                                                                                                 # Quadrant NW.
+                            idx = q2[q_idx[quad]]                                                                                       # Fetch candidate index from NW.
+                        elif quad == 2:                                                                                                 # Quadrant SW.
+                            idx = q3[q_idx[quad]]                                                                                       # Fetch candidate index from SW.
+                        else:                                                                                                           # Quadrant SE.
+                            idx = q4[q_idx[quad]]                                                                                       # Fetch candidate index from SE.
+                            
                         selected[sel_c] = idx                                                                                           # Add point to selected list.
                         sel_c          += 1                                                                                             # Increment selected counter.
+                        q_idx[quad]    += 1                                                                                             # Advance quadrant index.
+                        added_any       = True                                                                                          # Mark as added.
+                        
+                        if sel_c >= nvec:                                                                                               # If we hit the absolute maximum.
+                            break                                                                                                       # Exit quadrant loop.
+                            
+                        if sel_c >= 9:                                                                                                  # Minimum neighbors required for stability.
+                            dx_arr = np.zeros(sel_c, dtype=np.float64)                                                                  # Temporary array for DX.
+                            dy_arr = np.zeros(sel_c, dtype=np.float64)                                                                  # Temporary array for DY.
+                            for k in range(sel_c):                                                                                      # Collect relative coordinates.
+                                dx_arr[k] = p[selected[k], 0] - p[i, 0]                                                                 # DX computation.
+                                dy_arr[k] = p[selected[k], 1] - p[i, 1]                                                                 # DY computation.
+                            condition = _check_stencil_condition_jit(dx_arr, dy_arr)                                                    # Check 2x2 spatial condition.
+                            if condition < 100.0:                                                                                       # If spatial condition is well distributed.
+                                break                                                                                                   # Stop adding neighbors dynamically!
+                                
+                if sel_c >= 9 and condition < 100.0:                                                                                    # Check again after breaking the inner loop.
+                    break                                                                                                               # Stop adding neighbors dynamically!
+                    
+                if not added_any:                                                                                                       # If no more candidates can be added from ANY quadrant.
+                    break                                                                                                               # Break condition loop.
             
+            # 3. Transfer to final vec array
             for j in range(sel_c):                                                                                                      # Transfer to vec.
                 vec[i, j] = selected[j]                                                                                                 # Save selected neighbors.
     
-    return vec                                                                                                                          # Return balanced neighbor list.
+    return vec                                                                                                                          # Return dynamically balanced neighbor list.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)
 def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, a: float, b: float, tol: float, m: int, nvec: int) -> np.ndarray:
@@ -289,7 +352,7 @@ def compute_neighbors(p: np.ndarray, nvec: int) -> np.ndarray:
 
     return vec                                                                                                                          # Return global neighbor list.
 
-def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np.ndarray:                                               # Compute an upwind-biased neighbor list for advection problems.
+def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np.ndarray:
     """
     compute_upwind_neighbors
     Convenience function to build an upwind-biased neighbor list for a point cloud.
@@ -317,7 +380,7 @@ def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np
 
     return vec                                                                                                                          # Return global neighbor list.
 
-def find_distances(p: np.ndarray) -> float:                                                                                             # Estimate a search radius dist from point spacing.
+def find_distances(p: np.ndarray) -> float:
     """
     find_distances
     Estimate a characteristic spacing from the point cloud and convert it to a search radius dist.
@@ -340,7 +403,7 @@ def find_distances(p: np.ndarray) -> float:                                     
 
     return dist                                                                                                                         # Return radius distance.
 
-def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:                                                                # Build an isotropic neighbor list within a radius.
+def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:
     """
     find_neighbors
     Find up to nvec neighbors for each point within a radius distance dist.
@@ -370,7 +433,7 @@ def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:        
     
     return vec                                                                                                                          # Return neighbor list.
 
-def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:                                                       # Build a quadrant-balanced neighbor list.
+def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:
     """
     find_neighbors_balanced
     Find up to nvec neighbors for each point, ensuring a balanced spatial distribution by
@@ -399,14 +462,14 @@ def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray
         distances = distances.reshape(-1, 1)                                                                                            # Reshape distances.
         indices   = indices.reshape(-1, 1)                                                                                              # Reshape indices.
         
-    target_per_quad = int(np.ceil(nvec / 4.0))                                                                                          # Target number of points per quadrant.
+    target_per_quad = min(3, int(np.ceil(nvec / 4.0)))                                                                                  # Target number of points per quadrant (max 3 for base seed).
     
     # 3. JIT-accelerated quadrant-balanced selection
     vec = _find_neighbors_balanced_jit(np.asarray(p, dtype=np.float64), indices, distances, dist, m, nvec, target_per_quad)             # Delegate balancing to Numba.
     
     return vec                                                                                                                          # Return balanced neighbor list.
 
-def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int) -> np.ndarray:                                        # Build an upwind-biased neighbor list.
+def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int) -> np.ndarray:
     """
     find_neighbors_adv
     Find up to nvec neighbors per node with an upwind preference for direction (a, b).

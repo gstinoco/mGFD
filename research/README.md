@@ -41,7 +41,7 @@ To maintain readability, the deep scientific details of the laboratory are divid
 
 ## :chart_with_upwards_trend: Experiment Reproduction
 
-To reproduce the results generated in the scientific publications, you can run the individual runners or the main orchestrator located in `codes/`:
+To reproduce the results generated in the scientific publications, or to generate massive performance benchmarks across all available point clouds, you can use the centralized parameter sweep orchestrator:
 
 ```bash
 # Move to the research/codes directory
@@ -49,21 +49,28 @@ cd research/codes
 
 # Run all experiment batches at once
 python sweep.py
-
-# Run a specific experiment
-python runners/run_Poisson.py
 ```
 
-### Performance Benchmarks
+### ⚙️ High-Performance Configuration (`sweep_config.json`)
 
-The benchmark suite measures execution time and memory usage across different problem scales and conditions:
+The orchestrator reads `codes/sweep_config.json` to generate a combinatorial execution matrix. You can modify this file to benchmark the new **GPU Acceleration** and **Matrix-Free** capabilities introduced in v0.11.0:
 
-```bash
-cd research/codes
-python analyze_benchmarks.py  # (O script equivalente para visualización de métricas)
+```json
+{
+    "nvec": [12, 16, 20],
+    "linear_solver": ["spsolve", "bicgstab", "gmres"],
+    "device": ["cpu", "cuda"],
+    "matrix_free": [false, true],
+    "preconditioner": [null, "ilu"],
+    "save": true,
+    "upwind": [true, false]
+}
 ```
 
-The results (CSVs and text reports) are deposited in `results/benchmarks/`.
+> [!TIP]
+> **Benchmarking GPU vs CPU:** Simply add `"cuda"` to the `"device"` array. The sweep will automatically run the problem on the CPU, and then re-run it on the GPU, outputting CSVs that allow for direct speedup comparisons.
+
+The results (CSVs containing metrics like `RMSE`, `execution_time_seconds`, and `peak_memory_mb`) are automatically exported to the `results/` directory at the root of the repository.
 
 ---
 
