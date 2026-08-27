@@ -52,8 +52,6 @@ from mGFD.exceptions import CloudShapeError, InputTypeError, DimensionMismatchEr
 from mGFD.solvers.results import SolverResult                                                                                           # Standard solver output structure.
 from mGFD.utils.adapters import extract_cloud, repack_solution                                                                          # Pandas/Xarray adapters.
 
-
-
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def Stationary(p: Union[np.ndarray, Any], 
