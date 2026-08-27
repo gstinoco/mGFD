@@ -221,6 +221,7 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
                 K2 = cp_csr_matrix(K2)                                                                                                  # Transfer explicit matrix to GPU.
                 K4 = cp_csr_matrix(K4)                                                                                                  # Transfer explicit matrix to GPU.
                 u_ap = cp.asarray(u_ap)                                                                                                 # Transfer solution matrix to GPU.
+                inne_n = cp.asarray(inne_n)                                                                                             # Transfer inner nodes to GPU.
             
             for k in range(1, t):                                                                                                       # Loop over all time steps.
                 if k == 1:                                                                                                              # Initial time step logic (k=1).
@@ -303,6 +304,8 @@ def TimeDerivative2(p: Union[np.ndarray, Any],
                 B1 = cp_csr_matrix(B1)                                                                                                  # Transfer RHS operator to GPU.
                 B2 = cp_csr_matrix(B2)                                                                                                  # Transfer RHS operator to GPU.
                 u_ap = cp.asarray(u_ap)                                                                                                 # Transfer solution matrix to GPU.
+                boun_n = cp.asarray(boun_n)                                                                                             # Transfer boundary nodes to GPU.
+                inne_n = cp.asarray(inne_n)                                                                                             # Transfer inner nodes to GPU.
             
             M1       = Gammas.compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None                            # type: ignore
             M2       = Gammas.compute_preconditioner(A2, preconditioner) if preconditioner else None                                    # type: ignore

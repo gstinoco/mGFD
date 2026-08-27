@@ -195,6 +195,7 @@ def TimeDerivative1(p: Union[np.ndarray, Any],
                     raise ImportError("CuPy is not installed. Please install it with 'pip install mGFD[gpu]'.")                         # Friendly error message.
                 K2 = cp_csr_matrix(K2)                                                                                                  # Transfer explicit matrix to GPU.
                 u_ap = cp.asarray(u_ap)                                                                                                 # Transfer solution matrix to GPU.
+                inne_n = cp.asarray(inne_n)                                                                                             # Transfer inner nodes to GPU.
             for k in range(1, t):                                                                                                       # Loop over all time steps.
                 un              = K2.dot(u_ap[:, k-1])                                                                                  # Explicit matrix-vector multiplication.
                 u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
@@ -242,6 +243,8 @@ def TimeDerivative1(p: Union[np.ndarray, Any],
                 A = cp_csc_matrix(A)                                                                                                    # Transfer LHS to GPU.
                 B = cp_csr_matrix(B)                                                                                                    # Transfer RHS operator to GPU.
                 u_ap = cp.asarray(u_ap)                                                                                                 # Transfer solution matrix to GPU.
+                boun_n = cp.asarray(boun_n)                                                                                             # Transfer boundary nodes to GPU.
+                inne_n = cp.asarray(inne_n)                                                                                             # Transfer inner nodes to GPU.
             
             M        = Gammas.compute_preconditioner(A, preconditioner) if preconditioner else None                                     # type: ignore
             
