@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **🛠️ Core Functionality**: Added `compute_preconditioner` inside `gammas.py` generating `scipy.sparse.linalg.LinearOperator` wrappers for ILU factorization and diagonal scaling (with dynamic CuPy compatibility).
 - **🧠 Adaptive Neighborhoods (Dynamic `nvec`)**: Modified KDTree search algorithms in `neighbors.py` (`_find_neighbors_balanced_jit`) to automatically build density-aware, condition-aware dynamic stencils using `np.linalg.cond` internally. The `nvec` solver parameter is now treated as an upper bound rather than a strict count.
 
+### 🔧 Changed
+- **🔄 Benchmark Orchestration**: Completely revamped `sweep.py` and `batch_utils.py` to automatically crawl JSON metrics and generate a consolidated `sweep_summary.csv` master file. This eliminates manual data aggregation for CPU vs GPU performance analysis.
+
+### 🐛 Fixed
+- **💥 Numba Segmentation Fault**: Fixed a critical memory fragmentation issue (segfault) in `neighbors.py` that occurred on Linux CI runners. Numba JIT loops now use strictly preallocated scratch arrays (`dx_arr`, `dy_arr`) to guarantee ABI stability across all operating systems.
+- **🐢 CUDA PCIe Bottleneck**: Resolved a massive performance degradation in `TimeDerivative1` and `TimeDerivative2` by explicitly transferring boundary (`boun_n`) and interior (`inne_n`) index arrays to VRAM (`cp.asarray`). This eliminates implicit host-device PCIe synchronization during the time integration loop, achieving the true theoretical speedup for explicit and factorized solvers on the GPU.
+
 ---
 
 ## [0.10.0]

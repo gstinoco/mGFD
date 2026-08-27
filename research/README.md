@@ -70,6 +70,9 @@ The orchestrator reads `codes/sweep_config.json` to generate a combinatorial exe
 > [!TIP]
 > **Benchmarking GPU vs CPU:** Simply add `"cuda"` to the `"device"` array. The sweep will automatically run the problem on the CPU, and then re-run it on the GPU, outputting CSVs that allow for direct speedup comparisons.
 
+> [!WARNING]
+> **Performance Caveat (CPU vs GPU):** When benchmarking implicit solvers (`implicit=True`) on small point clouds (Scales 1-3), the CPU (`device="cpu"`) will often drastically outperform CUDA. This is because sparse triangular substitutions and iterative solvers on small matrices suffer from heavy kernel launch overhead on the GPU. To see the true power of GPU acceleration, benchmark massive point clouds or use Explicit time integration (`implicit=False`) where matrix-vector multiplications parallelize perfectly.
+
 The raw metrics are exported as JSON files inside `results/`. **However, for your convenience, `sweep.py` will automatically crawl all generated JSONs at the end of the execution and compile a master `sweep_summary_YYYYMMDD_HHMMSS.csv` inside the `results/` folder.** This file contains a tabular view of all combinations (Equation, Scale, Device, Matrix-Free, Time, Error, etc.), making it incredibly easy to plot and analyze CPU vs GPU performance.
 
 ---

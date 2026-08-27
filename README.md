@@ -444,7 +444,13 @@ res = Stationary(
 ### 2. GPU Acceleration (NVIDIA CUDA)
 If you have an NVIDIA GPU and installed `cupy`, you can offload the entire linear algebra resolution to VRAM. **mGFD** handles the memory transfers seamlessly. 
 
-**Best for**: Massive speedups on large domains if you have the VRAM to hold the sparse matrix.
+> [!WARNING]
+> **CPU vs GPU Performance Paradigms**
+> GPUs are designed for massive parallelism, while CPUs excel at sequential logic. 
+> - **Use `device="cpu"`** for small-to-medium clouds (e.g. < 50,000 nodes), especially when using implicit methods (`implicit=True`) which require sequential triangular solves (`spsolve`) or iterative logic (`bicgstab`). The CPU will often be much faster due to low overhead.
+> - **Use `device="cuda"`** ONLY for massive point clouds where the CPU runs out of memory, OR when using Explicit Methods (`implicit=False`) which map perfectly to the GPU's parallel architecture.
+
+**Best for**: Massive speedups on large domains if you have the VRAM to hold the sparse matrix, or when running explicit time integration.
 **Available Solvers**: Works exceptionally well with direct solvers (`linear_solver="spsolve"`) and iterative solvers.
 ```python
 # Extremely fast solve on the GPU
