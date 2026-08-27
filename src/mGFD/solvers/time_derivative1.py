@@ -203,10 +203,12 @@ def TimeDerivative1(p: Union[np.ndarray, Any],
         if matrix_free:
             if linear_solver == "spsolve":
                 raise ParameterError("Direct solver 'spsolve' is incompatible with matrix_free=True.")                                  # Direct solvers need explicit matrix.
+                
             def A_matvec(x):                                                                                                            # Define the matvec closure for LHS matrix.
                 y = x - lam * dt * K_matvec(x)                                                                                          # Theta parameter applied to inner nodes.
                 y[boun_n] = x[boun_n]                                                                                                   # Identity applied to boundary nodes.
                 return y                                                                                                                # Return the result.
+            
             A = LinearOperator(shape=(m, m), matvec=A_matvec, dtype=np.float64)                                                         # type: ignore
             M = None                                                                                                                    # No preconditioner in matrix-free.
             for k in range(1, t):                                                                                                       # Loop over all time steps.

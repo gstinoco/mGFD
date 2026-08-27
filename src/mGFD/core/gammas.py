@@ -718,14 +718,21 @@ def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[U
                 from cupyx.scipy.sparse.linalg import spilu as cp_spilu                                                                 # Import CuPy spilu.
                 from cupyx.scipy.sparse.linalg import LinearOperator as cp_LinearOperator                                               # Import CuPy LinearOperator.
                 ilu_decomp = cp_spilu(K.tocsc())                                                                                        # Compute ILU decomposition on GPU.
-                M_x = lambda x: ilu_decomp.solve(x)                                                                                     # Define the solve operator.
+                
+                def M_x(x):                                                                                                             # Define the solve operator.
+                    return ilu_decomp.solve(x)                                                                                          # Return the solved value.
+                
                 return cp_LinearOperator((m, m), M_x)                                                                                   # Return the CuPy LinearOperator.
+            
             except RuntimeError:                                                                                                        # If ILU factorization fails.
                 return None                                                                                                             # Fallback to no preconditioner.
         else:                                                                                                                           # CPU matrix.
             try:
                 ilu_decomp = spilu(K.tocsc())                                                                                           # Compute ILU decomposition (requires CSC).
-                M_x = lambda x: ilu_decomp.solve(x)                                                                                     # Define the solve operator.
+                
+                def M_x(x):                                                                                                             # Define the solve operator.
+                    return ilu_decomp.solve(x)                                                                                          # Return the solved value.
+                
                 return LinearOperator((m, m), M_x)                                                                                      # Return the SciPy LinearOperator.
             except RuntimeError:                                                                                                        # If ILU factorization fails (e.g., exactly singular).
                 return None                                                                                                             # Fallback to no preconditioner.
@@ -736,7 +743,9 @@ def compute_preconditioner(K: Union[csr_matrix, Any], method: str) -> Optional[U
         diag = K.diagonal()                                                                                                             # Extract the main diagonal.
         diag[diag == 0] = 1e-12                                                                                                         # Prevent division by zero.
         inv_diag = 1.0 / diag                                                                                                           # Compute the inverse diagonal.
-        M_x = lambda x: inv_diag * x                                                                                                    # Define the scaling operator.
+        
+        def M_x(x):                                                                                                                     # Define the scaling operator.
+            return inv_diag * x                                                                                                         # Return the scaled value.
         
         if is_cupy:                                                                                                                     # If GPU matrix.
             from cupyx.scipy.sparse.linalg import LinearOperator as cp_LinearOperator                                                   # Import CuPy LinearOperator.
