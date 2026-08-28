@@ -114,14 +114,13 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         config = json.load(f)                                                                                                           # Parse JSON into a dictionary.
         
     nvec_list    = config.get('nvec', [12])                                                                                             # Extract neighbor list, default to [12].
-    solver_list  = config.get('linear_solver', ['spsolve'])                                                                             # Extract solver list, default to ['spsolve'].
     device_list  = config.get('device', ['cpu'])                                                                                        # Extract device list.
-    mf_list      = config.get('matrix_free', [False])                                                                                   # Extract matrix_free list.
-    pre_list     = config.get('preconditioner', [None])                                                                                 # Extract preconditioner list.
     upwind_list  = config.get('upwind', [True, False])                                                                                  # Extract upwind list, default to [True, False].
     input_types  = config.get('input_types', ['callable'])                                                                              # Extract input types, default to callable only.
-    save_outputs = config.get('save', False)                                                                                            # Extract save flag, default to False.
-    plot_appx    = config.get('plot_approximations', False)                                                                             # Extract plot_approximations flag, default to False.
+    save_cfg     = config.get('save', False)                                                                                            # Extract save config.
+    save_outputs = save_cfg[0] if isinstance(save_cfg, list) else save_cfg                                                              # Safely extract boolean.
+    plot_cfg     = config.get('plot_approximations', False)                                                                             # Extract plot config.
+    plot_appx    = plot_cfg[0] if isinstance(plot_cfg, list) else plot_cfg                                                              # Safely extract boolean.
     kwargs['save'] = save_outputs                                                                                                       # Inject save flag into kwargs.
     kwargs['input_types'] = input_types                                                                                                 # Inject input types into kwargs.
     kwargs['plot_approximations'] = plot_appx                                                                                           # Inject plot approximations flag into kwargs.
@@ -152,22 +151,22 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
             continue                                                                                                                    # Move to the next script.
 
         if run_file in ['run_AdvDif.py', 'run_Perturbation.py']:                                                                        # These scripts require upwind parameter.
-            combinations = list(itertools.product(nvec_list, solver_list, device_list, mf_list, pre_list, upwind_list))                 # Generate combinations including upwind.
+            combinations = list(itertools.product(nvec_list, device_list, upwind_list))                                                 # Generate combinations including upwind.
         else:                                                                                                                           # Other scripts don't use upwind.
-            combinations = list(itertools.product(nvec_list, solver_list, device_list, mf_list, pre_list, [None]))                      # Generate combinations without upwind.
+            combinations = list(itertools.product(nvec_list, device_list, [None]))                                                      # Generate combinations without upwind.
             
         total_runs += len(combinations)                                                                                                 # Accumulate total executions.
         
-        for nvec, solver, device, mf, pre, upwind in combinations:                                                                      # Iterate over configurations.
-            # -------------------------------------------------------------------------------------------------------------------------- # Advanced filtering rules
-            if mf:                                                                                                                      # matrix_free=True scales very poorly (O(N^2) in pure Python).
-                continue                                                                                                                # Discard to avoid 30s+ hangups on large meshes.
-            if device == 'cuda' and solver == 'spsolve':                                                                                # spsolve (direct solver) is notoriously slow on GPUs.
-                continue                                                                                                                # Discard spsolve for CUDA.
-            if device == 'cuda' and solver in ['bicgstab', 'gmres'] and pre not in ['jacobi', None]:                                    # ILU is slow to compute on GPUs.
-                continue                                                                                                                # Prioritize Jacobi or None for CUDA iterative solvers.
-            if solver == 'spsolve' and pre is not None:                                                                                 # Direct solvers don't use preconditioners.
-                continue                                                                                                                # Discard unnecessary preconditioner computations.
+        for nvec, device, upwind in combinations:                                                                                       # Iterate over configurations.
+            # -------------------------------------------------------------------------------------------------------------------------- # Hardware-specific solver routing
+            if device in ['cuda', 'gpu']:                                                                                               # GPU optimal configuration.
+                solver = 'gmres'                                                                                                        # Robust iterative solver for GPU.
+                pre    = 'ilu'                                                                                                          # ILU preconditioner to accelerate convergence.
+                mf     = False                                                                                                          # No matrix-free for ILU.
+            else:                                                                                                                       # CPU optimal configuration.
+                solver = 'spsolve'                                                                                                      # Robust direct solver for CPU.
+                pre    = None                                                                                                           # No preconditioner needed for direct solver.
+                mf     = False                                                                                                          # Matrix-free is slow on CPU.
                 
             if upwind is not None:                                                                                                      # Determine if upwind applies.
                 config_str = f'nvec={nvec}, solver={solver}, dev={device}, mf={mf}, pre={pre}, up={upwind}'                             # Format config with upwind.

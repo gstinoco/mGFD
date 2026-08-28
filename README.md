@@ -512,8 +512,6 @@ mGFD/
 └── tests/                    # CI/CD Unit and Integration tests
 ```
 
----
-
 ## 🤝 Contributing & Citation
 
 ### Contributing

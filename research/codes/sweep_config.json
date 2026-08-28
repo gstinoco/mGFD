@@ -2,22 +2,9 @@
     "nvec": [
         20
     ],
-    "linear_solver": [
-        "spsolve",
-        "bicgstab"
-    ],
     "device": [
         "cpu",
         "cuda"
-    ],
-    "matrix_free": [
-        false,
-        true
-    ],
-    "preconditioner": [
-        null,
-        "ilu",
-        "jacobi"
     ],
     "upwind": [
         true,
