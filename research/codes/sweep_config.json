@@ -19,9 +19,17 @@
         "ilu",
         "jacobi"
     ],
-    "save": true,
     "upwind": [
         true,
+        false
+    ],
+    "input_types": [
+        "callable"
+    ],
+    "save": [
+        true
+    ],
+    "plot_approximations": [
         false
     ]
 }

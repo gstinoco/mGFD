@@ -138,6 +138,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
     matrix_free     = kwargs.get('matrix_free', False)                                                                                  # Extract matrix_free flag, default False.
     preconditioner  = kwargs.get('preconditioner', None)                                                                                # Extract preconditioner, default None.
+    input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                                        # Extract input_types, default all.
     config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}'                                       # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
@@ -146,38 +147,52 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     L    = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                                    # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
     
     # 3. Solver Execution
-    # --- A. Using Callable ---
-    res_call = Stationary(                                                                                                              # Solve the stationary Poisson problem (Callable).
-        p, phi, f, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = verbose_solvers # Execute with dynamic config.
-    )                                                                                                                                   # Extract solver result object.
-    
-    # --- B. Using Numpy Arrays ---
+    u_ap, vec = None, vec0                                                                                                              # Initialize solution and neighbors.
+    comp_time = 0.0                                                                                                                     # Initialize compute time.
     phi_arr = phi(p[:, 0], p[:, 1])                                                                                                     # Precompute boundary array.
     f_arr   = f(p[:, 0], p[:, 1])                                                                                                       # Precompute forcing term array.
-    res_arr = Stationary(                                                                                                               # Solve using array inputs.
-        p, phi_arr, f_arr, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False # Silent execution for array test.
-    )
-    assert np.allclose(res_call.solution, res_arr.solution), "Mismatch between Callable and Array solver outputs."                      # Validate output equivalence.
+
+    # --- A. Using Callable ---
+    if 'callable' in input_types:                                                                                                       # Check if callable test is enabled.
+        res_call = Stationary(                                                                                                          # Solve the stationary Poisson problem (Callable).
+            p, phi, f, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = verbose_solvers # Execute with dynamic config.
+        )                                                                                                                               # Extract solver result object.
+        u_ap, vec  = res_call.solution, res_call.neighbors                                                                              # Unpack approximate solution and neighbor list.
+        comp_time  = res_call.compute_time                                                                                              # Get solver execution time from v0.10.0 dataclass.
+    
+    # --- B. Using Numpy Arrays ---
+    if 'array' in input_types:                                                                                                          # Check if array test is enabled.
+        res_arr = Stationary(                                                                                                           # Solve using array inputs.
+            p, phi_arr, f_arr, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False # Silent execution for array test.
+        )
+        if u_ap is not None:                                                                                                            # If previous result exists, validate.
+            assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."                           # Validate output equivalence.
+        else:                                                                                                                           # If callable was skipped.
+            u_ap, vec  = res_arr.solution, res_arr.neighbors                                                                            # Unpack approximate solution and neighbor list.
+            comp_time  = res_arr.compute_time                                                                                           # Get solver execution time from v0.10.0 dataclass.
     
     # --- C. Using Pandas DataFrames/Series ---
-    phi_pd = pd.Series(phi_arr.tolist())                                                                                                # Wrap array in Pandas Series.
-    f_pd   = pd.Series(f_arr.tolist())                                                                                                  # Wrap array in Pandas Series.
-    res_pd = Stationary(                                                                                                                # Solve using Pandas inputs.
-        p, phi_pd, f_pd, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False # Silent execution for Pandas test.
-    )
-    assert np.allclose(res_call.solution, res_pd.solution), "Mismatch between Callable and Pandas solver outputs."                      # Validate output equivalence.
-    
-    u_ap, vec  = res_call.solution, res_call.neighbors                                                                                  # Unpack approximate solution and neighbor list.
-    comp_time  = res_call.compute_time                                                                                                  # Get solver execution time from v0.10.0 dataclass.
+    if 'pandas' in input_types:                                                                                                         # Check if pandas test is enabled.
+        phi_pd = pd.Series(phi_arr.tolist())                                                                                            # Wrap array in Pandas Series.
+        f_pd   = pd.Series(f_arr.tolist())                                                                                              # Wrap array in Pandas Series.
+        res_pd = Stationary(                                                                                                            # Solve using Pandas inputs.
+            p, phi_pd, f_pd, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False # Silent execution for Pandas test.
+        )
+        if u_ap is not None:                                                                                                            # If previous result exists, validate.
+            assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."                     # Validate output equivalence.
+        else:                                                                                                                           # If no previous result exists.
+            u_ap, vec  = res_pd.solution, res_pd.neighbors                                                                              # Unpack approximate solution and neighbor list.
+            comp_time  = res_pd.compute_time                                                                                            # Get solver execution time from v0.10.0 dataclass.
+            
+    if u_ap is None: raise ValueError("No valid input_types were specified.")                                                           # Safety fallback.
     
     # 4. Exact Solution and Metrics
     u_ex    = phi_arr                                                                                                                   # Compute exact theoretical solution locally (already computed as phi_arr).
     metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time = comp_time)                                           # Compute comprehensive stationary error metrics.
     
     # Track extra compute times for numpy/pandas to demonstrate overhead
-    metrics['Time_Array']  = res_arr.compute_time                                                                                       # Array execution time.
-    metrics['Time_Pandas'] = res_pd.compute_time                                                                                        # Pandas execution time.
-    
+    if 'array' in input_types: metrics['Time_Array']  = res_arr.compute_time                                                            # Array execution time if computed.
+    if 'pandas' in input_types: metrics['Time_Pandas'] = res_pd.compute_time                                                            # Pandas execution time if computed.
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f'\tError (RMSE): {metrics["RMSE"]}')                                                                               # Print RMSE error for quick inspection.
 
@@ -189,13 +204,14 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
 
     # 6. Graphical rendering
     if save:                                                                                                                            # Save graphical outputs if requested.
+        cloud_name = os.path.basename(cloud_path).replace('.csv', '')                                                                   # Extract clean cloud name.
         if scale == '3':                                                                                                                # Only for scale 3.
-            if config_id.startswith('nvec_16_spsolve'):                                                                                 # Only plot baseline config.
-                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Approximation_{config_id}'),
+            if config_id.startswith('nvec_20_spsolve') or kwargs.get('plot_approximations', False):                                     # Only plot baseline config or if explicitly requested.
+                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),
                             title='Stationary Appx', verbose=verbose)                                                                   # Save 3D scatter image.
         
-            exact_nom = os.path.join(out_dir, 'Exact')                                                                                  # Define exact solution filename.
-            if not os.path.exists(exact_nom + '.png'):                                                                                  # Avoid regenerating the exact solution.
+            exact_nom = os.path.join(out_dir, f'Exact_{cloud_name}')                                                                    # Define exact solution filename linked to the cloud.
+            if not os.path.exists(exact_nom + '.png'):                                                                                  # Check for PNG rendering.
                 plot_stationary(p, u_ex, save=True, nom=exact_nom,
                             title='Theoretical Solution', verbose=verbose)                                                              # Create independent plot of exact solution.
 

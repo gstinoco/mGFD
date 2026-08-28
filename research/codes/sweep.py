@@ -89,7 +89,7 @@ def import_module_from_file(file_path: str, verbose: bool = True, **kwargs: Any)
     
     except Exception as e:                                                                                                              # Catch any failure while importing/executing the script.
         if verbose:                                                                                                                     # Check if verbosity is enabled.
-            logger.error(f'Error importing {file_path}: {str(e)}')                                                                      # Print an actionable error message.
+            import traceback; logger.error(f'Error importing {file_path}: {traceback.format_exc()}')                                                                      # Print an actionable error message.
         
         return False                                                                                                                    # Report failure.
 
@@ -119,8 +119,12 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
     mf_list      = config.get('matrix_free', [False])                                                                                   # Extract matrix_free list.
     pre_list     = config.get('preconditioner', [None])                                                                                 # Extract preconditioner list.
     upwind_list  = config.get('upwind', [True, False])                                                                                  # Extract upwind list, default to [True, False].
+    input_types  = config.get('input_types', ['callable'])                                                                              # Extract input types, default to callable only.
     save_outputs = config.get('save', False)                                                                                            # Extract save flag, default to False.
+    plot_appx    = config.get('plot_approximations', False)                                                                             # Extract plot_approximations flag, default to False.
     kwargs['save'] = save_outputs                                                                                                       # Inject save flag into kwargs.
+    kwargs['input_types'] = input_types                                                                                                 # Inject input types into kwargs.
+    kwargs['plot_approximations'] = plot_appx                                                                                           # Inject plot approximations flag into kwargs.
     
     run_files: List[str] = [                                                                                                            # List of files to execute.
         'run_Poisson.py',                                                                                                               # Stationary Poisson reference.
