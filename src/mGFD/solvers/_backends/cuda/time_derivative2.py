@@ -147,17 +147,19 @@ def solve_cuda(p: np.ndarray,                                                   
         Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
         Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
         
-        A1       = Id_inner @ (eye(m) - lam * (1/2) * K) + Id_bound                                                                     # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
-        B1       = Id_inner @ (eye(m) + (1 - lam) * (1/2) * K)                                                                          # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
+        A1       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
+        B1       = Id_inner @ (eye(m) + (0.5 - lam) * K)                                                                                # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
         
         A2       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k>=2).
         A2       = A2.tocsc()                                                                                                           # Convert to CSC format for efficient SuperLU factorization.
-        B2       = Id_inner @ (2*eye(m) + (1 - lam) * K)                                                                                # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
+        B2       = Id_inner @ (2*eye(m) + (1 - 2*lam) * K)                                                                              # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
+        C2       = Id_inner @ (eye(m) - lam * K)                                                                                        # RHS Matrix for k-2 term.
         
         A1 = cp_csc_matrix(A1)                                                                                                          # Transfer LHS to GPU.
         A2 = cp_csc_matrix(A2)                                                                                                          # Transfer LHS to GPU.
         B1 = cp_csr_matrix(B1)                                                                                                          # Transfer RHS operator to GPU.
         B2 = cp_csr_matrix(B2)                                                                                                          # Transfer RHS operator to GPU.
+        C2 = cp_csr_matrix(C2)                                                                                                          # Transfer RHS operator to GPU.
         u_ap = cp.asarray(u_ap)                                                                                                         # Transfer solution matrix to GPU.
         boun_n = cp.asarray(boun_n)                                                                                                     # Transfer boundary nodes to GPU.
         inne_n = cp.asarray(inne_n)                                                                                                     # Transfer inner nodes to GPU.
@@ -191,7 +193,7 @@ def solve_cuda(p: np.ndarray,                                                   
                         if verbose: logger.warning(f"CUDA GMRES did not converge perfectly (code {info}) at time {k}.")                 # Warn on convergence issues.
                 u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
             else:                                                                                                                       # CPU Iterative Solver.
-                RHS             = B2.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                               # Right-hand side from previous steps.
+                RHS             = B2.dot(u_ap[:, k - 1]) - C2.dot(u_ap[:, k - 2])                                                       # Right-hand side from previous steps.
                 RHS[boun_n]     = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
                 
                 if linear_solver == "spsolve":                                                                                          # Direct solver (spsolve).

@@ -154,7 +154,7 @@ def solve_cpu(p: np.ndarray,                                                    
                 """
                 A1_matvec
                 
-                Closure for the matrix-free application of (I - lam * 0.5 * dt**2 * K) * x.
+                Closure for the matrix-free application of (I - lam * dt**2 * K) * x.
                 
                 Input:
                     x           m               ndarray         Input vector to be multiplied.
@@ -162,7 +162,7 @@ def solve_cpu(p: np.ndarray,                                                    
                 Output:
                     y           m               ndarray         Resulting vector.
                 """
-                y = x - lam * (1/2) * (dt**2) * K_matvec(x)                                                                             # Theta parameter applied to inner nodes.
+                y = x - lam * (dt**2) * K_matvec(x)                                                                                     # Theta parameter applied to inner nodes.
                 y[boun_n] = x[boun_n]                                                                                                   # Identity applied to boundary nodes.
                 return y                                                                                                                # Return the result.
                 
@@ -191,7 +191,7 @@ def solve_cpu(p: np.ndarray,                                                    
                 if k == 1:                                                                                                              # Initial time step logic (k=1).
                     g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                  # Evaluate velocity for first step.
                     u_prev = u_ap[:, k - 1]                                                                                             # Previous step solution.
-                    RHS = u_prev + (1 - lam) * (1/2) * (dt**2) * K_matvec(u_prev) + dt*g_val                                            # Matrix-free RHS calculation for k=1.
+                    RHS = u_prev + (0.5 - lam) * (dt**2) * K_matvec(u_prev) + dt*g_val                                                  # Matrix-free RHS calculation for k=1.
                     RHS[boun_n] = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
                     if linear_solver == "bicgstab":                                                                                     # Iterative solver (BiCGStab).
                         un, info = bicgstab(A1, RHS, M=M1)                                                                              # Solve system.
@@ -204,7 +204,7 @@ def solve_cpu(p: np.ndarray,                                                    
                 else:                                                                                                                   # CPU Iterative Solver.
                     u_prev1 = u_ap[:, k - 1]                                                                                            # Previous step solution.
                     u_prev2 = u_ap[:, k - 2]                                                                                            # Previous step solution.
-                    RHS = 2 * u_prev1 + (1 - lam) * (dt**2) * K_matvec(u_prev1) - u_prev2                                               # Matrix-free RHS calculation for k>=2.
+                    RHS = 2 * u_prev1 + (1 - 2*lam) * (dt**2) * K_matvec(u_prev1) - u_prev2 + lam * (dt**2) * K_matvec(u_prev2)         # Matrix-free RHS calculation for k>=2.
                     RHS[boun_n] = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
                     if linear_solver == "bicgstab":                                                                                     # Iterative solver (BiCGStab).
                         un, info = bicgstab(A2, RHS, x0=u_prev1, M=M2)                                                                  # Solve system.
@@ -218,12 +218,13 @@ def solve_cpu(p: np.ndarray,                                                    
             Id_inner = diags(inne_n.astype(float))                                                                                      # Diagonal mask for inner nodes.
             Id_bound = diags(boun_n.astype(float))                                                                                      # Diagonal mask for boundary nodes.
             
-            A1       = Id_inner @ (eye(m) - lam * (1/2) * K) + Id_bound                                                                 # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
-            B1       = Id_inner @ (eye(m) + (1 - lam) * (1/2) * K)                                                                      # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
+            A1       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                         # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
+            B1       = Id_inner @ (eye(m) + (0.5 - lam) * K)                                                                            # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
             
             A2       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                         # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k>=2).
             A2       = A2.tocsc()                                                                                                       # Convert to CSC format for efficient SuperLU factorization.
-            B2       = Id_inner @ (2*eye(m) + (1 - lam) * K)                                                                            # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
+            B2       = Id_inner @ (2*eye(m) + (1 - 2*lam) * K)                                                                          # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
+            C2       = Id_inner @ (eye(m) - lam * K)                                                                                    # RHS Matrix for k-2 term.
             
             M1       = None if linear_solver == "spsolve" else (compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None) # type: ignore
             M2       = None if linear_solver == "spsolve" else (compute_preconditioner(A2, preconditioner) if preconditioner else None) # type: ignore
@@ -254,7 +255,7 @@ def solve_cpu(p: np.ndarray,                                                    
                             if verbose: logger.warning(f"GMRES did not converge perfectly (code {info}) at time {k}.")                  # Warn on convergence issues.
                     u_ap[inne_n, k] = un[inne_n]                                                                                        # Update interior nodes.
                 else:                                                                                                                   # CPU Iterative Solver.
-                    RHS             = B2.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                           # Right-hand side from previous steps.
+                    RHS             = B2.dot(u_ap[:, k - 1]) - C2.dot(u_ap[:, k - 2])                                                   # Right-hand side from previous steps.
                     RHS[boun_n]     = u_ap[boun_n, k]                                                                                   # Inject exact boundary condition for time k>=2.
                     
                     if linear_solver == "spsolve":                                                                                      # Direct solver (spsolve).
