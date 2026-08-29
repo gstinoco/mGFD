@@ -92,7 +92,7 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
     ax = sns.barplot(                                                                                                                   # Create bar plot.
         data=df,                                                                                                                        # Data source.
         x='Scale',                                                                                                                      # X axis.
-        y='Time_Array',                                                                                                                 # Y axis.
+        y='Time_Callable',                                                                                                              # Y axis.
         hue='Device',                                                                                                                   # Color grouping.
         errorbar=None,                                                                                                                  # Disable error bars.
         palette=['#4C72B0', '#55A868']                                                                                                  # Define colors.
@@ -117,12 +117,12 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
         
         df_large_copy = df_large.copy()                                                                                                 # Copy dataframe slice.
         df_large_copy['Config'] = df_large_copy.apply(lambda r: f"{r['Solver']} ({r['Device']})", axis=1)                               # Combine solver and device.
-        df_large_copy = df_large_copy.sort_values('Time_Array')                                                                         # Sort by time.
+        df_large_copy = df_large_copy.sort_values('Time_Callable')                                                                      # Sort by time.
         
         ax2 = sns.barplot(                                                                                                              # Create detailed bar plot.
             data=df_large_copy,                                                                                                         # Data source.
             x='Config',                                                                                                                 # X axis.
-            y='Time_Array',                                                                                                             # Y axis.
+            y='Time_Callable',                                                                                                          # Y axis.
             hue='Device',                                                                                                               # Color grouping.
             dodge=False,                                                                                                                # Disable dodging.
             palette=['#4C72B0', '#55A868']                                                                                              # Define colors.
@@ -142,6 +142,6 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
         print(f"Saved plot: {out_path2}")                                                                                               # Inform user.
 
 if __name__ == '__main__':                                                                                                              # Main execution block.
-    root = '../results'                                                                                                                 # Define results root.
+    root = 'research/results'                                                                                                                 # Define results root.
     out = os.path.join(root, 'sweep_plots')                                                                                             # Define output directory.
     plot_sweep_results(root, out)                                                                                                       # Run visualization.
