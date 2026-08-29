@@ -142,6 +142,6 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
         print(f"Saved plot: {out_path2}")                                                                                               # Inform user.
 
 if __name__ == '__main__':                                                                                                              # Main execution block.
-    root = '/Users/gtinoco/Documents/Documentos/Codigos/Research/mGFD/research/results'                                                 # Define results root.
+    root = '../results'                                                                                                                 # Define results root.
     out = os.path.join(root, 'sweep_plots')                                                                                             # Define output directory.
     plot_sweep_results(root, out)                                                                                                       # Run visualization.

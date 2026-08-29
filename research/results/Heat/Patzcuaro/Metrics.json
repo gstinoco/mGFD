@@ -1,0 +1,71 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 1067,
+            "Interior_Nodes": 585,
+            "Boundary_Nodes": 482,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9154938967508345
+        },
+        "Metrics": {
+            "nvec_20_spsolve_cpu_mfFalse_preNone": {
+                "Time_Mean_RMSE": 8.284389415835424e-07,
+                "Final_Step_RMSE": 6.713056557077505e-08,
+                "Time_Callable": 0.22970455599715933
+            },
+            "nvec_20_gmres_cuda_mfFalse_preilu": {
+                "Time_Mean_RMSE": 8.284389415833625e-07,
+                "Final_Step_RMSE": 6.7130565570774e-08,
+                "Time_Callable": 86.16863263200503
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 3145,
+            "Interior_Nodes": 2333,
+            "Boundary_Nodes": 812,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9154938967508345
+        },
+        "Metrics": {
+            "nvec_20_spsolve_cpu_mfFalse_preNone": {
+                "Time_Mean_RMSE": 9.53020100140145e-08,
+                "Final_Step_RMSE": 7.758342406712492e-09,
+                "Time_Callable": 0.8027354239893612
+            },
+            "nvec_20_gmres_cuda_mfFalse_preilu": {
+                "Time_Mean_RMSE": 9.530201001544956e-08,
+                "Final_Step_RMSE": 7.758342406834157e-09,
+                "Time_Callable": 246.15918800400686
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 6318,
+            "Interior_Nodes": 5324,
+            "Boundary_Nodes": 994,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9154938967508345
+        },
+        "Metrics": {
+            "nvec_20_spsolve_cpu_mfFalse_preNone": {
+                "Time_Mean_RMSE": 3.2942188552592686e-08,
+                "Final_Step_RMSE": 2.7237176398983358e-09,
+                "Time_Callable": 1.9600628239859361
+            },
+            "nvec_20_gmres_cuda_mfFalse_preilu": {
+                "Time_Mean_RMSE": 3.294218855314256e-08,
+                "Final_Step_RMSE": 2.7237176399493005e-09,
+                "Time_Callable": 555.3586388239928
+            }
+        }
+    }
+}
