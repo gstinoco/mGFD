@@ -49,8 +49,9 @@ Last Modification:
 import logging                                                                                                                          # Standard logging module.
 import matplotlib                                                                                                                       # Plotting interface.
 import numpy as np                                                                                                                      # Core numerical operations.
-import matplotlib.cm as cm
-import matplotlib.pyplot as plt
+import numpy.typing as npt                                                                                                              # Numpy type hinting.
+import matplotlib.cm as cm                                                                                                              # Matplotlib colormaps.
+import matplotlib.pyplot as plt                                                                                                         # Matplotlib plotting interface.
 
 from matplotlib import animation                                                                                                        # Animation framework.
 from matplotlib.animation import FuncAnimation                                                                                          # Animation helper.
@@ -195,7 +196,7 @@ def _generate_static_views(render_func: Callable, title: str, save_path: Optiona
         plt.show()                                                                                                                      # Display the interactive plot window.
 
 
-def plot_stationary(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
+def plot_stationary(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
     """
     plot_stationary
     Render a single 3D scatter plot of the solution for a stationary PDE problem.
@@ -236,7 +237,7 @@ def plot_stationary(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str =
         _generate_static_views(draw_plot, title, show=True, verbose=verbose)                                                            # Generate and show interactive views.
 
 
-def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
+def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
     """
     plot_transient
     Render a single 3D scatter plot of the solution for a transient PDE problem,
@@ -367,7 +368,7 @@ def plot_transient(p: np.ndarray, u: np.ndarray, save: bool = False, nom: str = 
         plt.close(fig_top)                                                                                                              # Close figure to release memory.
 
 
-def plot_transient_steps(p: np.ndarray, u: np.ndarray, nom: str, title: str = 'Solution', verbose: bool = True) -> None:
+def plot_transient_steps(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], nom: str, title: str = 'Solution', verbose: bool = True) -> None:
     """
     plot_transient_steps
     Render and save static single 3D scatter plots of the solution at a few key time steps

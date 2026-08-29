@@ -48,9 +48,7 @@ import matplotlib.pyplot as plt                                                 
 from typing import List, Optional                                                                                                       # Import type hints.
 from matplotlib.collections import LineCollection                                                                                       # For fast line rendering.
 
-matplotlib.use('Agg')                                                                                                                   # Force headless backend.
-
-def create_visualization(points: np.ndarray, regions_list: List[int], output_base: str, classifications: Optional[List[str]] = None) -> bool:
+def create_visualization(points: np.ndarray, regions_list: List[int], output_base: str, classifications: Optional[List[str]] = None, save: bool = True) -> bool:
     """
     create_visualization
     Create a visualization of the generated point cloud.
@@ -63,6 +61,7 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
         regions_list        List[int]               Region assignments for each node.
         output_base         str                     Base path for output files (without extension).
         classifications     Optional[List[str]]     Node classifications ('boundary' or 'interior'). Default is None.
+        save                bool                    If True, save to disk. If False, show interactive plot.
     
     Output:
         success             bool                    True if visualization was successful, False otherwise.
@@ -100,7 +99,7 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
             classifications_arr = np.array(['interior'] * len(points))                                                                  # Default all to interior.
             
         # 3. Setup plot
-        plt.figure(figsize=(10, 8), dpi=300)                                                                                            # Create high resolution figure.
+        plt.figure(figsize=(10, 8))                                                                                                     # Create figure with standard screen DPI.
         ax = plt.gca()                                                                                                                  # Get current axes object.
         ax.set_aspect('equal')                                                                                                          # Force 1:1 aspect ratio.
         
@@ -137,12 +136,15 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., fontsize='small', markerscale=1.5)                     # Place legend outside plot.
         
         # 7. Save output files
-        png_file = f"{output_base}.png"                                                                                                 # Save PNG.
-        plt.savefig(png_file, format='png', bbox_inches='tight', dpi=300)                                                               # Write PNG to disk.
-        
-        svg_file = f"{output_base}.svg"                                                                                                 # Save SVG.
-        plt.savefig(svg_file, format='svg', bbox_inches='tight')                                                                        # Write SVG to disk.
-        
+        if save:                                                                                                                        # If saving to disk is requested.
+            png_file = f"{output_base}.png"                                                                                             # Save PNG.
+            plt.savefig(png_file, format='png', bbox_inches='tight', dpi=300)                                                           # Write PNG to disk.
+            
+            svg_file = f"{output_base}.svg"                                                                                             # Save SVG.
+            plt.savefig(svg_file, format='svg', bbox_inches='tight')                                                                    # Write SVG to disk.
+        else:                                                                                                                           # If interactive plotting is requested.
+            plt.show()                                                                                                                  # Display the interactive plot window.
+            
         plt.close()                                                                                                                     # Close figure to prevent memory leak.
         
         return True                                                                                                                     # Return success state.
@@ -174,7 +176,7 @@ def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, re
         neighbors_indices_arr = np.array(neighbors_indices)                                                                             # Ensure neighbor indices are an array.
         
         # 1. Setup plot
-        plt.figure(figsize=(10, 8), dpi=300)                                                                                            # Create high resolution figure.
+        plt.figure(figsize=(10, 8))                                                                                                     # Create figure with standard screen DPI.
         ax = plt.gca()                                                                                                                  # Get the active axes.
         ax.set_aspect('equal')                                                                                                          # Set equal scaling.
         

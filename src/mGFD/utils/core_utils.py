@@ -147,7 +147,7 @@ def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optiona
     y                = p[:, 1]                                                                                                          # Extract Y coordinates directly from p.
 
     dist             = find_distances(np.column_stack([x, y, np.zeros_like(x)]))                                                        # Estimate typical point spacing.
-    threshold        = 2.5 * dist                                                                                                       # Max allowed edge length.
+    threshold        = 1.3 * dist                                                                                                       # Max allowed edge length to preserve concavities perfectly.
 
     global_triangles = []                                                                                                               # Initialize empty list for valid triangles.
     xy               = np.column_stack([x, y])                                                                                          # Create 2D coordinate array.

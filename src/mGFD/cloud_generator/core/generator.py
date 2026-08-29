@@ -61,21 +61,21 @@ from mGFD.cloud_generator.core.point_generation import (                        
 )
 
 def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main_region_strategy: Callable, interior_regions_strategy: Callable, 
-                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0) -> Dict:
+                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:
     """
     _generate_cloud_core
-    Core function for cloud generation to strictly follow DRY principle.
-    Encapsulates common logic for Natural and Regular distribution methods.
+    Core generation logic shared between different distribution methods.
     
     Input:
-        csv_file                    str         Path to input CSV file.
-        output_file                 str         Base path for output files.
-        method_name                 str         Name of the method (Natural or Regular).
-        main_region_strategy        Callable    Function for main region generation.
-        interior_regions_strategy   Callable    Function for interior regions generation.
-        inside_regions              bool        Enable multi-region processing for interior holes.
-        cloud_size                  float       Override automatic cloud size calculation.
-        density_multiplier          float       Multiplier for the point cloud density.
+        csv_file                    str         Path to boundary CSV.
+        output_file                 str         Output filename base.
+        method_name                 str         Name of generation method ('Natural' or 'Regular').
+        main_region_strategy        Callable    Function to generate main region cloud.
+        interior_regions_strategy   Callable    Function to generate interior regions cloud.
+        inside_regions              bool        Whether to process interior holes.
+        cloud_size                  Optional    Override distance parameter.
+        density_multiplier          float       Density scaling factor.
+        save                        bool        Whether to save visualization files or show interactively.
         
     Output:
         results                     Dict        Comprehensive results dictionary.
@@ -144,7 +144,7 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
             return {"success": False, "error": "Failed to export CSV"}                                                                  # Return failure status.
         
         output_base = os.path.splitext(output_file)[0]                                                                                  # Get base filename without extension.
-        create_visualization(all_points_arr, all_regions, output_base, classifications)                                                 # Generate visual representation.
+        create_visualization(all_points_arr, all_regions, output_base, classifications, save)                                           # Generate visual representation.
         
         # 8. Result packaging
         results = {                                                                                                                     # Build the success dictionary.
@@ -171,7 +171,7 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
 def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0) -> Dict:
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:
     """
     generate_cloud_natural
     Generate point cloud using Natural Distribution algorithm with Poisson Disk Sampling.
@@ -186,6 +186,7 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         inside_regions      bool        Enable multi-region processing for interior holes.
         cloud_size          float       Override automatic cloud size calculation.
         density_multiplier  float       Multiplier for the point cloud density. Default is 1.0.
+        save                bool        If True, save to disk. If False, show interactive plot.
     
     Output:
         results             Dict        Comprehensive results dictionary.
@@ -198,7 +199,7 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         return _generate_cloud_core(                                                                                                    # Execute core logic.
             csv_file, output_file, "Natural",                                                                                           # Set file paths and method name.
             main_strategy, interior_strategy,                                                                                           # Set appropriate generation strategies.
-            inside_regions, cloud_size, density_multiplier                                                                              # Forward other parameters.
+            inside_regions, cloud_size, density_multiplier, save                                                                        # Forward other parameters.
         )
         
     # 2. Exception handling
@@ -208,7 +209,7 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
 def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0) -> Dict:
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:
     """
     generate_cloud_regular
     Generate point cloud using Regular Distribution algorithm with grid-based approach.
@@ -223,6 +224,7 @@ def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool
         inside_regions      bool        Enable multi-region processing for interior holes.
         cloud_size          float       Override automatic cloud size calculation.
         density_multiplier  float       Multiplier for the point cloud density. Default is 1.0.
+        save                bool        If True, save to disk. If False, show interactive plot.
     
     Output:
         results             Dict        Comprehensive results dictionary.
@@ -235,7 +237,7 @@ def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool
         return _generate_cloud_core(                                                                                                    # Execute core logic.
             csv_file, output_file, "Regular",                                                                                           # Set file paths and method name.
             main_strategy, interior_strategy,                                                                                           # Set appropriate generation strategies.
-            inside_regions, cloud_size, density_multiplier                                                                              # Forward other parameters.
+            inside_regions, cloud_size, density_multiplier, save                                                                        # Forward other parameters.
         )
         
     # 2. Exception handling
