@@ -3,7 +3,7 @@ run_Heat — Reference batch for the 2D Heat equation
 
 Overview:
     This script runs the first-order transient Heat reference problem on all available point clouds under
-    Data/ (both Clouds and Holes datasets), using the meshless mGFD solver.
+    Data/, using the meshless mGFD solver.
 
 Workflow:
     - Discover input clouds under Data/*/(0.50x|1.00x|1.50x)/*.csv
@@ -69,7 +69,6 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')                   
 
 DATA_ROOT: str    = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                     # Input dataset root directory.
 RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                                  # Output results root directory.
-SCALES: tuple     = ('1', '2', '3')                                                                                                     # Scales to process under each dataset.
 
 ## Problem parameters.
 v: float = 0.2                                                                                                                          # Diffusion coefficient.
@@ -79,7 +78,7 @@ def f(x: np.ndarray, y: np.ndarray, t_val: float, coef: List[float]) -> np.ndarr
     """
     Heat analytical solution.
     """
-    return np.exp(-2 * np.pi**2 * coef[0] * t_val) * np.cos(np.pi * x) * np.cos(np.pi * y)
+    return np.exp(-2 * np.pi**2 * coef[0] * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)
 
 def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True, **kwargs: Any) -> None:
     """
@@ -87,7 +86,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     Run the transient Heat problem on a single point cloud file.
 
     Input:
-        dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
+        dataset                     str             Dataset folder name under Data/ (e.g., 'Catemaco', 'Chapala').
         scale                       str             Cloud scale folder (e.g., '1', '2').
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
@@ -115,13 +114,10 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         logger.info(f'Working on region: {region_id}')                                                                                  # Progress message for the batch run.
 
     nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
-    linear_solver   = kwargs.get('linear_solver', 'spsolve')                                                                            # Extract solver backend, default spsolve.
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    matrix_free     = kwargs.get('matrix_free', False)                                                                                  # Extract matrix_free flag, default False.
-    preconditioner  = kwargs.get('preconditioner', None)                                                                                # Extract preconditioner, default None.
     input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                                        # Extract input_types, default all.
-    config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}'                                       # Create unique config identifier for the sweep.
+    config_id       = f'nvec_{nvec}_{device}'                                                                                           # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
     p    = load_points(cloud_path, verbose=False)                                                                                       # Load point cloud into (m, 3) array [x, y, flag].
@@ -131,49 +127,60 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # 3. Solver Execution
     u_ap, vec = None, vec0                                                                                                              # Initialize solution and neighbors.
     comp_time = 0.0                                                                                                                     # Initialize compute time.
-    
-    # --- Precompute exact solution array for Array/Pandas tests and Metrics ---
-    T_arr = np.linspace(0, 1, t)                                                                                                        # Reconstruct time vector.
-    f_arr = np.zeros([len(p), t])                                                                                                       # Initialize exact solution matrix.
-    for k in range(t):                                                                                                                  # Loop over all time steps.
-        f_arr[:, k] = f(p[:, 0], p[:, 1], T_arr[k], [v])                                                                                # Compute exact theoretical solution.
+    t_param   = kwargs.get('t', None)                                                                                                   # Extract optional explicit t.
+    cfl_param = kwargs.get('cfl', 0.5)                                                                                                  # Extract optional target CFL.
+    res_main  = None                                                                                                                    # Main solver result reference.
         
     # --- A. Using Callable ---
     if 'callable' in input_types:                                                                                                       # Check if callable test is enabled.
         res_call = TimeDerivative1(                                                                                                     # Solve the transient heat problem (Callable).
-            p, f, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = verbose_solvers
+            p, f, t=t_param, cfl=cfl_param, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=verbose_solvers
         )                                                                                                                               # Extract solver result object.
         u_ap, vec  = res_call.solution, res_call.neighbors                                                                              # Unpack approximate solution and neighbor list.
-        comp_time  = res_call.compute_time                                                                                              # Get solver execution time from v0.10.0 dataclass.
+        comp_time  = res_call.compute_time                                                                                              # Get solver execution time.
+        res_main   = res_call                                                                                                           # Track main result object.
+        
+    t_used = res_main.t_steps if res_main is not None and res_main.t_steps is not None else (t_param if t_param is not None else 2000)   # Determine actual time steps executed.
+    T_arr = np.linspace(0, 1, t_used)                                                                                                   # Reconstruct time vector.
+    spatial_part  = np.sin(np.pi * p[:, 0]) * np.sin(np.pi * p[:, 1])                                                                   # Spatial part of solution.
+    temporal_part = np.exp(-2 * v * np.pi**2 * T_arr)                                                                                   # Temporal decay part.
+    f_arr         = np.outer(spatial_part, temporal_part)                                                                               # Vectorized outer product for exact solution.
         
     # --- B. Using Numpy Arrays ---
     if 'array' in input_types:                                                                                                          # Check if array test is enabled.
         res_arr = TimeDerivative1(                                                                                                      # Solve using array inputs.
-            p, f_arr, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False
+            p, f_arr, t=t_used, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=False
         )
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."                           # Validate output equivalence.
         else:                                                                                                                           # If callable was skipped.
             u_ap, vec  = res_arr.solution, res_arr.neighbors                                                                            # Unpack approximate solution and neighbor list.
-            comp_time  = res_arr.compute_time                                                                                           # Get solver execution time from v0.10.0 dataclass.
+            comp_time  = res_arr.compute_time                                                                                           # Get solver execution time.
+            res_main   = res_arr                                                                                                        # Track main result object.
     
     # --- C. Using Pandas DataFrames/Series ---
     if 'pandas' in input_types:                                                                                                         # Check if pandas test is enabled.
         f_pd = pd.DataFrame(f_arr)                                                                                                      # Wrap spatiotemporal array in Pandas DataFrame.
         res_pd = TimeDerivative1(                                                                                                       # Solve using Pandas inputs.
-            p, f_pd, t, [v], operator = L, vec = vec0, nvec = nvec, implicit = True, lam = 0.5, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False
+            p, f_pd, t=t_used, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=False
         )
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."                     # Validate output equivalence.
         else:                                                                                                                           # If no previous result exists.
             u_ap, vec  = res_pd.solution, res_pd.neighbors                                                                              # Unpack approximate solution and neighbor list.
-            comp_time  = res_pd.compute_time                                                                                            # Get solver execution time from v0.10.0 dataclass.
+            comp_time  = res_pd.compute_time                                                                                            # Get solver execution time.
+            res_main   = res_pd                                                                                                         # Track main result object.
             
     if u_ap is None: raise ValueError("No valid input_types were specified.")                                                           # Safety fallback.
     
     # 4. Exact Solution and Metrics
     u_ex    = f_arr                                                                                                                     # Compute exact theoretical solution locally.
     metrics = Errors.Compute_Metrics_Transient(p, vec, u_ap, u_ex, compute_time=comp_time)                                              # Compute comprehensive transient error metrics.
+    
+    if res_main is not None:                                                                                                            # Track CFL metrics.
+        metrics['CFL']        = res_main.cfl                                                                                            # Store CFL number.
+        metrics['dt']         = res_main.dt                                                                                             # Store time step size.
+        metrics['Time_Steps'] = res_main.t_steps                                                                                        # Store total time step count.
     
     # Track extra compute times for numpy/pandas to demonstrate overhead
     if 'array' in input_types: metrics['Time_Array']  = res_arr.compute_time                                                            # Array execution time.
@@ -211,7 +218,7 @@ def main(**kwargs: Any) -> None:
     Output:
         None
     """
-    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, SCALES, **kwargs)                                                           # Execute universal batch orchestrator.
+    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, **kwargs)                                                                   # Execute universal batch orchestrator.
 
 if __name__ == "__main__":
     main()

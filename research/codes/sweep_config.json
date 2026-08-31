@@ -1,4 +1,11 @@
 {
+    "scales": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+    ],
     "nvec": [
         20
     ],
@@ -14,9 +21,12 @@
         "callable"
     ],
     "save": [
-        true
+        false
     ],
     "plot_approximations": [
         false
+    ],
+    "cfl": [
+        0.1
     ]
 }

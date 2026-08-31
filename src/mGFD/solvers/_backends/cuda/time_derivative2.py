@@ -2,7 +2,7 @@
 TimeDerivative2 — CUDA Backend for Second-order Transient PDEs
 
 Overview:
-    CUDA implementation for solving hyperbolic PDEs (like the Wave equation).
+    CUDA implementation for solving hyperbolic PDEs (like the Wave equation) using pre-factorized direct cuSOLVER sparse solvers.
 
 Public API:
     solve_cuda                  Core CUDA execution routine for the hyperbolic solver.
@@ -43,8 +43,7 @@ from typing import Callable, Optional, Tuple, List, Union                       
 import mGFD.spatial.gammas as Gammas                                                                                                    # Gammas calculation and sparse matrix builder.
 import mGFD.spatial.neighbors as Neighbors                                                                                              # Neighbor search routines.
 
-from mGFD.exceptions import ParameterError, DimensionMismatchError                                                                      # Custom exceptions.
-from mGFD.solvers._backends.cuda.preconditioners import compute_preconditioner                                                          # Backend imports.
+from mGFD.exceptions import DimensionMismatchError                                                                                      # Custom exceptions.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
@@ -59,24 +58,18 @@ def solve_cuda(p: np.ndarray,                                                   
                nvec: int,
                implicit: bool,
                lam: float,
-               linear_solver: str,
-               preconditioner: Optional[str],
-               matrix_free: bool,
                verbose: bool) -> Tuple[np.ndarray, np.ndarray, bool]:
-    """CUDA backend for TimeDerivative2."""
+    """CUDA backend for TimeDerivative2 using direct pre-factorized cuSOLVER sparse LU solver."""
 
     try:                                                                                                                                # Attempt CuPy import.
         import cupy as cp                                                                                                               # CuPy GPU array operations.
         from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix, csc_matrix as cp_csc_matrix                                         # CuPy sparse matrices.
-        from cupyx.scipy.sparse.linalg import factorized as cp_factorized, bicgstab as cp_bicgstab, gmres as cp_gmres, spsolve as cp_spsolve # CuPy sparse linear solvers.
+        from cupyx.scipy.sparse.linalg import factorized as cp_factorized                                                               # CuPy direct sparse factorized solver.
     except ImportError:                                                                                                                 # Catch missing CuPy.
         raise ImportError("CuPy is not installed. Please install it with 'pip install mGFD[gpu]'.")                                     # Friendly error message.
 
-    if matrix_free:
-        raise ParameterError("matrix_free=True is incompatible with device='cuda'.")                                                    # CuPy requires explicit sparse matrices.
-
     m      = p.shape[0]                                                                                                                 # Total number of nodes.
-    if verbose: logger.info(f"Solving Transient problem ({t} steps) for {m} nodes on CUDA...")
+    if verbose: logger.info(f"Solving Wave/Hyperbolic problem ({t} steps) for {m} nodes on CUDA...")
         
     T      = np.linspace(0, 1, t)                                                                                                       # Time discretization array.
     dt     = T[1] - T[0]                                                                                                                # Time step size.
@@ -87,7 +80,7 @@ def solve_cuda(p: np.ndarray,                                                   
     if upwind:                                                                                                                          # If an Upwind stencil is requested.
         a = -operator[0][0] if operator.ndim == 2 else -operator[0]                                                                     # X-velocity (D coefficient).
         b = -operator[1][0] if operator.ndim == 2 else -operator[1]                                                                     # Y-velocity (E coefficient).
-
+    
     if callable(f):                                                                                                                     # If data is a function.
         for k in range(t):                                                                                                              # Loop over time.
             u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                                     # Boundary condition (Dirichlet).
@@ -97,23 +90,22 @@ def solve_cuda(p: np.ndarray,                                                   
             u_ap[boun_n, :] = f[boun_n, :]                                                                                              # Spatiotemporal boundary conditions.
             u_ap[:, 0] = f[:, 0]                                                                                                        # Initial conditions.
         elif f.ndim == 1 and f.shape[0] == m:                                                                                           # Spatial constant data array.
-            for k in range(t):                                                                                                          # Loop over time.
-                u_ap[boun_n, k] = f[boun_n]                                                                                             # Constant boundary conditions.
-            u_ap[:, 0] = f                                                                                                              # Initial conditions.
-        else:                                                                                                                           # CPU Iterative Solver.
+            for k in range(t): u_ap[boun_n, k] = f[boun_n]
+            u_ap[:, 0] = f                                                                                                              # Constant initial condition.
+        if isinstance(f, np.ndarray) and f.shape not in [(m, t), (m,)]:                                                                 # Check numeric matrix shape matches dimensions.
             raise DimensionMismatchError(f"Data array 'f' must have shape ({m}, {t}) or ({m},).")                                       # Raise explicit error.
     elif isinstance(f, (int, float)):                                                                                                   # If data is a constant scalar.
         u_ap[boun_n, :] = f                                                                                                             # Constant boundary condition.
-        u_ap[:, 0]      = f                                                                                                             # Constant initial condition.
-
-    if callable(g):                                                                                                                     # If data is a function.
+        u_ap[:, 0] = f                                                                                                                  # Constant initial condition.
+    
+    if callable(g):                                                                                                                     # If initial velocity is a function.
         g_eval = np.asarray(g(p[:, 0], p[:, 1], T[0], coef))                                                                            # Evaluate initial velocity function.
     elif isinstance(g, np.ndarray):                                                                                                     # If data is an array.
         if g.ndim == 1 and g.shape[0] == m:                                                                                             # Check correct spatial dimensions.
             g_eval = g                                                                                                                  # Use provided initial velocity array.
-        else:                                                                                                                           # CPU Iterative Solver.
+        else:
             raise DimensionMismatchError(f"Data array 'g' must have shape ({m},).")                                                     # Raise explicit error.
-    else:                                                                                                                               # CPU Iterative Solver.
+    else:
         g_eval = np.full(m, float(g))                                                                                                   # Use scalar value.
     
     if vec is None:                                                                                                                     # If no neighbor list is provided.
@@ -124,95 +116,51 @@ def solve_cuda(p: np.ndarray,                                                   
     K_spatial = Gammas.compute_sparse_matrix(p, vec, L)                                                                                 # Build sparse spatial differentiation matrix.
     K         = (dt**2) * K_spatial                                                                                                     # Scale by time step squared.
     
-    converged = True                                                                                                                    # Assume convergence by default.
+    u_ap_gpu   = cp.asarray(u_ap)                                                                                                       # Transfer solution matrix to VRAM.
+    boun_idx_gpu = cp.where(cp.asarray(boun_n))[0]                                                                                       # Integer index array for boundary nodes on GPU.
+    inne_idx_gpu = cp.where(cp.asarray(inne_n))[0]                                                                                       # Integer index array for interior nodes on GPU.
     
-    if not implicit:                                                                                                                    # If an explicit scheme is requested.
-        K2 = eye(m) + (1/2)*K                                                                                                           # Explicit matrix for k = 1.
-        K4 = 2*eye(m) + K                                                                                                               # Explicit matrix for k = 2, ..., t.
-        
-        K2 = cp_csr_matrix(K2)                                                                                                          # Transfer explicit matrix to GPU.
-        K4 = cp_csr_matrix(K4)                                                                                                          # Transfer explicit matrix to GPU.
-        u_ap = cp.asarray(u_ap)                                                                                                         # Transfer solution matrix to GPU.
-        inne_n = cp.asarray(inne_n)                                                                                                     # Transfer inner nodes to GPU.
+    if not implicit:                                                                                                                    # Explicit scheme on GPU.
+        K2_gpu = cp_csr_matrix(eye(m) + (1/2)*K)                                                                                        # Transfer explicit matrix k=1.
+        K4_gpu = cp_csr_matrix(2*eye(m) + K)                                                                                            # Transfer explicit matrix k>=2.
         
         for k in range(1, t):                                                                                                           # Loop over all time steps.
-            if k == 1:                                                                                                                  # Initial time step logic (k=1).
+            if k == 1:                                                                                                                  # Initial time step (k=1).
                 g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
-                un              = K2.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # New time-level (k=1) using du/dt.
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
-            else:                                                                                                                       # CPU Iterative Solver.
-                un              = K4.dot(u_ap[:, k - 1]) - u_ap[:, k - 2]                                                               # New time-level (k>=2) using Leapfrog/Verlet.
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
-    else:                                                                                                                               # CPU Iterative Solver.
+                g_val_gpu = cp.asarray(g_val)                                                                                           # Transfer velocity array to VRAM.
+                un                      = K2_gpu.dot(u_ap_gpu[:, k - 1]) + dt*g_val_gpu                                                 # New time level (k=1).
+                u_ap_gpu[inne_idx_gpu, k] = un[inne_idx_gpu]                                                                            # Update interior nodes.
+            else:
+                un                      = K4_gpu.dot(u_ap_gpu[:, k - 1]) - u_ap_gpu[:, k - 2]                                           # New time level (k>=2).
+                u_ap_gpu[inne_idx_gpu, k] = un[inne_idx_gpu]                                                                            # Update interior nodes.
+    else:                                                                                                                               # Implicit scheme on GPU.
         Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
         Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
         
-        A1       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k=1).
-        B1       = Id_inner @ (eye(m) + (0.5 - lam) * K)                                                                                # RHS Matrix: Zeros for boundaries, explicit part for inner (k=1).
+        A1_gpu   = cp_csc_matrix(Id_inner @ (eye(m) - lam * K) + Id_bound)                                                              # LHS Matrix k=1 CSC.
+        B1_gpu   = cp_csr_matrix(Id_inner @ (eye(m) + (0.5 - lam) * K))                                                                 # RHS Matrix k=1 CSR.
         
-        A2       = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix: Theta parameter applied to inner, Identity to boundary (k>=2).
-        A2       = A2.tocsc()                                                                                                           # Convert to CSC format for efficient SuperLU factorization.
-        B2       = Id_inner @ (2*eye(m) + (1 - 2*lam) * K)                                                                              # RHS Matrix: Zeros for boundaries, explicit part for inner (k>=2).
-        C2       = Id_inner @ (eye(m) - lam * K)                                                                                        # RHS Matrix for k-2 term.
+        A2_gpu   = cp_csc_matrix(Id_inner @ (eye(m) - lam * K) + Id_bound)                                                              # LHS Matrix k>=2 CSC.
+        B2_gpu   = cp_csr_matrix(Id_inner @ (2*eye(m) + (1 - 2*lam) * K))                                                               # RHS Matrix k>=2 CSR.
+        C2_gpu   = cp_csr_matrix(Id_inner @ (eye(m) - lam * K))                                                                         # RHS Matrix k-2 CSR.
         
-        A1 = cp_csc_matrix(A1)                                                                                                          # Transfer LHS to GPU.
-        A2 = cp_csc_matrix(A2)                                                                                                          # Transfer LHS to GPU.
-        B1 = cp_csr_matrix(B1)                                                                                                          # Transfer RHS operator to GPU.
-        B2 = cp_csr_matrix(B2)                                                                                                          # Transfer RHS operator to GPU.
-        C2 = cp_csr_matrix(C2)                                                                                                          # Transfer RHS operator to GPU.
-        u_ap = cp.asarray(u_ap)                                                                                                         # Transfer solution matrix to GPU.
-        boun_n = cp.asarray(boun_n)                                                                                                     # Transfer boundary nodes to GPU.
-        inne_n = cp.asarray(inne_n)                                                                                                     # Transfer inner nodes to GPU.
-        
-        M1       = None if linear_solver == "spsolve" else (compute_preconditioner(A1.tocsc(), preconditioner) if preconditioner else None) # type: ignore
-        M2       = None if linear_solver == "spsolve" else (compute_preconditioner(A2, preconditioner) if preconditioner else None)     # type: ignore
-        
-        if linear_solver == "spsolve":                                                                                                  # Direct solver (spsolve).
-            solve1   = cp_factorized(A1.tocsc())                                                                                        # Pre-factorize implicit matrix for k = 1.
-            solve2   = cp_factorized(A2)                                                                                                # Pre-factorize implicit matrix for k = 2, ..., t.
-        elif linear_solver not in ["bicgstab", "gmres"]:                                                                                # Invalid iterative solver choice.
-            raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")           # Raise explicit error.
+        solve1_gpu = cp_factorized(A1_gpu)                                                                                              # Pre-factorize LHS k=1 on GPU.
+        solve2_gpu = cp_factorized(A2_gpu)                                                                                              # Pre-factorize LHS k>=2 on GPU.
             
-        for k in range(1, t):                                                                                                           # Loop over all time steps.
-            if k == 1:                                                                                                                  # Initial time step logic (k=1).
+        for k in range(1, t):                                                                                                           # Loop over all time steps in VRAM.
+            if k == 1:                                                                                                                  # Initial time step (k=1).
                 g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
-                RHS             = B1.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # Right-hand side from previous step + du/dt.
-                RHS[boun_n]     = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
-                
-                if linear_solver == "spsolve":                                                                                          # Direct solver (spsolve).
-                    un       = solve1(RHS)                                                                                              # Solve global system for time level k=1.
-                elif linear_solver == "bicgstab":                                                                                       # Iterative solver (BiCGStab).
-                    un, info = cp_bicgstab(A1, RHS, M=M1)                                                                               # Solve system.
-                    if info != 0:                                                                                                       # If not strictly converged.
-                        converged = False                                                                                               # Mark convergence failure.
-                        if verbose: logger.warning(f"CUDA BiCGStab did not converge perfectly (code {info}) at time {k}.")              # Warn on convergence issues.
-                elif linear_solver == "gmres":                                                                                          # Iterative solver (GMRES).
-                    un, info = cp_gmres(A1, RHS, M=M1)                                                                                  # Solve system.
-                    if info != 0:                                                                                                       # If not strictly converged.
-                        converged = False                                                                                               # Mark convergence failure.
-                        if verbose: logger.warning(f"CUDA GMRES did not converge perfectly (code {info}) at time {k}.")                 # Warn on convergence issues.
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
-            else:                                                                                                                       # CPU Iterative Solver.
-                RHS             = B2.dot(u_ap[:, k - 1]) - C2.dot(u_ap[:, k - 2])                                                       # Right-hand side from previous steps.
-                RHS[boun_n]     = u_ap[boun_n, k]                                                                                       # Inject exact boundary condition for time k>=2.
-                
-                if linear_solver == "spsolve":                                                                                          # Direct solver (spsolve).
-                    un = solve2(RHS)                                                                                                    # Solve system.
-                elif linear_solver == "bicgstab":                                                                                       # Iterative solver (BiCGStab).
-                    un, info = cp_bicgstab(A2, RHS, x0=u_ap[:, k-1], M=M2)                                                              # Solve system.
-                    if info != 0:                                                                                                       # If not strictly converged.
-                        converged = False                                                                                               # Mark convergence failure.
-                        if verbose: logger.warning(f"CUDA BiCGStab did not converge perfectly (code {info}) at time {k}.")              # Warn on convergence issues.
-                elif linear_solver == "gmres":                                                                                          # Iterative solver (GMRES).
-                    un, info = cp_gmres(A2, RHS, x0=u_ap[:, k-1], M=M2)                                                                 # Solve system.
-                    if info != 0:                                                                                                       # If not strictly converged.
-                        converged = False                                                                                               # Mark convergence failure.
-                        if verbose: logger.warning(f"CUDA GMRES did not converge perfectly (code {info}) at time {k}.")                 # Warn on convergence issues.
+                g_val_gpu = cp.asarray(g_val)                                                                                           # Transfer velocity array to VRAM.
+                RHS                      = B1_gpu.dot(u_ap_gpu[:, k - 1]) + dt*g_val_gpu                                                 # Right-hand side for k=1.
+                RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                    # Inject exact boundary condition.
+                u_ap_gpu[:, k]           = solve1_gpu(RHS)                                                                              # GPU pre-factorized solve k=1.
+            else:
+                RHS                      = B2_gpu.dot(u_ap_gpu[:, k - 1]) - C2_gpu.dot(u_ap_gpu[:, k - 2])                                # Right-hand side for k>=2.
+                RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                    # Inject exact boundary condition.
+                u_ap_gpu[:, k]           = solve2_gpu(RHS)                                                                              # GPU pre-factorized solve k>=2.
                     
-                u_ap[inne_n, k] = un[inne_n]                                                                                            # Update interior nodes.
-                
-    u_ap = u_ap.get()
-
+    u_ap = u_ap_gpu.get()                                                                                                               # Pull final solution array to CPU RAM.
+    
     if verbose: logger.info("\tCUDA Solver finished successfully.")
     
-    return u_ap, vec, converged
+    return u_ap, vec, True

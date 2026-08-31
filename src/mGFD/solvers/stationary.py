@@ -49,7 +49,7 @@ from typing import Callable, Optional, Tuple, List, Union, Any                  
 
 from mGFD.solvers.results import SolverResult                                                                                           # Standard solver output structure.
 from mGFD.utils.adapters import extract_cloud, repack_solution                                                                          # Pandas/Xarray adapters.
-from mGFD.exceptions import CloudShapeError, InputTypeError, DimensionMismatchError, OperatorFormatError, ParameterError                # Custom exceptions.
+from mGFD.exceptions import CloudShapeError, InputTypeError, OperatorFormatError, ParameterError                                         # Custom exceptions.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
@@ -60,9 +60,6 @@ def Stationary(p: Union[np.ndarray, Any],
                upwind: bool = False,
                vec: Optional[np.ndarray] = None,
                nvec: int = 20,
-               linear_solver: str = "spsolve",
-               preconditioner: Optional[str] = None,
-               matrix_free: bool = False,
                device: str = "cpu",
                verbose: bool = True) -> SolverResult:
     """
@@ -82,10 +79,7 @@ def Stationary(p: Union[np.ndarray, Any],
         upwind                      bool            If an Upwind stencil is requested.
         vec         m x nvec        ndarray         Cached neighbor list (optional).
         nvec                        int             Maximum number of neighbors for each node.
-        linear_solver               str             Algebraic backend: 'spsolve', 'bicgstab', or 'gmres'.
-        preconditioner              Optional[str]   Preconditioner method: 'ilu', 'jacobi', or None.
-        matrix_free                 bool            If True, uses on-the-fly matrix-vector multiplication (requires iterative solver).
-        device                      str             'cpu' or 'cuda'. If 'cuda', offloads the sparse solvers to the GPU (requires CuPy).
+        device                      str             'cpu' or 'cuda'.
         verbose                     bool            If True, prints solver progress.
     
     Output:
@@ -110,16 +104,14 @@ def Stationary(p: Union[np.ndarray, Any],
         raise OperatorFormatError("Operator must be a numpy array with at least 5 coefficients.")                                       # Raise explicit error on bad input.
     if device not in ["cpu", "cuda"]:                                                                                                   # Validate device choice.
         raise ParameterError("Unsupported device. Choose 'cpu' or 'cuda'.")                                                             # Raise explicit error.
-    if device == "cuda" and matrix_free:                                                                                                # Validate matrix_free and cuda.
-        raise ParameterError("matrix_free=True is incompatible with device='cuda'.")                                                    # CuPy requires explicit sparse matrices.
 
     # 1. Enrutamiento (Dispatch)
     if device == "cpu":
         from mGFD.solvers._backends.cpu.stationary import solve_cpu
-        u_ap, vec, converged = solve_cpu(p, phi, f, operator, upwind, vec, nvec, linear_solver, preconditioner, matrix_free, verbose)
+        u_ap, vec, converged = solve_cpu(p, phi, f, operator, upwind, vec, nvec, verbose)
     else:
         from mGFD.solvers._backends.cuda.stationary import solve_cuda
-        u_ap, vec, converged = solve_cuda(p, phi, f, operator, upwind, vec, nvec, linear_solver, preconditioner, matrix_free, verbose)
+        u_ap, vec, converged = solve_cuda(p, phi, f, operator, upwind, vec, nvec, verbose)
         
     compute_time = time.perf_counter() - start_time                                                                                     # Calculate total compute time.
     u_ap_packed = repack_solution(p_orig, u_ap)                                                                                         # Repack into original Pandas/Xarray format.

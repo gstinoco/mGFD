@@ -70,20 +70,31 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
     print(f"Loading {csv_file}...")                                                                                                     # Inform user.
     df = pd.read_csv(csv_file)                                                                                                          # Load CSV into DataFrame.
     
+    time_col = None                                                                                                                     # Candidate time column.
+    for candidate in ['Time_Secs', 'Time_Callable', 'Time_Array', 'Time_Pandas', 'Compute_Time_Secs']:                                  # Check known time metric column names.
+        if candidate in df.columns and df[candidate].notna().any():                                                                     # If column exists and has non-null values.
+            time_col = candidate                                                                                                        # Select target time column.
+            break                                                                                                                       # Exit loop.
+            
+    if time_col is None:                                                                                                                # If no valid time column is found.
+        print(f"No execution time metrics found in {csv_file}. Skipping sweep plots.")                                                   # Inform user.
+        return                                                                                                                          # Exit function.
+        
+    print(f"Using '{time_col}' for performance plots.")                                                                                  # Inform user of metric used.
+
     def extract_device(config_id: str) -> str:                                                                                          # Helper function to extract device.
-        parts = config_id.split('_')                                                                                                    # Split config string.
+        parts = str(config_id).lower().split('_')                                                                                       # Split config string.
+        if 'cuda' in parts or 'gpu' in parts: return 'CUDA'                                                                              # Check for CUDA.
         if 'cpu' in parts: return 'CPU'                                                                                                 # Check for CPU.
-        if 'cuda' in parts: return 'CUDA'                                                                                               # Check for CUDA.
         return 'Unknown'                                                                                                                # Return default.
         
-    def extract_solver(config_id: str) -> str:                                                                                          # Helper function to extract solver.
-        parts = config_id.split('_')                                                                                                    # Split config string.
-        if len(parts) >= 3:                                                                                                             # Check bounds.
-            return parts[2]                                                                                                             # Return solver name.
-        return 'Unknown'                                                                                                                # Return default.
+    def extract_config_label(config_id: str) -> str:                                                                                    # Helper to build legible configuration label.
+        parts = str(config_id).split('_')                                                                                               # Split config ID.
+        dev = 'CUDA' if any(p.lower() in ('cuda', 'gpu') for p in parts) else 'CPU'                                                     # Determine device.
+        return f"{config_id} ({dev})"                                                                                                   # Return descriptive label.
 
     df['Device'] = df['Config_ID'].apply(extract_device)                                                                                # Map device column.
-    df['Solver'] = df['Config_ID'].apply(extract_solver)                                                                                # Map solver column.
+    df['Config'] = df['Config_ID'].apply(extract_config_label)                                                                         # Map configuration label column.
     
     os.makedirs(out_dir, exist_ok=True)                                                                                                 # Create output directory.
     sns.set_theme(style="whitegrid")                                                                                                    # Set plot style.
@@ -92,7 +103,7 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
     ax = sns.barplot(                                                                                                                   # Create bar plot.
         data=df,                                                                                                                        # Data source.
         x='Scale',                                                                                                                      # X axis.
-        y='Time_Callable',                                                                                                              # Y axis.
+        y=time_col,                                                                                                                     # Y axis.
         hue='Device',                                                                                                                   # Color grouping.
         errorbar=None,                                                                                                                  # Disable error bars.
         palette=['#4C72B0', '#55A868']                                                                                                  # Define colors.
@@ -116,13 +127,12 @@ def plot_sweep_results(results_root: str, out_dir: str) -> None:
         plt.figure(figsize=(12, 6))                                                                                                     # Initialize figure.
         
         df_large_copy = df_large.copy()                                                                                                 # Copy dataframe slice.
-        df_large_copy['Config'] = df_large_copy.apply(lambda r: f"{r['Solver']} ({r['Device']})", axis=1)                               # Combine solver and device.
-        df_large_copy = df_large_copy.sort_values('Time_Callable')                                                                      # Sort by time.
+        df_large_copy = df_large_copy.sort_values(time_col)                                                                             # Sort by time.
         
         ax2 = sns.barplot(                                                                                                              # Create detailed bar plot.
             data=df_large_copy,                                                                                                         # Data source.
             x='Config',                                                                                                                 # X axis.
-            y='Time_Callable',                                                                                                          # Y axis.
+            y=time_col,                                                                                                                 # Y axis.
             hue='Device',                                                                                                               # Color grouping.
             dodge=False,                                                                                                                # Disable dodging.
             palette=['#4C72B0', '#55A868']                                                                                              # Define colors.

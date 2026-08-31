@@ -23,6 +23,7 @@ Data conventions:
 Public API:
     compute_neighbors                   Convenience wrapper: computes radius and builds quadrant-balanced vec.
     compute_upwind_neighbors            Convenience wrapper: computes radius and builds upwind vec.
+    compute_mesh_spacing                Compute characteristic spatial node spacing (h_min, h_avg) for a 2D point cloud.
     find_distances                      Compute a characteristic spacing and convert it to a search radius.
     find_neighbors                      Build isotropic neighbor list using KDTree.
     find_neighbors_balanced             Build quadrant-balanced neighbor list for stencil stability.
@@ -517,3 +518,24 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
     vec = _find_neighbors_adv_jit(np.asarray(p, dtype=np.float64), indices, distances, a, b, tol, m, nvec)                              # Delegate filtering and assignment to Numba.
 
     return vec                                                                                                                          # Return upwind neighbor list.
+
+def compute_mesh_spacing(p: np.ndarray, vec: Optional[np.ndarray] = None) -> Tuple[float, float]:
+    """
+    compute_mesh_spacing
+    Compute characteristic spatial node spacing (h_min, h_avg) for a 2D point cloud.
+
+    Input:
+        p           m x 3           ndarray         Point cloud array [x, y, flag].
+        vec         m x nvec        ndarray         Cached neighbor matrix (optional).
+
+    Output:
+        h_min                       float           Minimum spatial step between neighbor nodes.
+        h_avg                       float           Average spatial step between neighbor nodes.
+    """
+    tree         = KDTree(p[:, :2])                                                                                                    # Build KDTree on (x, y).
+    distances, _ = tree.query(p[:, :2], k=2, workers=-1)                                                                               # Query self + nearest neighbor.
+    min_dists    = distances[:, 1]                                                                                                     # Distance to nearest neighbor for each node.
+    h_min        = float(np.min(min_dists))                                                                                            # Minimum node spacing.
+    h_avg        = float(np.mean(min_dists))                                                                                           # Average node spacing.
+    return h_min, h_avg                                                                                                                 # Return spatial metrics.
+

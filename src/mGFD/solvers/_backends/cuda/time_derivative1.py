@@ -2,7 +2,7 @@
 TimeDerivative1 — CUDA Backend for First-order Transient PDEs
 
 Overview:
-    CUDA implementation for solving parabolic PDEs (like the Heat equation) via implicit time-stepping.
+    CUDA implementation for solving parabolic PDEs (like the Heat equation) via pre-factorized direct cuSOLVER sparse solvers.
 
 Public API:
     solve_cuda                  Core CUDA execution routine for the parabolic solver.
@@ -43,8 +43,7 @@ from typing import Callable, Optional, Tuple, List, Union                       
 import mGFD.spatial.gammas as Gammas                                                                                                    # Gammas calculation and sparse matrix builder.
 import mGFD.spatial.neighbors as Neighbors                                                                                              # Neighbor search routines.
 
-from mGFD.exceptions import ParameterError, DimensionMismatchError                                                                      # Custom exceptions.
-from mGFD.solvers._backends.cuda.preconditioners import compute_preconditioner                                                          # Backend imports.
+from mGFD.exceptions import DimensionMismatchError                                                                                      # Custom exceptions.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
@@ -58,21 +57,15 @@ def solve_cuda(p: np.ndarray,                                                   
                nvec: int,
                implicit: bool,
                lam: float,
-               linear_solver: str,
-               preconditioner: Optional[str],
-               matrix_free: bool,
                verbose: bool) -> Tuple[np.ndarray, np.ndarray, bool]:
-    """CUDA backend for TimeDerivative1."""
+    """CUDA backend for TimeDerivative1 using pre-factorized direct cuSOLVER sparse LU solver."""
 
     try:                                                                                                                                # Attempt CuPy import.
         import cupy as cp                                                                                                               # CuPy GPU array operations.
         from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix, csc_matrix as cp_csc_matrix                                         # CuPy sparse matrices.
-        from cupyx.scipy.sparse.linalg import factorized as cp_factorized, bicgstab as cp_bicgstab, gmres as cp_gmres, spsolve as cp_spsolve # CuPy sparse linear solvers.
+        from cupyx.scipy.sparse.linalg import factorized as cp_factorized                                                               # CuPy direct sparse factorized solver.
     except ImportError:                                                                                                                 # Catch missing CuPy.
         raise ImportError("CuPy is not installed. Please install it with 'pip install mGFD[gpu]'.")                                     # Friendly error message.
-
-    if matrix_free:
-        raise ParameterError("matrix_free=True is incompatible with device='cuda'.")                                                    # CuPy requires explicit sparse matrices.
 
     m      = p.shape[0]                                                                                                                 # Total number of nodes.
     if verbose: logger.info(f"Solving Transient problem ({t} steps) for {m} nodes on CUDA...")
@@ -98,7 +91,7 @@ def solve_cuda(p: np.ndarray,                                                   
         elif f.ndim == 1 and f.shape[0] == m:                                                                                           # Spatial constant data array.
             for k in range(t): u_ap[boun_n, k] = f[boun_n]
             u_ap[:, 0] = f                                                                                                              # Constant initial condition.
-        if isinstance(f, np.ndarray) and f.shape not in [(m, t), (m,)]:                                                                 # Check if numeric matrix shape matches dimensions.
+        if isinstance(f, np.ndarray) and f.shape not in [(m, t), (m,)]:                                                                 # Check numeric matrix shape matches dimensions.
             raise DimensionMismatchError(f"Data array 'f' must have shape ({m}, {t}) or ({m},).")                                       # Raise explicit error.
     elif isinstance(f, (int, float)):                                                                                                   # If data is a constant scalar.
         u_ap[boun_n, :] = f                                                                                                             # Constant boundary condition.
@@ -112,61 +105,32 @@ def solve_cuda(p: np.ndarray,                                                   
     K_spatial = Gammas.compute_sparse_matrix(p, vec, L)                                                                                 # Build sparse spatial differentiation matrix.
     K         = dt * K_spatial                                                                                                          # Scale by time step.
     
-    converged = True                                                                                                                    # Assume convergence by default.
+    u_ap_gpu     = cp.asarray(u_ap)                                                                                                       # Transfer solution matrix to VRAM.
+    boun_idx_gpu = cp.where(cp.asarray(boun_n))[0]                                                                                       # Integer index array for boundary nodes on GPU.
+    inne_idx_gpu = cp.where(cp.asarray(inne_n))[0]                                                                                       # Integer index array for interior nodes on GPU.
     
     if not implicit:
-        K2 = eye(m) + K                                                                                                                 # LHS Explicit Matrix.
-        K2 = cp_csr_matrix(K2)                                                                                                          # Transfer explicit matrix to GPU.
-        u_ap = cp.asarray(u_ap)                                                                                                         # Transfer solution matrix to GPU.
-        inne_n = cp.asarray(inne_n)                                                                                                     # Transfer inner nodes to GPU.
+        K2_gpu = cp_csr_matrix(eye(m) + K)                                                                                              # Transfer LHS explicit matrix to GPU.
         for k in range(1, t):                                                                                                           # Loop over all time steps.
-            un              = K2.dot(u_ap[:, k-1])                                                                                      # Explicit matrix-vector multiplication.
-            u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes for time level k.
-    else:                                                                                                                               # CPU Iterative Solver.
+            un = K2_gpu.dot(u_ap_gpu[:, k-1])                                                                                           # Explicit matrix-vector multiplication in VRAM.
+            u_ap_gpu[inne_idx_gpu, k] = un[inne_idx_gpu]                                                                                # Update interior nodes on GPU.
+    else:                                                                                                                               # Implicit Direct cuSOLVER Solver.
         Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
         Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
         
-        A        = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix: Theta parameter applied to inner, Identity to boundary.
-        A        = A.tocsc()                                                                                                            # Convert to CSC format for efficient SuperLU factorization.
-        B        = Id_inner @ (eye(m) + (1 - lam) * K)                                                                                  # RHS Matrix: Zeros for boundaries, explicit part for inner.
+        A        = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix.
+        A_gpu    = cp_csc_matrix(A)                                                                                                     # Transfer LHS matrix to GPU CSC.
+        B_gpu    = cp_csr_matrix(Id_inner @ (eye(m) + (1 - lam) * K))                                                                   # Transfer RHS matrix to GPU CSR.
         
-        A = cp_csc_matrix(A)                                                                                                            # Transfer LHS to GPU.
-        B = cp_csr_matrix(B)                                                                                                            # Transfer RHS operator to GPU.
-        u_ap = cp.asarray(u_ap)                                                                                                         # Transfer solution matrix to GPU.
-        boun_n = cp.asarray(boun_n)                                                                                                     # Transfer boundary nodes to GPU.
-        inne_n = cp.asarray(inne_n)                                                                                                     # Transfer inner nodes to GPU.
-        
-        # We compute the preconditioner on CPU sparse matrices if needed, since cupy lacks an ILU preconditioner directly accessible sometimes,
-        # but the local preconditioner builder handles it returning a cp.LinearOperator if cuda is available.
-        # We pass the CuPy matrix A to compute_preconditioner.
-        M = None if linear_solver == "spsolve" else (compute_preconditioner(A, preconditioner) if preconditioner else None)             # type: ignore
-        
-        if linear_solver == "spsolve":                                                                                                  # Direct pre-factorized solver.
-            solve = cp_factorized(A)                                                                                                    # Pre-factorize LHS for fast repeated solves.
-        elif linear_solver not in ["bicgstab", "gmres"]:                                                                                # Invalid iterative solver choice.
-            raise ParameterError(f"Unsupported linear_solver '{linear_solver}'. Choose from 'spsolve', 'bicgstab', 'gmres'.")           # Raise explicit error.
+        solve_gpu = cp_factorized(A_gpu)                                                                                                # Pre-factorize LHS on GPU ONCE.
             
-        for k in range(1, t):                                                                                                           # Loop over all time steps.
-            RHS             = B.dot(u_ap[:, k-1])                                                                                       # Right-hand side from previous step.
-            RHS[boun_n]     = u_ap[boun_n, k]                                                                                           # Inject exact boundary conditions.
+        for k in range(1, t):                                                                                                           # Loop over all time steps in VRAM.
+            RHS                      = B_gpu.dot(u_ap_gpu[:, k-1])                                                                      # RHS product in VRAM.
+            RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                        # Inject boundary condition.
+            u_ap_gpu[:, k]           = solve_gpu(RHS)                                                                                   # GPU pre-factorized triangular solve.
             
-            if linear_solver == "spsolve":                                                                                              # Direct pre-factorized solver.
-                un       = solve(RHS)                                                                                                   # Solve global system for time level k.
-            elif linear_solver == "bicgstab":                                                                                           # Iterative solver (BiCGStab).
-                un, info = cp_bicgstab(A, RHS, x0=u_ap[:, k-1], M=M)                                                                    # Solve with previous step as initial guess.
-                if info != 0:                                                                                                           # If not strictly converged.
-                    converged = False                                                                                                   # Mark convergence failure.
-                    if verbose: logger.warning(f"CUDA BiCGStab did not converge perfectly (code {info}) at time {k}.")                  # Warn on convergence issues.
-            elif linear_solver == "gmres":                                                                                              # Iterative solver (GMRES).
-                un, info = cp_gmres(A, RHS, x0=u_ap[:, k-1], M=M)                                                                       # Solve with previous step as initial guess.
-                if info != 0:                                                                                                           # If not strictly converged.
-                    converged = False                                                                                                   # Mark convergence failure.
-                    if verbose: logger.warning(f"CUDA GMRES did not converge perfectly (code {info}) at time {k}.")                     # Warn on convergence issues.
-                
-            u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes for time level k.
-            
-    u_ap = u_ap.get()
+    u_ap = u_ap_gpu.get()                                                                                                               # Pull final result array to CPU RAM.
     
     if verbose: logger.info("\tCUDA Solver finished successfully.")
     
-    return u_ap, vec, converged
+    return u_ap, vec, True

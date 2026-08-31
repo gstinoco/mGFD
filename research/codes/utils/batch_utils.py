@@ -205,7 +205,7 @@ def run_batch_suite(
     process_func: Callable,
     data_root: str,
     results_root: str,
-    scales: tuple,
+    scales: Optional[Union[tuple, list, str]] = None,
     **kwargs: Any
 ) -> None:
     """
@@ -217,12 +217,31 @@ def run_batch_suite(
         process_func    1           Callable        The function to process each point cloud.
         data_root       1           str             Input dataset root directory.
         results_root    1           str             Output results root directory.
-        scales          1           tuple           Tuple of scale subfolders to process.
+        scales          1           tuple/list/str  Tuple or list of scale subfolders to process (optional).
         **kwargs        Any         dict            Dynamic configuration from main orchestrator.
         
     Output:
         None
     """
+    if scales is None:
+        scales = kwargs.pop('scales', None)
+    if scales is None:
+        config_path = os.path.join(project_root(), 'codes', 'sweep_config.json')
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    cfg = json.load(f)
+                    scales = cfg.get('scales', ('1', '2', '3'))
+            except Exception:
+                scales = ('1', '2', '3')
+        else:
+            scales = ('1', '2', '3')
+
+    if isinstance(scales, (int, str)):
+        scales = (str(scales),)
+    else:
+        scales = tuple(str(s) for s in scales)
+
     verbose = kwargs.pop('verbose', True)
     save = kwargs.pop('save', True)
     found = 0
@@ -254,13 +273,24 @@ def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[st
     Output:
         None
     """
-    if 'Compute_Time_Secs' in metrics:                                                                                                  # Standardize metrics.
-        metrics['Time_Callable'] = metrics.pop('Compute_Time_Secs')                                                                     # Standardize metrics.
+    exec_time = metrics.pop('Compute_Time_Secs', None)                                                                                 # Extract primary solver execution time if present.
+    if exec_time is not None:                                                                                                           # If primary compute time present.
+        metrics['Time_Secs'] = exec_time                                                                                                # Set standardized execution time metric.
+        if 'Time_Callable' not in metrics and 'Time_Array' not in metrics and 'Time_Pandas' not in metrics:                              # If no type-specific key was created.
+            metrics['Time_Callable'] = exec_time                                                                                        # Fallback to Callable label for backward compatibility.
+    elif 'Time_Callable' in metrics:                                                                                                    # If Callable time is present.
+        metrics['Time_Secs'] = metrics['Time_Callable']                                                                                 # Mirror to unified execution time metric.
+    elif 'Time_Array' in metrics:                                                                                                       # If Array time is present.
+        metrics['Time_Secs'] = metrics['Time_Array']                                                                                    # Mirror to unified execution time metric.
+    elif 'Time_Pandas' in metrics:                                                                                                      # If Pandas time is present.
+        metrics['Time_Secs'] = metrics['Time_Pandas']                                                                                   # Mirror to unified execution time metric.
+        
     metrics.pop('Max_Abs_Error', None)                                                                                                  # Standardize metrics.
     metrics.pop('Mean_Abs_Error', None)                                                                                                 # Standardize metrics.
     if 'Time_Mean_Abs_Error' in metrics:                                                                                                # Standardize metrics.
         metrics.pop('Time_Mean_Abs_Error', None)                                                                                        # Standardize metrics.
         metrics.pop('Time_Max_Abs_Error', None)                                                                                         # Standardize metrics.
+    os.makedirs(out_dir, exist_ok=True)                                                                                                 # Ensure output directory exists.
     metrics_path = os.path.join(out_dir, 'Metrics.json')                                                                                # Define the absolute path for the metrics file.
     if config_id:                                                                                                                       # Check if a configuration ID was provided.
         data = {}                                                                                                                       # Initialize empty dictionary for sweep data.

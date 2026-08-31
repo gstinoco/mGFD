@@ -113,17 +113,7 @@ def test_time_derivative2_wave() -> None:
     for k in range(t):                                                                                                                  # Iterate over time.
         u_ex[:, k] = f(p[:, 0], p[:, 1], T[k], [c])                                                                                     # Compute exact solution at time step.
 
-    # 2. Execution and Assertion - SPSOLVE
-    u_ap, vec = TimeDerivative2(p, f, g, t, [c], operator=L, implicit=True, linear_solver="spsolve", verbose=False)                     # Execute solver.
+    # 2. Execution and Assertion
+    u_ap, vec = TimeDerivative2(p, f, g, t, [c], operator=L, implicit=True, verbose=False)                                             # Execute solver.
     error_spsolve = np.sqrt(np.mean((u_ap[:, -1] - u_ex[:, -1])**2))                                                                    # Compute RMS error.
     assert error_spsolve < 2e-1                                                                                                         # Verify error bound.
-
-    # 3. Execution and Assertion - BICGSTAB
-    u_ap_bicgstab, _ = TimeDerivative2(p, f, g, t, [c], operator=L, implicit=True, linear_solver="bicgstab", verbose=False)             # Execute solver.
-    error_bicgstab = np.sqrt(np.mean((u_ap_bicgstab[:, -1] - u_ex[:, -1])**2))                                                          # Compute RMS error.
-    assert error_bicgstab < 2e-1                                                                                                        # Verify error bound.
-
-    # 4. Execution and Assertion - GMRES
-    u_ap_gmres, _ = TimeDerivative2(p, f, g, t, [c], operator=L, implicit=True, linear_solver="gmres", verbose=False)                   # Execute solver.
-    error_gmres = np.sqrt(np.mean((u_ap_gmres[:, -1] - u_ex[:, -1])**2))                                                                # Compute RMS error.
-    assert error_gmres < 2e-1                                                                                                           # Verify error bound.

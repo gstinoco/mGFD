@@ -2,8 +2,8 @@
 run_Poisson — Reference batch for the 2D Poisson equation
 
 Overview:
-    This script runs the stationary Poisson reference problem on all available point clouds under Data/
-    (both Clouds and Holes datasets), using the meshless mGFD stationary solver.
+    This script runs the stationary Poisson reference problem on all available point clouds under Data/,
+    using the meshless mGFD stationary solver.
 
 Workflow:
     - Discover input clouds under Data/*/(0.50x|1.00x|1.50x)/*.csv (or any configured scales)
@@ -69,7 +69,6 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')                   
 
 DATA_ROOT: str    = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                     # Input dataset root directory.
 RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                                  # Output results root directory.
-SCALES: tuple     = ('1', '2', '3')                                                                                                     # Scales to process under each dataset.
 
 def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
@@ -105,7 +104,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     Run the stationary Poisson-type problem on a single point cloud file.
 
     Input:
-        dataset                     str             Dataset folder name under Data/ (e.g., 'Clouds', 'Holes').
+        dataset                     str             Dataset folder name under Data/ (e.g., 'Catemaco', 'Chapala').
         scale                       str             Cloud scale folder (e.g., '1', '2').
         cloud_path                  str             Path to input CSV with point cloud.
         results_path                str             Base output directory (typically <repo>/Results).
@@ -133,13 +132,10 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         logger.info(f'Working on region: {region_id}')                                                                                  # Progress message for the batch run.
 
     nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
-    linear_solver   = kwargs.get('linear_solver', 'spsolve')                                                                            # Extract solver backend, default spsolve.
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    matrix_free     = kwargs.get('matrix_free', False)                                                                                  # Extract matrix_free flag, default False.
-    preconditioner  = kwargs.get('preconditioner', None)                                                                                # Extract preconditioner, default None.
     input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                                        # Extract input_types, default all.
-    config_id       = f'nvec_{nvec}_{linear_solver}_{device}_mf{matrix_free}_pre{preconditioner}'                                       # Create unique config identifier for the sweep.
+    config_id       = f'nvec_{nvec}_{device}'                                                                                           # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
     p    = load_points(cloud_path, verbose=False)                                                                                       # Load point cloud into (m, 3) array [x, y, flag].
@@ -155,7 +151,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # --- A. Using Callable ---
     if 'callable' in input_types:                                                                                                       # Check if callable test is enabled.
         res_call = Stationary(                                                                                                          # Solve the stationary Poisson problem (Callable).
-            p, phi, f, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = verbose_solvers # Execute with dynamic config.
+            p, phi, f, operator = L, vec = vec0, nvec = nvec, device = device, verbose = verbose_solvers                                # Execute with dynamic config.
         )                                                                                                                               # Extract solver result object.
         u_ap, vec  = res_call.solution, res_call.neighbors                                                                              # Unpack approximate solution and neighbor list.
         comp_time  = res_call.compute_time                                                                                              # Get solver execution time from v0.10.0 dataclass.
@@ -163,7 +159,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # --- B. Using Numpy Arrays ---
     if 'array' in input_types:                                                                                                          # Check if array test is enabled.
         res_arr = Stationary(                                                                                                           # Solve using array inputs.
-            p, phi_arr, f_arr, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False # Silent execution for array test.
+            p, phi_arr, f_arr, operator = L, vec = vec0, nvec = nvec, device = device, verbose = False                                  # Silent execution for array test.
         )
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."                           # Validate output equivalence.
@@ -176,7 +172,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         phi_pd = pd.Series(phi_arr.tolist())                                                                                            # Wrap array in Pandas Series.
         f_pd   = pd.Series(f_arr.tolist())                                                                                              # Wrap array in Pandas Series.
         res_pd = Stationary(                                                                                                            # Solve using Pandas inputs.
-            p, phi_pd, f_pd, operator = L, vec = vec0, nvec = nvec, linear_solver = linear_solver, device = device, matrix_free = matrix_free, preconditioner = preconditioner, verbose = False # Silent execution for Pandas test.
+            p, phi_pd, f_pd, operator = L, vec = vec0, nvec = nvec, device = device, verbose = False                                     # Silent execution for Pandas test.
         )
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."                     # Validate output equivalence.
@@ -226,7 +222,7 @@ def main(**kwargs: Any) -> None:
     Output:
         None
     """
-    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, SCALES, **kwargs)                                                           # Execute universal batch orchestrator.
+    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, **kwargs)                                                                   # Execute universal batch orchestrator.
 
 if __name__ == "__main__":
     main()

@@ -116,12 +116,20 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
     nvec_list    = config.get('nvec', [12])                                                                                             # Extract neighbor list, default to [12].
     device_list  = config.get('device', ['cpu'])                                                                                        # Extract device list.
     upwind_list  = config.get('upwind', [True, False])                                                                                  # Extract upwind list, default to [True, False].
+    scales_cfg   = config.get('scales', ['1', '2', '3'])                                                                                # Extract scales list, default to ['1', '2', '3'].
+    t_cfg        = config.get('t', None)                                                                                                # Extract explicit t time steps if provided.
+    cfl_cfg      = config.get('cfl', None)                                                                                              # Extract CFL target override if provided.
     input_types  = config.get('input_types', ['callable'])                                                                              # Extract input types, default to callable only.
     save_cfg     = config.get('save', False)                                                                                            # Extract save config.
     save_outputs = save_cfg[0] if isinstance(save_cfg, list) else save_cfg                                                              # Safely extract boolean.
     plot_cfg     = config.get('plot_approximations', False)                                                                             # Extract plot config.
     plot_appx    = plot_cfg[0] if isinstance(plot_cfg, list) else plot_cfg                                                              # Safely extract boolean.
-    kwargs['save'] = save_outputs                                                                                                       # Inject save flag into kwargs.
+    if t_cfg is not None:                                                                                                               # If explicit t parameter is provided.
+        kwargs['t'] = t_cfg[0] if isinstance(t_cfg, list) else t_cfg                                                                   # Inject explicit t into kwargs.
+    if cfl_cfg is not None:                                                                                                             # If cfl parameter override is provided.
+        kwargs['cfl'] = cfl_cfg[0] if isinstance(cfl_cfg, list) else cfl_cfg                                                             # Inject cfl into kwargs.
+    kwargs['scales'] = scales_cfg                                                                                                       # Inject scales list into kwargs.
+    kwargs['save']   = save_outputs                                                                                                     # Inject save flag into kwargs.
     kwargs['input_types'] = input_types                                                                                                 # Inject input types into kwargs.
     kwargs['plot_approximations'] = plot_appx                                                                                           # Inject plot approximations flag into kwargs.
     
@@ -158,34 +166,21 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         total_runs += len(combinations)                                                                                                 # Accumulate total executions.
         
         for nvec, device, upwind in combinations:                                                                                       # Iterate over configurations.
-            # -------------------------------------------------------------------------------------------------------------------------- # Hardware-specific solver routing
-            if device in ['cuda', 'gpu']:                                                                                               # GPU optimal configuration.
-                solver = 'gmres'                                                                                                        # Robust iterative solver for GPU.
-                pre    = 'ilu'                                                                                                          # ILU preconditioner to accelerate convergence.
-                mf     = False                                                                                                          # No matrix-free for ILU.
-            else:                                                                                                                       # CPU optimal configuration.
-                solver = 'spsolve'                                                                                                      # Robust direct solver for CPU.
-                pre    = None                                                                                                           # No preconditioner needed for direct solver.
-                mf     = False                                                                                                          # Matrix-free is slow on CPU.
-                
             if upwind is not None:                                                                                                      # Determine if upwind applies.
-                config_str = f'nvec={nvec}, solver={solver}, dev={device}, mf={mf}, pre={pre}, up={upwind}'                             # Format config with upwind.
+                config_str = f'nvec={nvec}, dev={device}, up={upwind}'                                                                  # Format config with upwind.
             else:                                                                                                                       # Upwind doesn't apply.
-                config_str = f'nvec={nvec}, solver={solver}, dev={device}, mf={mf}, pre={pre}'                                          # Format config without upwind.
+                config_str = f'nvec={nvec}, dev={device}'                                                                               # Format config without upwind.
                 
             if verbose:                                                                                                                 # Check verbosity.
                 logger.info(f'\nExecuting {run_file} with [{config_str}]...')                                                           # Log current execution.
             
             start_time = time()                                                                                                         # Start per-script timer.
             run_kwargs = kwargs.copy()                                                                                                  # Copy global kwargs to avoid side-effects.
-            run_kwargs['nvec']           = nvec                                                                                         # Inject neighbor count into kwargs.
-            run_kwargs['linear_solver']  = solver                                                                                       # Inject solver backend into kwargs.
-            run_kwargs['device']         = device                                                                                       # Inject device into kwargs.
-            run_kwargs['matrix_free']    = mf                                                                                           # Inject matrix_free into kwargs.
-            run_kwargs['preconditioner'] = pre                                                                                          # Inject preconditioner into kwargs.
+            run_kwargs['nvec']   = nvec                                                                                                 # Inject neighbor count into kwargs.
+            run_kwargs['device'] = device                                                                                               # Inject device into kwargs.
             
             if upwind is not None:                                                                                                      # If upwind is required for this runner.
-                run_kwargs['upwind']    = upwind                                                                                        # Inject upwind flag into kwargs.
+                run_kwargs['upwind'] = upwind                                                                                           # Inject upwind flag into kwargs.
             
             if import_module_from_file(file_path, verbose=verbose, **run_kwargs):                                                       # Dynamically load and run script with kwargs.
                 execution_time = time() - start_time                                                                                    # Compute per-script runtime.
@@ -202,17 +197,15 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         logger.info(f'Sweep completed: {successful_runs} of {total_runs} combinations successfully executed')                           # Report success count.
         logger.info(f'Total execution time: {total_time:.2f} seconds')                                                                  # Report total runtime.
         
-    # Generate final summary CSV
-    if save_outputs:
-        try:
-            # We need to dynamically import batch_utils to call the summary function since sweep.py operates via subprocess/dynamic loading
-            sys.path.append(os.path.join(current_dir, 'utils'))
-            from batch_utils import generate_sweep_summary
-            results_root = os.path.join(os.path.dirname(current_dir), 'results')
-            generate_sweep_summary(results_root, verbose=verbose)
-        except Exception as e:
-            if verbose:
-                logger.error(f"Failed to generate final sweep summary CSV: {e}")
+    # Generate final summary CSV always
+    try:
+        sys.path.append(os.path.join(current_dir, 'utils'))
+        from batch_utils import generate_sweep_summary
+        results_root = os.path.join(os.path.dirname(current_dir), 'results')
+        generate_sweep_summary(results_root, verbose=verbose)
+    except Exception as e:
+        if verbose:
+            logger.error(f"Failed to generate final sweep summary CSV: {e}")
 
 if __name__ == '__main__':                                                                                                              # Check if script is run directly.
     main()                                                                                                                              # Execute main orchestrator.

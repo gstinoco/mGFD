@@ -107,17 +107,7 @@ def test_stationary_poisson() -> None:
     L   = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                                     # Laplacian operator.
     u_ex = phi(p[:, 0], p[:, 1])                                                                                                        # Exact solution for error check.
     
-    # 2. Execution and Assertion - SPSOLVE
-    u_ap, vec = Stationary(p, phi, f, operator=L, linear_solver="spsolve", verbose=False)                                               # Execute solver.
+    # 2. Execution and Assertion
+    u_ap, vec = Stationary(p, phi, f, operator=L, verbose=False)                                                                        # Execute solver.
     error_spsolve = np.sqrt(np.mean((u_ap - u_ex)**2))                                                                                  # Compute RMS error.
     assert error_spsolve < 5e-2                                                                                                         # Verify error bound.
-
-    # 3. Execution and Assertion - BICGSTAB
-    u_ap_bicgstab, _ = Stationary(p, phi, f, operator=L, linear_solver="bicgstab", verbose=False)                                       # Execute solver.
-    error_bicgstab = np.sqrt(np.mean((u_ap_bicgstab - u_ex)**2))                                                                        # Compute RMS error.
-    assert error_bicgstab < 5e-2                                                                                                        # Verify error bound.
-
-    # 4. Execution and Assertion - GMRES
-    u_ap_gmres, _ = Stationary(p, phi, f, operator=L, linear_solver="gmres", verbose=False)                                             # Execute solver.
-    error_gmres = np.sqrt(np.mean((u_ap_gmres - u_ex)**2))                                                                              # Compute RMS error.
-    assert error_gmres < 5e-2                                                                                                           # Verify error bound.

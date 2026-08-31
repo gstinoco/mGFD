@@ -92,7 +92,7 @@ def test_gpu_stationary() -> None:
     operator = np.array([0, 0, 1, 0, 1, 0], dtype=np.float64)                                                                           # Laplacian operator.
     
     # 2. Execution
-    result   = Stationary(p, phi, f, operator=operator, linear_solver="spsolve", device="cuda", verbose=False)                          # Run Stationary solver on GPU.
+    result   = Stationary(p, phi, f, operator=operator, device="cuda", verbose=False)                                                           # Run Stationary solver on GPU.
     
     # 3. Assertions
     assert result.converged                                                                                                             # Solver must converge.
@@ -114,7 +114,7 @@ def test_gpu_time_derivative1() -> None:
     operator = np.array([0, 0, 1, 0, 1, 0], dtype=np.float64)                                                                           # Laplacian operator.
     
     # 2. Execution
-    result   = TimeDerivative1(p, f_cond, 2, [], operator=operator, implicit=True, linear_solver="bicgstab", preconditioner="jacobi", device="cuda", verbose=False) # Run TimeDerivative1 solver on GPU.
+    result   = TimeDerivative1(p, f_cond, 2, [], operator=operator, implicit=True, device="cuda", verbose=False)                         # Run TimeDerivative1 solver on GPU.
     
     # 3. Assertions
     assert result.converged                                                                                                             # Solver must converge.
@@ -137,7 +137,7 @@ def test_gpu_time_derivative2() -> None:
     operator = np.array([0, 0, 1, 0, 1, 0], dtype=np.float64)                                                                           # Laplacian operator.
     
     # 2. Execution
-    result   = TimeDerivative2(p, f_cond, g_cond, 2, [], operator=operator, implicit=True, linear_solver="gmres", preconditioner="jacobi", device="cuda", verbose=False) # Run TimeDerivative2 solver on GPU.
+    result   = TimeDerivative2(p, f_cond, g_cond, 2, [], operator=operator, implicit=True, device="cuda", verbose=False)                # Run TimeDerivative2 solver on GPU.
     
     # 3. Assertions
     assert result.converged                                                                                                             # Solver must converge.
@@ -164,22 +164,3 @@ def test_gpu_without_cupy_raises_importerror(monkeypatch) -> None:
     # 2. Execution and Assertions
     with pytest.raises(ImportError, match="CuPy is not installed"):                                                                     # Assert exception raised.
         Stationary(p, phi, f, operator=operator, device="cuda", verbose=False)                                                          # Run solver with CUDA request.
-
-def test_gpu_matrix_free_conflict() -> None:
-    """
-    test_gpu_matrix_free_conflict
-    Validates parameter validation for matrix-free with CUDA.
-    
-    Currently, the matrix-free iteration strategy is optimized for Numba JIT on the CPU.
-    This test verifies that asking for both 'matrix_free=True' and 'device=cuda'
-    immediately triggers a ParameterError.
-    """
-    # 1. Test initialization
-    p        = generate_square_cloud(3)                                                                                                 # Generate small point cloud.
-    phi      = 0.0                                                                                                                      # Boundary condition.
-    f        = 1.0                                                                                                                      # Forcing term.
-    operator = np.array([0, 0, 1, 0, 1, 0], dtype=np.float64)                                                                           # Laplacian operator.
-    
-    # 2. Execution and Assertions
-    with pytest.raises(ParameterError, match="incompatible with device='cuda'"):                                                        # Assert exception raised.
-        Stationary(p, phi, f, operator=operator, device="cuda", matrix_free=True, verbose=False)                                        # Run solver with incompatible flags.
