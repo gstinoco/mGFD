@@ -9,9 +9,15 @@ Notes:
     - Each batch script is executed by importing it as a module with dynamically injected kwargs.
     - This is intended for parameter exploration across the mGFD suite.
 
+Public API:
+    import_module_from_file     Dynamically load and execute a batch runner module.
+    run_sweep                   Execute multi-cloud parameter sweep.
+
 Credits:
     All the codes presented below were developed by:
-        Dr. Gerardo Tinoco Guerrero
+        Dr. Gerardo Tinoco-Guerrero
+        Dr. Francisco Javier Domínguez-Mota
+        Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
 
@@ -83,13 +89,13 @@ def import_module_from_file(file_path: str, verbose: bool = True, **kwargs: Any)
         spec.loader.exec_module(module)                                                                                                 # Execute the module (runs top-level batch script).
         
         if hasattr(module, 'main'):                                                                                                     # Explicitly call main() if it exists.
-            module.main(**kwargs)
+            module.main(**kwargs)                                                                                                       # Execute statement.
             
         return True                                                                                                                     # Report success.
     
     except Exception as e:                                                                                                              # Catch any failure while importing/executing the script.
         if verbose:                                                                                                                     # Check if verbosity is enabled.
-            import traceback; logger.error(f'Error importing {file_path}: {traceback.format_exc()}')                                                                      # Print an actionable error message.
+            import traceback; logger.error(f'Error importing {file_path}: {traceback.format_exc()}')                                    # Print an actionable error message.
         
         return False                                                                                                                    # Report failure.
 
@@ -125,21 +131,16 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
     plot_cfg     = config.get('plot_approximations', False)                                                                             # Extract plot config.
     plot_appx    = plot_cfg[0] if isinstance(plot_cfg, list) else plot_cfg                                                              # Safely extract boolean.
     if t_cfg is not None:                                                                                                               # If explicit t parameter is provided.
-        kwargs['t'] = t_cfg[0] if isinstance(t_cfg, list) else t_cfg                                                                   # Inject explicit t into kwargs.
+        kwargs['t'] = t_cfg[0] if isinstance(t_cfg, list) else t_cfg                                                                    # Inject explicit t into kwargs.
     if cfl_cfg is not None:                                                                                                             # If cfl parameter override is provided.
-        kwargs['cfl'] = cfl_cfg[0] if isinstance(cfl_cfg, list) else cfl_cfg                                                             # Inject cfl into kwargs.
+        kwargs['cfl'] = cfl_cfg[0] if isinstance(cfl_cfg, list) else cfl_cfg                                                            # Inject cfl into kwargs.
     kwargs['scales'] = scales_cfg                                                                                                       # Inject scales list into kwargs.
     kwargs['save']   = save_outputs                                                                                                     # Inject save flag into kwargs.
     kwargs['input_types'] = input_types                                                                                                 # Inject input types into kwargs.
     kwargs['plot_approximations'] = plot_appx                                                                                           # Inject plot approximations flag into kwargs.
     
-    run_files: List[str] = [                                                                                                            # List of files to execute.
-        'run_Poisson.py',                                                                                                               # Stationary Poisson reference.
-        'run_Heat.py',                                                                                                                  # Transient Heat reference.
-        'run_Wave.py',                                                                                                                  # Transient Wave reference.
-        'run_AdvDif.py',                                                                                                                # Transient Advection-Diffusion reference.
-        'run_Perturbation.py'                                                                                                           # Stationary perturbation case.
-    ]                                                                                                                                   # End of list.
+    runners_cfg  = config.get('runners', ['run_Poisson.py', 'run_AdvReactionDiff.py', 'run_Wave.py'])                                   # Extract runners list from config.
+    run_files: List[str] = runners_cfg if isinstance(runners_cfg, list) else [runners_cfg]                                              # Resolve list of runners to execute.
     
     current_dir: str = os.path.dirname(os.path.abspath(__file__))                                                                       # Directory where this script is located.
     
@@ -198,14 +199,14 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
         logger.info(f'Total execution time: {total_time:.2f} seconds')                                                                  # Report total runtime.
         
     # Generate final summary CSV always
-    try:
-        sys.path.append(os.path.join(current_dir, 'utils'))
-        from batch_utils import generate_sweep_summary
-        results_root = os.path.join(os.path.dirname(current_dir), 'results')
-        generate_sweep_summary(results_root, verbose=verbose)
-    except Exception as e:
-        if verbose:
-            logger.error(f"Failed to generate final sweep summary CSV: {e}")
+    try:                                                                                                                                # Execute statement.
+        sys.path.append(os.path.join(current_dir, 'utils'))                                                                             # Execute statement.
+        from batch_utils import generate_sweep_summary                                                                                  # Import module dependency.
+        results_root = os.path.join(os.path.dirname(current_dir), 'results')                                                            # Assign results_root.
+        generate_sweep_summary(results_root, verbose=verbose)                                                                           # Assign generate_sweep_summary(results_root, verbose.
+    except Exception as e:                                                                                                              # Execute statement.
+        if verbose:                                                                                                                     # Evaluate condition.
+            logger.error(f"Failed to generate final sweep summary CSV: {e}")                                                            # Log output message.
 
 if __name__ == '__main__':                                                                                                              # Check if script is run directly.
     main()                                                                                                                              # Execute main orchestrator.

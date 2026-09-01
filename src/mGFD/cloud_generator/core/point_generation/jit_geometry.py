@@ -7,6 +7,9 @@ Overview:
     and the inability to compile external libraries like Shapely or matplotlib.path
     directly inside Numba routines.
 
+Public API:
+    points_in_polygon_jit       Numba JIT point-in-polygon checker.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero
@@ -22,6 +25,8 @@ Credits:
         SIIIA-MATH: Soluciones de Ingeniería.
 
 Date:
+    March, 2026.
+Last Modification:
     August, 2026.
 """
 

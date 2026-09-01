@@ -49,13 +49,11 @@ Last Modification:
 import logging                                                                                                                          # Standard logging module.
 import matplotlib                                                                                                                       # Plotting interface.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numpy.typing as npt                                                                                                              # Numpy type hinting.
-import matplotlib.cm as cm                                                                                                              # Matplotlib colormaps.
 import matplotlib.pyplot as plt                                                                                                         # Matplotlib plotting interface.
 
 from matplotlib import animation                                                                                                        # Animation framework.
 from matplotlib.animation import FuncAnimation                                                                                          # Animation helper.
-from typing import Callable, Optional, Tuple, List, Any                                                                                 # Type hinting.
+from typing import Callable, Optional, Tuple, List, Any, Union                                                                          # Type hinting.
 
 from mGFD.utils.core_utils import get_valid_triangulation, get_aspect_and_bounds                                                        # Geometry utilities.
 
@@ -94,7 +92,7 @@ def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, fl
     ax.autoscale(False)                                                                                                                 # Disable automatic scaling.
 
     # 3. Camera angle
-    if angle_view:
+    if angle_view:                                                                                                                      # Evaluate condition.
         ax.dist = 6.2                                                                                                                   # Adjust camera zoom for perspective.
         ax.view_init(elev=20, azim=-45)                                                                                                 # Set perspective viewing angle.
         ax.set_zlabel(z_label, labelpad=10)                                                                                             # Set Z-axis label with padding.
@@ -104,7 +102,7 @@ def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, fl
         ax.view_init(elev=90, azim=270)                                                                                                 # Set top-down viewing angle.
 
 
-def _render_surface(ax: Any, p: np.ndarray, data: np.ndarray, triangles: Optional[np.ndarray], cmap: Any, vmin: float, vmax: float) -> Any:
+def _render_surface(ax: Any, p: Union[np.ndarray, Any], data: Union[np.ndarray, Any], triangles: Optional[Union[np.ndarray, Any]], cmap: Any, vmin: float, vmax: float) -> Any:
     """
     _render_surface
     Helper function to render a 3D surface plot using a valid Delaunay triangulation, 
@@ -124,14 +122,14 @@ def _render_surface(ax: Any, p: np.ndarray, data: np.ndarray, triangles: Optiona
     """
     # 1. Rendering
     if triangles is not None:                                                                                                           # Check if triangulation is available.
-        return ax.plot_trisurf(p[:, 0], p[:, 1], data, triangles=triangles, cmap=cmap,
-                                vmin=vmin, vmax=vmax, edgecolors='none',
+        return ax.plot_trisurf(p[:, 0], p[:, 1], data, triangles=triangles, cmap=cmap,                                                  # Return output values.
+                                vmin=vmin, vmax=vmax, edgecolors='none',                                                                # Assign vmin.
                                 linewidth=0, antialiased=False)                                                                         # Plot surface using valid triangulation.
     else:                                                                                                                               # Interactive mode.
         return ax.scatter(p[:, 0], p[:, 1], zs=data, c=data, cmap=cmap, s=1, vmin=vmin, vmax=vmax)                                      # Fallback to plotting scattered points.
 
 
-def _prepare_plot_data(p: np.ndarray, u: np.ndarray, nom: str) -> Tuple[float, float, Tuple[float, float, float], List[float], List[float], Optional[np.ndarray]]:
+def _prepare_plot_data(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], nom: str) -> Tuple[float, float, Tuple[float, float, float], List[float], List[float], Optional[Union[np.ndarray, Any]]]:
     """
     _prepare_plot_data
     Helper to compute common plotting bounds, color scales, and triangulation.
@@ -196,7 +194,7 @@ def _generate_static_views(render_func: Callable, title: str, save_path: Optiona
         plt.show()                                                                                                                      # Display the interactive plot window.
 
 
-def plot_stationary(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
+def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
     """
     plot_stationary
     Render a single 3D scatter plot of the solution for a stationary PDE problem.
@@ -210,7 +208,7 @@ def plot_stationary(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save
         verbose                     bool            If True, prints progress and errors to console.
     """
     # 1. Plot data preparation
-    min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)
+    min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
     # 2. Helper function definition
     def draw_plot(fig_obj: Any, ax1: Any, angle_view: bool = True) -> None:
@@ -237,7 +235,7 @@ def plot_stationary(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save
         _generate_static_views(draw_plot, title, show=True, verbose=verbose)                                                            # Generate and show interactive views.
 
 
-def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
+def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:
     """
     plot_transient
     Render a single 3D scatter plot of the solution for a transient PDE problem,
@@ -250,12 +248,13 @@ def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save:
         nom                         str             Base filename for the saved output (if save=True).
         title                       str             Title for the figure and Z-axis label.
         verbose                     bool            If True, prints progress and errors to console.
+        t_span      Tuple[float]                    Physical time domain tuple (t_start, t_end). Default (0.0, 1.0).
     """
     # 1. Variable initialization
     t                                                           = int(u.shape[1])                                                       # Get total number of time steps.
     step                                                        = max(1, t // 50)                                                       # Calculate step size to limit frame count.
-    T                                                           = np.linspace(0, 1, t)                                                  # Generate array of time values.
-    min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)
+    T                                                           = np.linspace(t_span[0], t_span[1], t)                                  # Generate array of physical time values.
+    min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
     # 2. Helper function definition
     def draw_frame(fig_obj: Any, ax1: Any, k: int, angle_view: bool = True) -> None:
@@ -269,22 +268,22 @@ def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save:
             k                       int             Current time step index.
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
-        if not hasattr(fig_obj, 'surf_artists'):
+        if not hasattr(fig_obj, 'surf_artists'):                                                                                        # Evaluate condition.
             s1 = _render_surface(ax1, p, u[:, k], triangles, matplotlib.colormaps['coolwarm'], min_val, max_val)                        # Render solution surface.
             fig_obj.surf_artists = {'s1': s1}                                                                                           # Cache surface artists for animation updates.
             _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')                              # Format axes for the solution.
             
-            if not angle_view and not hasattr(fig_obj, 'colorbar_added'):
+            if not angle_view and not hasattr(fig_obj, 'colorbar_added'):                                                               # Evaluate condition.
                 fig_obj.colorbar(s1, ax=ax1, fraction=0.046, pad=0.04)                                                                  # Add colorbar to the plot.
                 fig_obj.colorbar_added = True                                                                                           # Mark colorbar as added.
-        else:
+        else:                                                                                                                           # Execute fallback branch.
             if triangles is not None:                                                                                                   # Check if triangulation is available.
                 artist = fig_obj.surf_artists['s1']                                                                                     # Retrieve cached surface artist.
                 z_data = u[:, k]                                                                                                        # Extract Z data for current step.
                 verts  = np.stack((p[triangles, 0], p[triangles, 1], z_data[triangles]), axis=-1)                                       # Compute new 3D vertices for the surface.
                 artist.set_verts(verts)                                                                                                 # Update surface geometry in animation.
                 artist.set_array(np.mean(z_data[triangles], axis=1))                                                                    # Update surface colors based on new Z heights.
-            else:
+            else:                                                                                                                       # Execute fallback branch.
                 artist            = fig_obj.surf_artists['s1']                                                                          # Retrieve cached surface artist.
                 z_data            = u[:, k]                                                                                             # Extract Z data for current step.
                 artist._offsets3d = (p[:, 0], p[:, 1], z_data)                                                                          # Update scatter coordinates directly.
@@ -321,7 +320,7 @@ def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save:
                 fig.suptitle(f'{title} at t = {tin:1.3f} s ({view_name})', fontsize=16, fontweight='bold', y=0.95)                      # Set main title for the figure.
                 draw_frame(fig, ax, frame, angle_view=angle_view)                                                                       # Render the current frame.
 
-            ani     = FuncAnimation(fig, update, frames=np.arange(0, t, step), blit=False)  # type: ignore                              # Initialize animation object.
+            ani     = FuncAnimation(fig, update, frames=np.arange(0, t, step), blit=False)                                              # type: ignore                              # Initialize animation object.
             out_nom = nom                                                                                                               # Set initial output filename.
             
             if suffix:                                                                                                                  # Check if suffix is provided.
@@ -350,7 +349,7 @@ def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save:
         fig, ax1       = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Create figure for perspective view.
         fig_top, ax1_t = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                           # Create figure for top view.
         
-        for k in range(0, t, step):
+        for k in range(0, t, step):                                                                                                     # Iterate over collection.
             tin = float(T[k])                                                                                                           # Get physical time value.
             fig.suptitle(f'{title} at t = {tin:1.3f} s (Perspective)', fontsize=16, fontweight='bold', y=0.95)                          # Set main title for the figure.
             fig_top.suptitle(f'{title} at t = {tin:1.3f} s (Top View)', fontsize=16, fontweight='bold', y=0.95)                         # Set main title for the top view figure.
@@ -368,7 +367,7 @@ def plot_transient(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], save:
         plt.close(fig_top)                                                                                                              # Close figure to release memory.
 
 
-def plot_transient_steps(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64], nom: str, title: str = 'Solution', verbose: bool = True) -> None:
+def plot_transient_steps(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], nom: str, title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:
     """
     plot_transient_steps
     Render and save static single 3D scatter plots of the solution at a few key time steps
@@ -380,12 +379,13 @@ def plot_transient_steps(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64],
         nom                         str             Base filename for the saved output.
         title                       str             Title for the figure and Z-axis label.
         verbose                     bool            If True, prints confirmation of saved figures.
+        t_span      Tuple[float]                    Physical time domain tuple (t_start, t_end). Default (0.0, 1.0).
     """
     # 1. Variable initialization
     t                                                           = int(u.shape[1])                                                       # Get total number of time steps.
     step                                                        = max(1, t // 3)                                                        # Calculate step size to limit frame count.
-    T                                                           = np.linspace(0, 1, t)                                                  # Generate array of time values.
-    min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)
+    T                                                           = np.linspace(t_span[0], t_span[1], t)                                  # Generate array of physical time values.
+    min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
     # 2. Helper function definition
     def draw_snapshot(fig_obj: Any, ax1: Any, k: int, angle_view: bool = True) -> None:
@@ -408,7 +408,7 @@ def plot_transient_steps(p: npt.NDArray[np.float64], u: npt.NDArray[np.float64],
     # 3. Snapshot iteration
     for k in range(0, t + 1, step):                                                                                                     # Iterate through selected snapshots.
         if k >= t: k = int(t - 1)                                                                                                       # Ensure index does not exceed limits.
-        tin = float(T[k])
+        tin = float(T[k])                                                                                                               # Assign tin.
         nok = nom + '_' + str(format(T[k], '.2f'))                                                                                      # Format snapshot filename.
 
         def render_cb(fig: Any, ax: Any, angle_view: bool) -> None:

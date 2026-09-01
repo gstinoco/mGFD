@@ -14,6 +14,10 @@ Workflow:
     - Solve the stationary problem with Stationary(..., upwind=True)
     - Compute error metrics and write outputs to Results/
 
+Public API:
+    process_cloud       Process a single point cloud for the Perturbation problem.
+    main                Batch runner entry point for the Perturbation problem.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero
@@ -45,14 +49,10 @@ Last Modification:
 ## Library importation.
 import os                                                                                                                               # Filesystem and path utilities.
 import sys                                                                                                                              # sys.path manipulation.
-import time                                                                                                                             # Time tracking for execution performance.
-import json                                                                                                                             # JSON serialization for metrics.
 import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Numerical arrays and math.
 import pandas as pd                                                                                                                     # Dataframes and series for new v0.10.0 interface.
-from typing import Optional, List, Callable, Any                                                                                        # Type hinting.
-
-import mGFD.io.export_vtk as ExportVTK                                                                                                  # VTK export utilities for ParaView.
+from typing import Any                                                                                                                  # Type hinting.
 
 from mGFD import Stationary                                                                                                             # First-order transient solver to run the reference case.
 from mGFD.io.io import load_points                                                                                                      # Point cloud loading utility.
@@ -63,7 +63,7 @@ sys.path.append(BASE_DIR)                                                       
 
 import utils.metrics as Errors                                                                                                          # Error metrics for stationary/transient runs.
 
-from utils.batch_utils import iter_clouds, load_neighbors, save_neighbors, run_batch_suite, save_metrics                                # Dataset loading + neighbor cache helpers.
+from utils.batch_utils import load_neighbors, save_neighbors, run_batch_suite, save_metrics                                             # Dataset loading + neighbor cache helpers.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Basic logger configuration.
@@ -88,7 +88,7 @@ def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     Output:
         phi_val         m           ndarray         Evaluated boundary condition.
     """
-    return (x**2 - np.exp(-(1 - x) / D)) * y * (1 - y)
+    return (x**2 - np.exp(-(1 - x) / D)) * y * (1 - y)                                                                                  # Return output values.
 
 def f(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
@@ -102,7 +102,7 @@ def f(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     Output:
         f_val           m           ndarray         Evaluated forcing term.
     """
-    return -(1e-5) * (2 * np.exp((x - 1) / (1e-5)) - 2 * x**2 + y * (np.exp((x - 1) / (1e-5)) / (1e-5)**2 - 2) * (y - 1)) - y * (2 * x - np.exp((x - 1) / (1e-5)) / (1e-5)) * (y - 1)
+    return -(1e-5) * (2 * np.exp((x - 1) / (1e-5)) - 2 * x**2 + y * (np.exp((x - 1) / (1e-5)) / (1e-5)**2 - 2) * (y - 1)) - y * (2 * x - np.exp((x - 1) / (1e-5)) / (1e-5)) * (y - 1) # Return output values.
 
 def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True, **kwargs: Any) -> None:
     """
@@ -141,7 +141,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     upwind          = kwargs.get('upwind', True)                                                                                        # Extract upwind flag, default True for Perturbation.
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    input_types     = kwargs.get('input_types', ['callable'])                                                           # Extract input_types, default callable.
+    input_types     = kwargs.get('input_types', ['callable'])                                                                           # Extract input_types, default callable.
     config_id       = f'nvec_{nvec}_{device}_upwind_{upwind}'                                                                           # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
@@ -167,7 +167,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     if 'array' in input_types:                                                                                                          # Check if array test is enabled.
         res_arr = Stationary(                                                                                                           # Solve using array inputs.
             p, phi_arr, f_arr, operator = L, upwind = upwind, vec = vec0, nvec = nvec, device = device, verbose = False                 # Silent execution for array test.
-        )
+        )                                                                                                                               # Execute statement.
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."                           # Validate output equivalence.
         else:                                                                                                                           # If callable was skipped.
@@ -179,8 +179,8 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         phi_pd = pd.Series(phi_arr.tolist())                                                                                            # Wrap array in Pandas Series.
         f_pd   = pd.Series(f_arr.tolist())                                                                                              # Wrap array in Pandas Series.
         res_pd = Stationary(                                                                                                            # Solve using Pandas inputs.
-            p, phi_pd, f_pd, operator = L, upwind = upwind, vec = vec0, nvec = nvec, device = device, verbose = False                 # Silent execution for Pandas test.
-        )
+            p, phi_pd, f_pd, operator = L, upwind = upwind, vec = vec0, nvec = nvec, device = device, verbose = False                   # Silent execution for Pandas test.
+        )                                                                                                                               # Execute statement.
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."                     # Validate output equivalence.
         else:                                                                                                                           # If no previous result exists.
@@ -211,12 +211,12 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         cloud_name = os.path.basename(cloud_path).replace('.csv', '')                                                                   # Extract clean cloud name.
         if scale == '3':                                                                                                                # Only for scale 3.
             if config_id.startswith('nvec_20_spsolve') or kwargs.get('plot_approximations', False):                                     # Only plot baseline config or if explicitly requested.
-                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),
+                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),                        # Assign plot_stationary(p, u_ap, save.
                             title='Stationary Appx', verbose=verbose)                                                                   # Save 3D scatter image.
         
             exact_nom = os.path.join(out_dir, f'Exact_{cloud_name}')                                                                    # Define exact solution filename linked to the cloud.
             if not os.path.exists(exact_nom + '.png'):                                                                                  # Check for PNG rendering.
-                plot_stationary(p, u_ex, save=True, nom=exact_nom,
+                plot_stationary(p, u_ex, save=True, nom=exact_nom,                                                                      # Assign plot_stationary(p, u_ex, save.
                             title='Theoretical Solution', verbose=verbose)                                                              # Create independent plot of exact solution.
 
 def main(**kwargs: Any) -> None:
@@ -232,5 +232,5 @@ def main(**kwargs: Any) -> None:
     """
     run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, **kwargs)                                                                   # Execute universal batch orchestrator.
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__":                                                                                                              # Evaluate condition.
+    main()                                                                                                                              # Execute statement.

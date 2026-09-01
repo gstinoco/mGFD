@@ -39,7 +39,7 @@ import glob                                                                     
 import numpy as np                                                                                                                      # Core numerical operations.
 import json                                                                                                                             # JSON formatting.
 
-from typing import Optional, Union, Tuple, Iterator, Dict, Any, List, Callable                                                          # Type hints.
+from typing import Optional, Union, Tuple, Iterator, Dict, Any, Callable                                                                # Type hints.
 
 def project_root() -> str:
     """
@@ -104,9 +104,9 @@ def load_neighbors(cloud_path: str, nvec: int, tag: Optional[str] = None) -> Opt
     if not os.path.exists(path):                                                                                                        # Check if cache exists.
         return None                                                                                                                     # Return None if it doesn't.
     
-    try:
+    try:                                                                                                                                # Execute statement.
         vec = np.loadtxt(path, delimiter=',', dtype=np.int32)                                                                           # Load matrix from CSV.
-    except Exception:
+    except Exception:                                                                                                                   # Execute statement.
         return None                                                                                                                     # Return None on parse failure.
     
     if vec.ndim == 1:                                                                                                                   # Handle 1D edge case.
@@ -180,13 +180,13 @@ def iter_clouds(data_root: Optional[str] = None, scales: Union[Tuple[str, ...], 
         dataset_path = os.path.join(data_root, dataset)                                                                                 # Build full dataset path.
         
         if not os.path.isdir(dataset_path):                                                                                             # Ignore non-directories.
-            continue
+            continue                                                                                                                    # Execute statement.
         
         for scale in scales:                                                                                                            # Iterate requested scales.
             scale_path = os.path.join(dataset_path, scale)                                                                              # Build full scale path.
             
             if not os.path.isdir(scale_path):                                                                                           # Ignore if scale is missing.
-                continue
+                continue                                                                                                                # Execute statement.
             csv_paths = sorted(glob.glob(os.path.join(scale_path, '*.csv')))                                                            # Find all CSVs in scale folder.
             
             for cloud_path in csv_paths:                                                                                                # Iterate over CSVs.
@@ -195,19 +195,19 @@ def iter_clouds(data_root: Optional[str] = None, scales: Union[Tuple[str, ...], 
                 if base.endswith('_cloud.csv'):                                                                                         # Filter for cloud files.
                     yield dataset, scale, cloud_path                                                                                    # Yield dataset info and path.
 
-import json
-import logging
-from typing import Callable, Any, Dict
+import json                                                                                                                             # Import module dependency.
+import logging                                                                                                                          # Import module dependency.
+from typing import Callable, Any, Dict                                                                                                  # Import module dependency.
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)                                                                                                    # Assign logger.
 
 def run_batch_suite(
-    process_func: Callable,
-    data_root: str,
-    results_root: str,
-    scales: Optional[Union[tuple, list, str]] = None,
+    process_func: Callable,                                                                                                             # Execute statement.
+    data_root: str,                                                                                                                     # Execute statement.
+    results_root: str,                                                                                                                  # Execute statement.
+    scales: Optional[Union[tuple, list, str]] = None,                                                                                   # Assign scales: Optional[Union[tuple, list, str]].
     **kwargs: Any
-) -> None:
+) -> None:                                                                                                                              # Execute statement.
     """
     run_batch_suite
     Universal orchestrator for all runner batch scripts.
@@ -223,39 +223,39 @@ def run_batch_suite(
     Output:
         None
     """
-    if scales is None:
-        scales = kwargs.pop('scales', None)
-    if scales is None:
-        config_path = os.path.join(project_root(), 'codes', 'sweep_config.json')
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    cfg = json.load(f)
-                    scales = cfg.get('scales', ('1', '2', '3'))
-            except Exception:
-                scales = ('1', '2', '3')
-        else:
-            scales = ('1', '2', '3')
+    if scales is None:                                                                                                                  # Evaluate condition.
+        scales = kwargs.pop('scales', None)                                                                                             # Assign scales.
+    if scales is None:                                                                                                                  # Evaluate condition.
+        config_path = os.path.join(project_root(), 'codes', 'sweep_config.json')                                                        # Assign config_path.
+        if os.path.exists(config_path):                                                                                                 # Evaluate condition.
+            try:                                                                                                                        # Execute statement.
+                with open(config_path, 'r') as f:                                                                                       # Execute statement.
+                    cfg = json.load(f)                                                                                                  # Assign cfg.
+                    scales = cfg.get('scales', ('1', '2', '3'))                                                                         # Assign scales.
+            except Exception:                                                                                                           # Execute statement.
+                scales = ('1', '2', '3')                                                                                                # Assign scales.
+        else:                                                                                                                           # Execute fallback branch.
+            scales = ('1', '2', '3')                                                                                                    # Assign scales.
 
-    if isinstance(scales, (int, str)):
-        scales = (str(scales),)
-    else:
-        scales = tuple(str(s) for s in scales)
+    if isinstance(scales, (int, str)):                                                                                                  # Evaluate condition.
+        scales = (str(scales),)                                                                                                         # Assign scales.
+    else:                                                                                                                               # Execute fallback branch.
+        scales = tuple(str(s) for s in scales)                                                                                          # Iterate over collection.
 
-    verbose = kwargs.pop('verbose', True)
-    save = kwargs.pop('save', True)
-    found = 0
+    verbose = kwargs.pop('verbose', True)                                                                                               # Assign verbose.
+    save = kwargs.pop('save', True)                                                                                                     # Assign save.
+    found = 0                                                                                                                           # Assign found.
     
-    if verbose:
-        logger.info(f'Processing point clouds from {data_root} (scales={scales}).')
+    if verbose:                                                                                                                         # Evaluate condition.
+        logger.info(f'Processing point clouds from {data_root} (scales={scales}).')                                                     # Assign logger.info(f'Processing point clouds from {data_root} (scales.
         
-    for dataset, scale, cloud_path in iter_clouds(data_root, scales):
-        found += 1
-        process_func(dataset, scale, cloud_path, results_root, save, verbose=verbose, **kwargs)
+    for dataset, scale, cloud_path in iter_clouds(data_root, scales):                                                                   # Iterate over collection.
+        found += 1                                                                                                                      # Assign found +.
+        process_func(dataset, scale, cloud_path, results_root, save, verbose=verbose, **kwargs)                                         # Assign process_func(dataset, scale, cloud_path, results_root, save, verbose.
         
-    if found == 0:
-        if verbose:
-            logger.warning(f'No point clouds found in {data_root} for scales {scales}.')
+    if found == 0:                                                                                                                      # Evaluate condition.
+        if verbose:                                                                                                                     # Evaluate condition.
+            logger.warning(f'No point clouds found in {data_root} for scales {scales}.')                                                # Iterate over collection.
 
 def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[str] = None, scale: Optional[str] = None, p: Optional[np.ndarray] = None) -> None:
     """
@@ -273,10 +273,10 @@ def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[st
     Output:
         None
     """
-    exec_time = metrics.pop('Compute_Time_Secs', None)                                                                                 # Extract primary solver execution time if present.
+    exec_time = metrics.pop('Compute_Time_Secs', None)                                                                                  # Extract primary solver execution time if present.
     if exec_time is not None:                                                                                                           # If primary compute time present.
         metrics['Time_Secs'] = exec_time                                                                                                # Set standardized execution time metric.
-        if 'Time_Callable' not in metrics and 'Time_Array' not in metrics and 'Time_Pandas' not in metrics:                              # If no type-specific key was created.
+        if 'Time_Callable' not in metrics and 'Time_Array' not in metrics and 'Time_Pandas' not in metrics:                             # If no type-specific key was created.
             metrics['Time_Callable'] = exec_time                                                                                        # Fallback to Callable label for backward compatibility.
     elif 'Time_Callable' in metrics:                                                                                                    # If Callable time is present.
         metrics['Time_Secs'] = metrics['Time_Callable']                                                                                 # Mirror to unified execution time metric.
@@ -325,8 +325,8 @@ def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[st
         with open(metrics_path, 'w') as f:                                                                                              # Open the file in write mode.
             json.dump(metrics, f, indent=4)                                                                                             # Dump the single metrics dictionary.
 
-import pandas as pd
-from datetime import datetime
+import pandas as pd                                                                                                                     # Import module dependency.
+from datetime import datetime                                                                                                           # Import module dependency.
 
 def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
     """

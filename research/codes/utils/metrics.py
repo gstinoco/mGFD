@@ -50,9 +50,9 @@ Date:
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
 
-from typing import Optional, Dict, Any, Union                                                                                           # Type hints.
+from typing import Optional, Dict, Union                                                                                                # Type hints.
 
-from mGFD.utils.core_utils import poly_area                                                                                                   # Polygon area calculator.
+from mGFD.utils.core_utils import poly_area                                                                                             # Polygon area calculator.
 
 def compute_rmse_transient(p: Union[np.ndarray, list], vec: Union[np.ndarray, list], u_ap: Union[np.ndarray, list], u_ex: Union[np.ndarray, list]) -> np.ndarray:
     """
@@ -212,7 +212,7 @@ def Compute_Metrics_Stationary(p: Union[np.ndarray, list], vec: Union[np.ndarray
         "RMSE":           rmse,                                                                                                         # Store Area-weighted RMSE.
         "Max_Abs_Error":  float(np.max(abs_diff)),                                                                                      # Store maximum absolute error.
         "Mean_Abs_Error": float(np.mean(abs_diff))                                                                                      # Store mean absolute error.
-    }
+    }                                                                                                                                   # Execute statement.
     
     if compute_time is not None:                                                                                                        # If computation time is provided.
         metrics["Compute_Time_Secs"] = compute_time                                                                                     # Store computation time in seconds.
@@ -256,13 +256,13 @@ def Compute_Metrics_Transient(p: Union[np.ndarray, list], vec: Union[np.ndarray,
     u_ex_arr = np.asarray(u_ex)                                                                                                         # Normalize reference solution to ndarray.
 
     rmse_array = compute_rmse_transient(p, vec, u_ap_arr, u_ex_arr)                                                                     # Compute array of RMSE values across time steps.
-    abs_diff   = np.abs(u_ap_arr - u_ex_arr)                                                                                              # Pointwise absolute difference over time and space.
+    abs_diff   = np.abs(u_ap_arr - u_ex_arr)                                                                                            # Pointwise absolute difference over time and space.
     
     metrics: Dict[str, float] = {                                                                                                       # Dictionary to store the metrics.
         "Time_Mean_RMSE":  float(np.mean(rmse_array)),                                                                                  # Store mean RMSE over all time steps.
         "Max_Abs_Error":   float(np.max(abs_diff)),                                                                                     # Store absolute error peak.
         "Final_Step_RMSE": float(rmse_array[-1]) if len(rmse_array) > 0 else 0.0                                                        # Store RMSE at the very last step.
-    }
+    }                                                                                                                                   # Execute statement.
     if compute_time is not None:                                                                                                        # If computation time is provided.
         metrics["Compute_Time_Secs"] = compute_time                                                                                     # Store computation time in seconds.
     

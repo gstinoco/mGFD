@@ -6,6 +6,9 @@ Overview:
     to regularize point clouds, transforming random distributions into more
     uniform, honeycomb-like structures.
 
+Public API:
+    apply_lloyd_relaxation      Apply Lloyd relaxation iterations to smooth node distribution.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero
@@ -40,7 +43,6 @@ import numba as nb                                                              
 from scipy.spatial import Voronoi                                                                                                       # Voronoi diagram computation.
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 
-from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
 from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations. # Fast polygon checker.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.

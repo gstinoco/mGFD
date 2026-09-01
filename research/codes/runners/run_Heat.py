@@ -13,6 +13,10 @@ Workflow:
     - Compute error metrics and save outputs to Results/
     - Plot/save static step snapshots (optional) and a transient animation (always)
 
+Public API:
+    process_cloud       Process a single point cloud for the Heat equation.
+    main                Batch runner entry point for the Heat problem.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero
@@ -44,14 +48,10 @@ Last Modification:
 ## Library importation.
 import os                                                                                                                               # Filesystem and path utilities.
 import sys                                                                                                                              # sys.path manipulation.
-import time                                                                                                                             # Time tracking for execution performance.
-import json                                                                                                                             # JSON serialization for metrics.
 import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Numerical arrays and math.
 import pandas as pd                                                                                                                     # Dataframes and series for new v0.10.0 interface.
-from typing import Optional, List, Callable, Any                                                                                        # Type hinting.
-
-import mGFD.io.export_vtk as ExportVTK                                                                                                  # VTK export utilities for ParaView.
+from typing import List, Any                                                                                                            # Type hinting.
 
 from mGFD import TimeDerivative1                                                                                                        # First-order transient solver to run the reference case.
 from mGFD.io.io import load_points                                                                                                      # Point cloud loading utility.
@@ -62,7 +62,7 @@ sys.path.append(BASE_DIR)                                                       
 
 import utils.metrics as Errors                                                                                                          # Error metrics for stationary/transient runs.
 
-from utils.batch_utils import iter_clouds, load_neighbors, save_neighbors, run_batch_suite, save_metrics                                # Dataset loading + neighbor cache helpers.
+from utils.batch_utils import load_neighbors, save_neighbors, run_batch_suite, save_metrics                                             # Dataset loading + neighbor cache helpers.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Basic logger configuration.
@@ -78,7 +78,7 @@ def f(x: np.ndarray, y: np.ndarray, t_val: float, coef: List[float]) -> np.ndarr
     """
     Heat analytical solution.
     """
-    return np.exp(-2 * np.pi**2 * coef[0] * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)
+    return np.exp(-2 * np.pi**2 * coef[0] * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)                                              # Return output values.
 
 def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True, **kwargs: Any) -> None:
     """
@@ -116,7 +116,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    input_types     = kwargs.get('input_types', ['callable'])                                                           # Extract input_types, default callable.
+    input_types     = kwargs.get('input_types', ['callable'])                                                                           # Extract input_types, default callable.
     config_id       = f'nvec_{nvec}_{device}'                                                                                           # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
@@ -134,13 +134,13 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # --- A. Using Callable ---
     if 'callable' in input_types:                                                                                                       # Check if callable test is enabled.
         res_call = TimeDerivative1(                                                                                                     # Solve the transient heat problem (Callable).
-            p, f, t=t_param, cfl=cfl_param, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=verbose_solvers
+            p, f, t=t_param, cfl=cfl_param, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=verbose_solvers # Assign p, f, t.
         )                                                                                                                               # Extract solver result object.
         u_ap, vec  = res_call.solution, res_call.neighbors                                                                              # Unpack approximate solution and neighbor list.
         comp_time  = res_call.compute_time                                                                                              # Get solver execution time.
         res_main   = res_call                                                                                                           # Track main result object.
         
-    t_used = res_main.t_steps if res_main is not None and res_main.t_steps is not None else (t_param if t_param is not None else 2000)   # Determine actual time steps executed.
+    t_used = res_main.t_steps if res_main is not None and res_main.t_steps is not None else (t_param if t_param is not None else 2000)  # Determine actual time steps executed.
     T_arr = np.linspace(0, 1, t_used)                                                                                                   # Reconstruct time vector.
     spatial_part  = np.sin(np.pi * p[:, 0]) * np.sin(np.pi * p[:, 1])                                                                   # Spatial part of solution.
     temporal_part = np.exp(-2 * v * np.pi**2 * T_arr)                                                                                   # Temporal decay part.
@@ -149,8 +149,8 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     # --- B. Using Numpy Arrays ---
     if 'array' in input_types:                                                                                                          # Check if array test is enabled.
         res_arr = TimeDerivative1(                                                                                                      # Solve using array inputs.
-            p, f_arr, t=t_used, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=False
-        )
+            p, f_arr, t=t_used, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=False         # Assign p, f_arr, t.
+        )                                                                                                                               # Execute statement.
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."                           # Validate output equivalence.
         else:                                                                                                                           # If callable was skipped.
@@ -162,8 +162,8 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     if 'pandas' in input_types:                                                                                                         # Check if pandas test is enabled.
         f_pd = pd.DataFrame(f_arr)                                                                                                      # Wrap spatiotemporal array in Pandas DataFrame.
         res_pd = TimeDerivative1(                                                                                                       # Solve using Pandas inputs.
-            p, f_pd, t=t_used, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=False
-        )
+            p, f_pd, t=t_used, coef=[v], operator=L, vec=vec0, nvec=nvec, implicit=True, lam=0.5, device=device, verbose=False          # Assign p, f_pd, t.
+        )                                                                                                                               # Execute statement.
         if u_ap is not None:                                                                                                            # If previous result exists, validate.
             assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."                     # Validate output equivalence.
         else:                                                                                                                           # If no previous result exists.
@@ -200,11 +200,11 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         cloud_name = os.path.basename(cloud_path).replace('.csv', '')                                                                   # Extract clean cloud name.
         if scale == '3':                                                                                                                # Only for scale 3.
             if config_id.startswith('nvec_20_spsolve') or kwargs.get('plot_approximations', False):                                     # Only plot baseline config or if explicitly requested.
-                plot_transient(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),
+                plot_transient(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),                         # Assign plot_transient(p, u_ap, save.
                                             title='Transient Approximation', verbose=verbose)                                           # Save transient animation.
             exact_nom = os.path.join(out_dir, f'Exact_{cloud_name}')                                                                    # Define exact solution filename linked to the cloud.
             if not (os.path.exists(exact_nom + '.mp4') or os.path.exists(exact_nom + '.gif')):                                          # Avoid regenerating the exact solution.
-                plot_transient(p, u_ex, save=True, nom=exact_nom,
+                plot_transient(p, u_ex, save=True, nom=exact_nom,                                                                       # Assign plot_transient(p, u_ex, save.
                                             title='Theoretical Solution', verbose=verbose)                                              # Save exact transient animation.
 
 def main(**kwargs: Any) -> None:
@@ -220,5 +220,5 @@ def main(**kwargs: Any) -> None:
     """
     run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, **kwargs)                                                                   # Execute universal batch orchestrator.
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__":                                                                                                              # Evaluate condition.
+    main()                                                                                                                              # Execute statement.

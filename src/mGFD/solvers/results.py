@@ -42,10 +42,10 @@ Last Modification:
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
 
-from typing import Iterator, Optional                                                                                                    # Typing for iteration unpacking and optional fields.
+from typing import Iterator, Optional                                                                                                   # Typing for iteration unpacking and optional fields.
 from dataclasses import dataclass                                                                                                       # Dataclass structure definition.
 
-@dataclass
+@dataclass                                                                                                                              # Execute statement.
 class SolverResult:
     """
     Standardized return object for mGFD PDE solvers.

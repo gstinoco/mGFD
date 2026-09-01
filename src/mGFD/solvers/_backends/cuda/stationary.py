@@ -45,13 +45,13 @@ import mGFD.spatial.neighbors as Neighbors                                      
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def solve_cuda(p: np.ndarray,                                                                                                           # Function definition.
-               phi: Union[Callable, np.ndarray, float, int],
-               f: Union[Callable, np.ndarray, float, int],
-               operator: np.ndarray,
-               upwind: bool,
-               vec: Optional[np.ndarray],
-               nvec: int,
-               verbose: bool) -> Tuple[np.ndarray, np.ndarray, bool]:
+               phi: Union[Callable, np.ndarray, float, int],                                                                            # Execute statement.
+               f: Union[Callable, np.ndarray, float, int],                                                                              # Execute statement.
+               operator: np.ndarray,                                                                                                    # Execute statement.
+               upwind: bool,                                                                                                            # Execute statement.
+               vec: Optional[np.ndarray],                                                                                               # Execute statement.
+               nvec: int,                                                                                                               # Execute statement.
+               verbose: bool = True) -> Tuple[np.ndarray, np.ndarray, bool]:                                                            # Assign verbose: bool.
     """CUDA backend for Stationary solver using direct cuSOLVER sparse LU solver."""
     
     try:                                                                                                                                # Import CuPy libraries.

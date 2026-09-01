@@ -5,6 +5,9 @@ Overview:
     This module implements boundary generation algorithms to create nodes
     along the perimeter of geometric regions.
 
+Public API:
+    generate_boundary_points    Generate nodes along domain boundary.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero

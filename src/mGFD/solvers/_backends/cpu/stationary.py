@@ -46,14 +46,32 @@ import mGFD.spatial.neighbors as Neighbors                                      
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def solve_cpu(p: np.ndarray,                                                                                                            # Function definition.
-              phi: Union[Callable, np.ndarray, float, int],
-              f: Union[Callable, np.ndarray, float, int],
-              operator: np.ndarray,
-              upwind: bool,
-              vec: Optional[np.ndarray],
-              nvec: int,
-              verbose: bool) -> Tuple[np.ndarray, np.ndarray, bool]:
-    """CPU backend for Stationary solver using direct sparse LU factorization."""
+              phi: Union[Callable, np.ndarray, float, int],                                                                             # Execute statement.
+              f: Union[Callable, np.ndarray, float, int],                                                                               # Execute statement.
+              operator: np.ndarray,                                                                                                     # Execute statement.
+              upwind: bool,                                                                                                             # Execute statement.
+              vec: Optional[np.ndarray],                                                                                                # Execute statement.
+              nvec: int,                                                                                                                # Execute statement.
+              verbose: bool = True) -> Tuple[np.ndarray, np.ndarray, bool]:                                                             # Assign verbose: bool.
+    """
+    solve_cpu
+    CPU backend execution routine for Stationary solver using direct sparse LU factorization.
+
+    Input:
+        p           m x 3           ndarray         Point cloud array [x, y, flag].
+        phi                         Union           Boundary condition function, array, or scalar.
+        f                           Union           Right-hand side forcing function, array, or scalar.
+        operator    6 x 1           ndarray         Differential operator coefficients [D, E, A, B, C, F_react].
+        upwind                      bool            If True, uses upwind neighbor stencil.
+        vec         m x nvec        ndarray         Cached neighbor matrix (optional).
+        nvec                        int             Maximum number of neighbors per node.
+        verbose                     bool            If True, prints execution logs.
+
+    Output:
+        u_ap        m               ndarray         Approximate solution evaluated at all nodes.
+        vec         m x nvec        ndarray         Computed/cached neighbor matrix.
+        converged                   bool            Solver convergence status flag (True for direct solver).
+    """
     
     m = len(p[:, 0])                                                                                                                    # Total nodes.
     if verbose:                                                                                                                         # Verbosity.

@@ -104,20 +104,18 @@ force_df = pd.DataFrame(f_arr)                                                  
 # 4. Solvers & Optimizers Comparison
 # ------------------------------------------------------------------------------------------------------------------------------ #
 print("Step 4: Solvers and Optimizers Comparison")                                                                                      # Log step 4.
-print("\n--- Strategy A: Memory Optimized (Iterative Solver) ---")                                                                      # Separator log.
+print("\n--- Strategy A: CPU Execution (Pre-factorized Direct Solver) ---")                                                             # Separator log.
 
-# Strategy A uses an iterative Krylov subspace solver (BiCGSTAB) which is vastly more memory-efficient 
-# We also use `upwind=True` which biases the neighbor search in the opposite direction of the velocity vector (v_x, v_y),
-# heavily stabilizing the convective terms. We pair this with an ILU preconditioner to accelerate convergence.
-try:                                                                                                                                    # Attempt iterative CPU execution.
+# Strategy A uses CPU direct sparse pre-factorized LU decomposition which provides maximum precision and speed.
+# We use `upwind=True` which biases the neighbor search in the opposite direction of the velocity vector (v_x, v_y),
+# heavily stabilizing the convective terms.
+try:                                                                                                                                    # Attempt CPU execution.
     result_A = TimeDerivative1(                                                                                                         # Call the time derivative solver.
         p, force_df, time_steps, coef=[v, v_x, v_y], operator=L,                                                                        # Pass fundamental math params.
         nvec=15,                                                                                                                        # Specify neighbor count.
         implicit=True,                                                                                                                  # Guarantee numerical stability with fully implicit time stepping.
         upwind=True,                                                                                                                    # Apply upwind stabilization for convective fluxes.
-        matrix_free=False,                                                                                                              # Assemble the sparse matrix directly.
-        linear_solver="bicgstab",                                                                                                       # Use the robust Biconjugate Gradient Stabilized method.
-        preconditioner="ilu",                                                                                                           # Accelerate condition number scaling via ILU factorization.
+        device="cpu",                                                                                                                   # High-performance CPU direct solver.
         verbose=True                                                                                                                    # Output solver logs.
     )                                                                                                                                   # End of solver call.
     print(f"Strategy A completed in {result_A.compute_time:.4f} seconds.")                                                              # Log Strategy A completion time.
@@ -125,8 +123,7 @@ except Exception as e:                                                          
     print(f"Strategy A failed: {e}")                                                                                                    # Log Strategy A failure reason.
 
 print("\n--- Strategy B: GPU Accelerated (CUDA) ---")                                                                                   # Separator log.
-# Strategy B attempts to use the NVIDIA GPU. Matrix-Free is incompatible with CUDA, 
-# so we construct the sparse matrix and use an ILU preconditioner for speed.
+# Strategy B uses GPU acceleration via CuPy pre-factorized direct sparse solver.
 try:                                                                                                                                    # Attempt GPU execution via CuPy.
     result_B = TimeDerivative1(                                                                                                         # Call the time derivative solver.
         p, force_df, time_steps, coef=[v, v_x, v_y], operator=L,                                                                        # Pass fundamental math params.
@@ -134,8 +131,6 @@ try:                                                                            
         implicit=True,                                                                                                                  # Guarantee numerical stability.
         upwind=True,                                                                                                                    # Apply upwind stabilization.
         device='cuda',                                                                                                                  # Exploit GPU parallelism via CuPy!
-        linear_solver="bicgstab",                                                                                                       # GPU compatible Krylov method.
-        preconditioner="ilu",                                                                                                           # GPU compatible preconditioner.
         verbose=True                                                                                                                    # Output solver logs.
     )                                                                                                                                   # End of solver call.
     print(f"Strategy B completed in {result_B.compute_time:.4f} seconds.")                                                              # Log Strategy B completion time.

@@ -43,9 +43,8 @@ Last Modification:
 import numpy as np                                                                                                                      # Core numerical operations.
 import shapely                                                                                                                          # Vectorized geometry operations.
 
-from shapely.strtree import STRtree                                                                                                     # Spatial index for fast nearest-neighbor search.
 from typing import List, Tuple, Optional, Any                                                                                           # Type hinting.
-from shapely.geometry import Point, Polygon, LineString                                                                                 # Geometric objects for spatial operations.
+from shapely.geometry import Polygon, LineString                                                                                        # Geometric objects for spatial operations.
 
 from mGFD.cloud_generator.utils.utils import calculate_dynamic_boundary_refinement                                                      # Import tolerance calculator.
 

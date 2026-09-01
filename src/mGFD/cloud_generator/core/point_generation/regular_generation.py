@@ -5,6 +5,9 @@ Overview:
     This module implements the regular (grid-based) point generation algorithms.
     It uses a vectorized OpenCV masking approach for fast interior point filling.
 
+Public API:
+    generate_regular_points     Generate regular grid interior nodes.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero
@@ -44,7 +47,6 @@ from concurrent.futures import ProcessPoolExecutor                              
 
 from mGFD.cloud_generator.utils.utils import calculate_cloud_size, create_closed_contour                                                # Utility functions.
 from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                                # Boundary generation.
-from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Fast polygon checker.
 from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations. # Geometric operations.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.

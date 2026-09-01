@@ -50,7 +50,7 @@ CLOUD_FACTORS = {                                                               
     "adaptive_factor": 0.15,                                                                                                            # Factor to scale the cloud size.
     "default_cloud_size": 0.05,                                                                                                         # Default cloud size if calculation fails.
     "boundary_refinement": 0.02                                                                                                         # Default boundary refinement distance.
-}
+}                                                                                                                                       # Execute statement.
 
 def calculate_cloud_size(region_points: List[Tuple[float, float]]) -> float:
     """
@@ -169,7 +169,7 @@ def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Option
         refinement_candidates.append(density_based_refinement * 0.1)                                                                    # Secondary: Density-based calculation.
         
         if cloud_size_based_refinement:                                                                                                 # If cloud size estimate exists.
-            refinement_candidates.append(cloud_size * 0.05 if cloud_size else 0.0)                                               # Tertiary: Cloud size based (if available).
+            refinement_candidates.append(cloud_size * 0.05 if cloud_size else 0.0)                                                      # Tertiary: Cloud size based (if available).
         
         # 7. Use a weighted approach or median
         if cloud_size:                                                                                                                  # Favor cloud size if provided.

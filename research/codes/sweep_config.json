@@ -1,4 +1,9 @@
 {
+    "runners": [
+        "run_Poisson.py",
+        "run_AdvReactionDiff.py",
+        "run_Wave.py"
+    ],
     "scales": [
         "1",
         "2",
@@ -7,11 +12,10 @@
         "5"
     ],
     "nvec": [
-        20
+        12
     ],
     "device": [
-        "cpu",
-        "cuda"
+        "cpu"
     ],
     "upwind": [
         true,
@@ -21,10 +25,10 @@
         "callable"
     ],
     "save": [
-        false
+        true
     ],
     "plot_approximations": [
-        false
+        true
     ],
     "cfl": [
         0.1

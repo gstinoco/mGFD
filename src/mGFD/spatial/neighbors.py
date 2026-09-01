@@ -60,9 +60,9 @@ import numpy as np                                                              
 import numba as nb                                                                                                                      # JIT compilation.
 
 from scipy.spatial import KDTree                                                                                                        # Spatial indexing for fast neighbor queries.
-from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+from typing import Optional, Tuple                                                                                                      # Type hinting.
 
-@nb.njit(cache=True, fastmath=True, parallel=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
 def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int) -> np.ndarray:
     """
     _find_neighbors_jit
@@ -95,7 +95,7 @@ def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float,
                     break                                                                                                               # Exit neighbor loop.
     return vec                                                                                                                          # Return populated neighbor list.
 
-@nb.njit(cache=True, fastmath=True)
+@nb.njit(cache=True, fastmath=True)                                                                                                     # Assign @nb.njit(cache.
 def _check_stencil_condition_jit(dx: np.ndarray, dy: np.ndarray) -> float:
     """
     _check_stencil_condition_jit
@@ -139,7 +139,7 @@ def _check_stencil_condition_jit(dx: np.ndarray, dy: np.ndarray) -> float:
         
     return L1 / L2                                                                                                                      # Return geometric condition number.
 
-@nb.njit(cache=True, fastmath=True, parallel=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
 def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int, target_per_quad: int) -> np.ndarray:
     """
     _find_neighbors_balanced_jit
@@ -250,7 +250,7 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
     
     return vec                                                                                                                          # Return dynamically balanced neighbor list.
 
-@nb.njit(cache=True, fastmath=True, parallel=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
 def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, a: float, b: float, tol: float, m: int, nvec: int) -> np.ndarray:
     """
     _find_neighbors_adv_jit
@@ -532,10 +532,10 @@ def compute_mesh_spacing(p: np.ndarray, vec: Optional[np.ndarray] = None) -> Tup
         h_min                       float           Minimum spatial step between neighbor nodes.
         h_avg                       float           Average spatial step between neighbor nodes.
     """
-    tree         = KDTree(p[:, :2])                                                                                                    # Build KDTree on (x, y).
-    distances, _ = tree.query(p[:, :2], k=2, workers=-1)                                                                               # Query self + nearest neighbor.
-    min_dists    = distances[:, 1]                                                                                                     # Distance to nearest neighbor for each node.
-    h_min        = float(np.min(min_dists))                                                                                            # Minimum node spacing.
-    h_avg        = float(np.mean(min_dists))                                                                                           # Average node spacing.
+    tree         = KDTree(p[:, :2])                                                                                                     # Build KDTree on (x, y).
+    distances, _ = tree.query(p[:, :2], k=2, workers=-1)                                                                                # Query self + nearest neighbor.
+    min_dists    = distances[:, 1]                                                                                                      # Distance to nearest neighbor for each node.
+    h_min        = float(np.min(min_dists))                                                                                             # Minimum node spacing.
+    h_avg        = float(np.mean(min_dists))                                                                                            # Average node spacing.
     return h_min, h_avg                                                                                                                 # Return spatial metrics.
 

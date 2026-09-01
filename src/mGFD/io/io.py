@@ -25,6 +25,11 @@ Credits:
         Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
         Aula CIMNE-Morelia. México.
         SIIIA-MATH: Soluciones de Ingeniería. México.
+
+Date:
+    May, 2024.
+Last Modification:
+    August, 2026.
 """
 
 ## Library importation.

@@ -5,6 +5,9 @@ Overview:
     This module provides fast geometric operations for the point generation,
     specifically a fast point-in-polygon checker.
 
+Public API:
+    point_in_polygon            Check if point is inside polygon.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero

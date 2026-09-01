@@ -42,11 +42,11 @@ import os                                                                       
 import numpy as np                                                                                                                      # Core numerical operations.
 
 from scipy.spatial import Delaunay                                                                                                      # Delaunay triangulation algorithm.
-from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+from typing import Optional, Tuple, List, Any, Union                                                                                    # Type hinting.
 
 from mGFD.spatial.neighbors import find_distances                                                                                       # Distance estimator.
 
-def poly_area(x: np.ndarray, y: np.ndarray) -> float:
+def poly_area(x: Union[np.ndarray, Any], y: Union[np.ndarray, Any]) -> float:
     """
     poly_area
     Compute the area of a polygon defined by its ordered vertices (x, y).
@@ -72,7 +72,7 @@ def poly_area(x: np.ndarray, y: np.ndarray) -> float:
     return float(area)                                                                                                                  # Return scalar area.
 
 
-def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optional[np.ndarray]:
+def get_valid_triangulation(p: Union[np.ndarray, Any], nom: Optional[str] = None) -> Optional[Union[np.ndarray, Any]]:
     """
     get_valid_triangulation
     Compute a valid triangulation for the point cloud p by filtering out Delaunay
@@ -159,9 +159,9 @@ def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optiona
         
         for t in simplices:                                                                                                             # Iterate over all triangles.
             pts = xy[t]                                                                                                                 # Get vertices of current triangle.
-            L1  = np.linalg.norm(pts[0] - pts[1])                                                                                       # Calculate edge length.
-            L2  = np.linalg.norm(pts[1] - pts[2])                                                                                       # Calculate edge length.
-            L3  = np.linalg.norm(pts[2] - pts[0])                                                                                       # Calculate edge length.
+            L1  = float(np.linalg.norm(pts[0] - pts[1]))                                                                                # Calculate edge length.
+            L2  = float(np.linalg.norm(pts[1] - pts[2]))                                                                                # Calculate edge length.
+            L3  = float(np.linalg.norm(pts[2] - pts[0]))                                                                                # Calculate edge length.
             if max(L1, L2, L3) < threshold:                                                                                             # Filter out large boundary triangles.
                 global_triangles.append(t)                                                                                              # Store valid triangle.
     except Exception:                                                                                                                   # Ignore exceptions.
@@ -182,7 +182,7 @@ def get_valid_triangulation(p: np.ndarray, nom: Optional[str] = None) -> Optiona
     return None                                                                                                                         # Return None.
 
 
-def get_aspect_and_bounds(p: np.ndarray) -> Tuple[Tuple[float, float, float], List[float], List[float]]:
+def get_aspect_and_bounds(p: Union[np.ndarray, Any]) -> Tuple[Tuple[float, float, float], List[float], List[float]]:
     """
     get_aspect_and_bounds
     Extract physical aspect ratio and bounding box from a point cloud.

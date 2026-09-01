@@ -52,7 +52,7 @@ import logging                                                                  
 import numpy as np                                                                                                                      # Core numerical operations.
 import pyvista as pv                                                                                                                    # 3D visualization utilities.
 
-from typing import Callable, Optional, Tuple, List                                                                                      # Type hinting.
+from typing import Optional, Tuple                                                                                                      # Type hinting.
 
 from mGFD.utils.core_utils import get_valid_triangulation                                                                               # Geometry utilities.
 
@@ -119,7 +119,7 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basenam
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f"\tSaved VTK to {filepath}")                                                                                       # Report successful save.
 
-def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, t: int, T: np.ndarray, out_dir: str, basename: str = "Transient_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basename: str = "Transient_Solution", t: Optional[int] = None, T: Optional[np.ndarray] = None, t_span: Tuple[float, float] = (0.0, 1.0), cloud_path: Optional[str] = None, verbose: bool = True) -> None:
     """
     export_transient_vtk
     Export a transient PDE solution to a time-series VTK (.pvd + .vtp) format.
@@ -130,31 +130,36 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, t: int, T: np.ndarray,
     Input:
         p           m x 3           ndarray         Point cloud coordinates and boundary flags.
         u_ap        m x t           ndarray         Approximate solution values over time.
-        t                           int             Total number of time steps.
-        T           t               ndarray         Array of physical time values.
         out_dir                     str             Directory where the VTK files will be saved.
         basename                    str             Base filename for the output PVD and VTP files.
+        t                           int             (Optional) Total number of time steps.
+        T                           ndarray         (Optional) Array of physical time values.
+        t_span      Tuple[float]                    (Optional) Physical time domain tuple (t_start, t_end). Default (0.0, 1.0).
         cloud_path                  str             (Optional) Path to the point cloud CSV, used to load cached boundary-aware triangulations.
         verbose                     bool            (Optional) If True, prints status messages to standard output.
     """
-    # 1. Initialization and mesh creation
+    # 1. Initialization and time vector calculation
+    total_steps = u_ap.shape[1] if u_ap.ndim == 2 else 1                                                                                # Extract steps count.
+    t_use       = t if t is not None else total_steps                                                                                   # Resolve step count.
+    T_use       = T if T is not None else np.linspace(t_span[0], t_span[1], t_use)                                                      # Resolve physical time vector.
+    
     out_dir = os.path.join(out_dir, 'VTK')                                                                                              # Append VTK subdirectory to avoid cluttering.
     os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
     mesh = _create_mesh(p, cloud_path = cloud_path)                                                                                     # Create base mesh for the geometry.
     
     # 2. PVD Initialization
     pvd_content = [                                                                                                                     # Initialize PVD XML structure.
-        '<?xml version="1.0"?>',
-        '<VTKFile type="Collection" version="0.1" byte_order="LittleEndian">',
-        '  <Collection>'
-    ]
+        '<?xml version="1.0"?>',                                                                                                        # Assign '<?xml version.
+        '<VTKFile type="Collection" version="0.1" byte_order="LittleEndian">',                                                          # Assign '<VTKFile type.
+        '  <Collection>'                                                                                                                # Execute statement.
+    ]                                                                                                                                   # Execute statement.
     
-    step         = max(1, t // 500)                                                                                                     # Calculate step size to prevent massive storage.
+    step         = max(1, t_use // 500)                                                                                                 # Calculate step size to prevent massive storage.
     frames_saved = 0                                                                                                                    # Initialize frame counter.
     
     # 3. Frame iteration
-    for k in range(0, t, step):                                                                                                         # Iterate over chosen time steps.
-        time_val = float(T[k])                                                                                                          # Physical time value.
+    for k in range(0, t_use, step):                                                                                                     # Iterate over chosen time steps.
+        time_val = float(T_use[k])                                                                                                      # Physical time value.
         
         mesh.point_data['U_ap']           = u_ap[:, k]                                                                                  # Store approximate solution at time k.
         

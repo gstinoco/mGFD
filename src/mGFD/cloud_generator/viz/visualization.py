@@ -42,7 +42,6 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Numerical arrays and mathematical operations.
-import matplotlib                                                                                                                       # Plotting library.
 import matplotlib.pyplot as plt                                                                                                         # Interface for pyplot.
 
 from typing import List, Optional                                                                                                       # Import type hints.
@@ -70,13 +69,13 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
         # 1. Define colors (RGB tuples scaled to 0-1 for matplotlib)
         interior_colors = [                                                                                                             # Colors for internal nodes.
             (51/255, 153/255, 255/255),                                                                                                 # Light Blue
-            (77/255, 230/255, 77/255),                                                                                                  # Bright Green  
+            (77/255, 230/255, 77/255),                                                                                                  # Bright Green
             (255/255, 179/255, 51/255),                                                                                                 # Bright Orange
             (204/255, 77/255, 255/255),                                                                                                 # Bright Purple
             (230/255, 153/255, 51/255),                                                                                                 # Golden Brown
             (255/255, 128/255, 204/255),                                                                                                # Bright Pink
             (179/255, 179/255, 179/255)                                                                                                 # Light Gray
-        ]
+        ]                                                                                                                               # Execute statement.
         
         boundary_colors = [                                                                                                             # Colors for boundary nodes.
             (204/255, 0/255, 0/255),                                                                                                    # Dark Red
@@ -86,7 +85,7 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
             (0/255, 102/255, 0/255),                                                                                                    # Dark Green
             (0/255, 153/255, 102/255),                                                                                                  # Dark Teal
             (51/255, 51/255, 51/255)                                                                                                    # Dark Gray
-        ]
+        ]                                                                                                                               # Execute statement.
         
         if len(points) == 0:                                                                                                            # Verify point data exists.
             return False                                                                                                                # Return False if empty.
@@ -187,13 +186,13 @@ def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, re
         # 2. Define base colors (simplified for lines)
         region_colors = [                                                                                                               # Define palette for region links.
             (51/255, 153/255, 255/255),                                                                                                 # Light Blue
-            (77/255, 230/255, 77/255),                                                                                                  # Bright Green  
+            (77/255, 230/255, 77/255),                                                                                                  # Bright Green
             (255/255, 179/255, 51/255),                                                                                                 # Bright Orange
             (204/255, 77/255, 255/255),                                                                                                 # Bright Purple
             (230/255, 153/255, 51/255),                                                                                                 # Golden Brown
             (255/255, 128/255, 204/255),                                                                                                # Bright Pink
             (179/255, 179/255, 179/255)                                                                                                 # Light Gray
-        ]
+        ]                                                                                                                               # Execute statement.
         
         unique_regions = sorted(list(set(regions)))                                                                                     # Find all unique region IDs.
         

@@ -16,7 +16,22 @@ Credits:
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
 
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
 Date:
+    August, 2026.
+Last Modification:
     August, 2026.
 """
 
@@ -24,14 +39,14 @@ Date:
 import numpy as np                                                                                                                      # Core numerical operations.
 from typing import Optional, Tuple                                                                                                      # Type hinting.
 
-from mGFD.spatial.neighbors import compute_mesh_spacing                                                                                # Spatial mesh spacing estimation.
+from mGFD.spatial.neighbors import compute_mesh_spacing                                                                                 # Spatial mesh spacing estimation.
 
 def estimate_cfl_dt(p: np.ndarray,
-                    operator: np.ndarray,
-                    cfl: float = 0.5,
-                    order: int = 1,
-                    vec: Optional[np.ndarray] = None,
-                    t_end: float = 1.0) -> Tuple[float, int, float]:
+                    operator: np.ndarray,                                                                                               # Execute statement.
+                    cfl: float = 0.5,                                                                                                   # Assign cfl: float.
+                    order: int = 1,                                                                                                     # Assign order: int.
+                    vec: Optional[np.ndarray] = None,                                                                                   # Assign vec: Optional[np.ndarray].
+                    t_end: float = 1.0) -> Tuple[float, int, float]:                                                                    # Assign t_end: float.
     """
     estimate_cfl_dt
     Estimate maximum stable time step dt, required time steps t, and effective CFL number.
@@ -59,10 +74,10 @@ def estimate_cfl_dt(p: np.ndarray,
 
     if order == 1:                                                                                                                      # First-order transient PDE (Heat/AdvDif).
         V_adv = float(np.hypot(D, E))                                                                                                   # Advective speed magnitude.
-        nu    = max(A, C) / 2.0                                                                                                        # Diffusion coefficient.
+        nu    = max(A, C) / 2.0                                                                                                         # Diffusion coefficient.
         
         speed = V_adv + np.sqrt(nu)                                                                                                     # Characteristic propagation speed.
-        if speed <= 0.0:
+        if speed <= 0.0:                                                                                                                # Evaluate condition.
             speed = 1.0                                                                                                                 # Safeguard for zero operator.
             
         dt_max = cfl * (h_avg / speed)                                                                                                  # Compute safe characteristic time step limit.

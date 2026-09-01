@@ -45,23 +45,23 @@ import time                                                                     
 import logging                                                                                                                          # Standard logging module.
 import numpy as np                                                                                                                      # Core numerical operations.
 
-from typing import Callable, Optional, Tuple, List, Union, Any                                                                          # Type hinting.
+from typing import Callable, Optional, Union, Any                                                                                       # Type hinting.
 
 from mGFD.solvers.results import SolverResult                                                                                           # Standard solver output structure.
 from mGFD.utils.adapters import extract_cloud, repack_solution                                                                          # Pandas/Xarray adapters.
-from mGFD.exceptions import CloudShapeError, InputTypeError, OperatorFormatError, ParameterError                                         # Custom exceptions.
+from mGFD.exceptions import CloudShapeError, InputTypeError, OperatorFormatError, ParameterError                                        # Custom exceptions.
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
 def Stationary(p: Union[np.ndarray, Any], 
-               phi: Union[Callable, np.ndarray, float, int, Any],
-               f: Union[Callable, np.ndarray, float, int, Any],
-               operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2], [0]]),
-               upwind: bool = False,
-               vec: Optional[np.ndarray] = None,
-               nvec: int = 20,
-               device: str = "cpu",
-               verbose: bool = True) -> SolverResult:
+               phi: Union[Callable, np.ndarray, float, int, Any],                                                                       # Execute statement.
+               f: Union[Callable, np.ndarray, float, int, Any],                                                                         # Execute statement.
+               operator: np.ndarray = np.vstack([[0], [0], [2], [0], [2], [0]]),                                                        # Assign operator: np.ndarray.
+               upwind: bool = False,                                                                                                    # Assign upwind: bool.
+               vec: Optional[np.ndarray] = None,                                                                                        # Assign vec: Optional[np.ndarray].
+               nvec: int = 20,                                                                                                          # Assign nvec: int.
+               device: str = "cpu",                                                                                                     # Assign device: str.
+               verbose: bool = True) -> SolverResult:                                                                                   # Assign verbose: bool.
     """
     Numerical solution of partial differential equations with no time derivatives using a Meshless Generalized Finite Difference Scheme.
     
@@ -105,13 +105,13 @@ def Stationary(p: Union[np.ndarray, Any],
     if device not in ["cpu", "cuda"]:                                                                                                   # Validate device choice.
         raise ParameterError("Unsupported device. Choose 'cpu' or 'cuda'.")                                                             # Raise explicit error.
 
-    # 1. Enrutamiento (Dispatch)
-    if device == "cpu":
-        from mGFD.solvers._backends.cpu.stationary import solve_cpu
-        u_ap, vec, converged = solve_cpu(p, phi, f, operator, upwind, vec, nvec, verbose)
-    else:
-        from mGFD.solvers._backends.cuda.stationary import solve_cuda
-        u_ap, vec, converged = solve_cuda(p, phi, f, operator, upwind, vec, nvec, verbose)
+    # 1. Backend dispatch
+    if device == "cpu":                                                                                                                 # Evaluate condition.
+        from mGFD.solvers._backends.cpu.stationary import solve_cpu                                                                     # Import CPU backend solver.
+        u_ap, vec, converged = solve_cpu(p, phi, f, operator, upwind, vec, nvec, verbose=verbose)                                       # Execute CPU solver backend.
+    else:                                                                                                                               # Execute fallback branch.
+        from mGFD.solvers._backends.cuda.stationary import solve_cuda                                                                   # Import CUDA backend solver.
+        u_ap, vec, converged = solve_cuda(p, phi, f, operator, upwind, vec, nvec, verbose=verbose)                                      # Execute CUDA solver backend.
         
     compute_time = time.perf_counter() - start_time                                                                                     # Calculate total compute time.
     u_ap_packed = repack_solution(p_orig, u_ap)                                                                                         # Repack into original Pandas/Xarray format.

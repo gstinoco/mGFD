@@ -58,10 +58,10 @@ from mGFD.cloud_generator.core.point_generation import (                        
     generate_region_cloud_with_holes_poisson,                                                                                           # Poisson region generation.
     generate_interior_regions_clouds,                                                                                                   # Interior regions regular generation.
     generate_interior_regions_clouds_poisson,                                                                                           # Interior regions Poisson generation.
-)
+)                                                                                                                                       # Execute statement.
 
 def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main_region_strategy: Callable, interior_regions_strategy: Callable, 
-                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:
+                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict: # Assign inside_regions: bool.
     """
     _generate_cloud_core
     Core generation logic shared between different distribution methods.
@@ -136,7 +136,7 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
                     all_regions.append(region_id)                                                                                       # Assign current region ID.
 
         # 7. Classification and export
-        all_points_arr  = np.array(all_points)                                                                                          # Convert total list to NumPy array.        
+        all_points_arr  = np.array(all_points)                                                                                          # Convert total list to NumPy array.
         classifications = classify_nodes(all_points_arr, all_regions, regions, actual_cloud_size, inside_regions=inside_regions)        # Classify generated points.
         success         = export_to_csv(all_points_arr, classifications, all_regions, output_file)                                      # Export the generated points.
 
@@ -157,7 +157,7 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
             "main_region_nodes": sum(1 for r in all_regions if r == 1),                                                                 # Include number of nodes in region 1.
             "interior_regions_generated": inside_regions and len(regions) > 1,                                                          # Include flag for interior generation.
             "cloud_size": actual_cloud_size                                                                                             # Include final cloud size used.
-        }
+        }                                                                                                                               # Execute statement.
         
         if temp_reduced_file and os.path.exists(temp_reduced_file):                                                                     # Clean up temporary files if any.
             os.remove(temp_reduced_file)                                                                                                # Remove the temporary file.
@@ -171,7 +171,7 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
 def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:             # Assign cloud_size: Optional[float].
     """
     generate_cloud_natural
     Generate point cloud using Natural Distribution algorithm with Poisson Disk Sampling.
@@ -200,7 +200,7 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
             csv_file, output_file, "Natural",                                                                                           # Set file paths and method name.
             main_strategy, interior_strategy,                                                                                           # Set appropriate generation strategies.
             inside_regions, cloud_size, density_multiplier, save                                                                        # Forward other parameters.
-        )
+        )                                                                                                                               # Execute statement.
         
     # 2. Exception handling
     except Exception as e:                                                                                                              # Catch exceptions for natural generation.
@@ -209,7 +209,7 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
 def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:             # Assign cloud_size: Optional[float].
     """
     generate_cloud_regular
     Generate point cloud using Regular Distribution algorithm with grid-based approach.
@@ -238,7 +238,7 @@ def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool
             csv_file, output_file, "Regular",                                                                                           # Set file paths and method name.
             main_strategy, interior_strategy,                                                                                           # Set appropriate generation strategies.
             inside_regions, cloud_size, density_multiplier, save                                                                        # Forward other parameters.
-        )
+        )                                                                                                                               # Execute statement.
         
     # 2. Exception handling
     except Exception as e:                                                                                                              # Catch exceptions for regular generation.

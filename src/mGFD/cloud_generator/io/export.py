@@ -84,7 +84,7 @@ def export_to_csv(points: np.ndarray, classifications: List[str], regions_list: 
                     'y': points[i, 1],                                                                                                  # Set 'y' value.
                     'region': regions_list[i],                                                                                          # Set 'region' value.
                     'classification': classifications[i]                                                                                # Set 'classification' value.
-                })
+                })                                                                                                                      # Execute statement.
         
         # 5. Verification Step: Ensure all data was written correctly
         # This addresses the user reported issue of missing points

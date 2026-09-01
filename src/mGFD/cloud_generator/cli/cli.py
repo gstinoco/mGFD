@@ -48,7 +48,7 @@ import logging                                                                  
 import argparse                                                                                                                         # Module for parsing command-line arguments.
 import numpy as np                                                                                                                      # Core numerical operations.
 
-from typing import Any                                                                                                                  # Type hinting.
+
 
 from mGFD.cloud_generator.core.reduction import reduce_points_by_region                                                                 # Import reduction function.
 from mGFD.cloud_generator.viz.visualization import create_visualization                                                                 # Import visualization creator.
@@ -77,7 +77,7 @@ def handle_generate(args: argparse.Namespace) -> None:
         sys.exit(1)                                                                                                                     # Exit with an error code.
         
     # 2. Header and info output
-    if not args.quiet:
+    if not args.quiet:                                                                                                                  # Evaluate condition.
         logger.info("mGFD CloudGenerator - Generate")                                                                                   # Log header text for generation.
         logger.info("==============================")                                                                                   # Log separator line.
         logger.info(f"Input:    {args.input}")                                                                                          # Log the input file path.
@@ -94,22 +94,23 @@ def handle_generate(args: argparse.Namespace) -> None:
                 output_file=args.output,                                                                                                # Pass the output CSV file.
                 inside_regions=args.inside_regions,                                                                                     # Pass the inside regions flag.
                 density_multiplier=args.density                                                                                         # Pass the density multiplier.
-            )
+            )                                                                                                                           # Execute statement.
         else:                                                                                                                           # If the method is 'regular' (or anything else).
             result = generate_cloud_regular(                                                                                            # Call the regular generation function.
                 csv_file=args.input,                                                                                                    # Pass the input CSV file.
                 output_file=args.output,                                                                                                # Pass the output CSV file.
                 inside_regions=args.inside_regions,                                                                                     # Pass the inside regions flag.
                 density_multiplier=args.density                                                                                         # Pass the density multiplier.
-            )
+            )                                                                                                                           # Execute statement.
             
         # 4. Success output
-        if not args.quiet:
+        if not args.quiet:                                                                                                              # Evaluate condition.
             logger.info("\nSuccess!")                                                                                                   # Log success message.
             logger.info(f"Total points generated: {result.get('total_nodes', 'Unknown')}")                                              # Log total generated nodes.
             logger.info(f"Regions generated:      {result.get('regions_generated', 'Unknown')}")                                        # Log number of generated regions.
-            logger.info(f"Main region points:     {result.get('main_region_nodes', 'Unknown')}")                                        # Log points in the main region.
-            logger.info(f"Visualizations saved to {result.get('visualization_file', '')} and {result.get('visualization_svg_file', '')}") # Log visualization paths.
+            v_png = result.get('visualization_file', '')                                                                                # Extract PNG path.
+            v_svg = result.get('visualization_svg_file', '')                                                                            # Extract SVG path.
+            logger.info(f"Visualizations saved to {v_png} and {v_svg}")                                                                 # Log visualization paths.
         
     # 5. Exception handling
     except Exception as e:                                                                                                              # Handle general exceptions.
@@ -136,7 +137,7 @@ def handle_reduce(args: argparse.Namespace) -> None:
         sys.exit(1)                                                                                                                     # Exit with an error code.
         
     # 2. Header and info output
-    if not args.quiet:
+    if not args.quiet:                                                                                                                  # Evaluate condition.
         logger.info("mGFD CloudGenerator - Reduce")                                                                                     # Log header text for reduction.
         logger.info("============================")                                                                                     # Log separator line.
         logger.info(f"Input:      {args.input}")                                                                                        # Log the input file path.
@@ -150,11 +151,11 @@ def handle_reduce(args: argparse.Namespace) -> None:
             input_csv=args.input,                                                                                                       # Pass the input CSV file.
             output_csv=args.output,                                                                                                     # Pass the output CSV file.
             multiplier=args.multiplier                                                                                                  # Pass the reduction multiplier.
-        )
+        )                                                                                                                               # Execute statement.
         
         # 4. Visualization and output
         if result is not None:                                                                                                          # Check if the reduction was successful.
-            if not args.quiet:
+            if not args.quiet:                                                                                                          # Evaluate condition.
                 logger.info("\nSuccess!")                                                                                               # Log success message.
                 logger.info(f"Total points after reduction: {len(result)}")                                                             # Log the new total number of points.
             
@@ -165,7 +166,7 @@ def handle_reduce(args: argparse.Namespace) -> None:
             
             create_visualization(points, regions_list, output_base, classifications)                                                    # Generate visual plots.
             
-            if not args.quiet:
+            if not args.quiet:                                                                                                          # Evaluate condition.
                 logger.info(f"Visualizations saved to {output_base}.png and {output_base}.svg")                                         # Log saved visual plots.
         else:                                                                                                                           # If reduction returned None (failed).
             logger.error("\nError: Failed to reduce cloud. Check logs for details.")                                                    # Log error message.
@@ -196,7 +197,7 @@ def main() -> None:
     # 2. Parser initialization
     parser = argparse.ArgumentParser(                                                                                                   # Instantiate an ArgumentParser.
         description="mGFD CloudGenerator - Point cloud generation and optimization suite."                                              # Define program description.
-    )
+    )                                                                                                                                   # Execute statement.
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress non-error console output.")                                # Add quiet flag globally.
     
     subparsers          = parser.add_subparsers(dest="command", help="Available commands")                                              # Add sub-command parsers.
@@ -208,29 +209,29 @@ def main() -> None:
         "-i", "--input",                                                                                                                # Flag names for the input file.
         required=True,                                                                                                                  # Make this argument mandatory.
         help="Input CSV file containing the boundary contours."                                                                         # Help text for the input argument.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_gen.add_argument(                                                                                                            # Add an argument to 'generate'.
         "-o", "--output",                                                                                                               # Flag names for the output file.
         required=True,                                                                                                                  # Make this argument mandatory.
         help="Output CSV file where the point cloud will be saved."                                                                     # Help text for the output argument.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_gen.add_argument(                                                                                                            # Add an argument to 'generate'.
         "-m", "--method",                                                                                                               # Flag names for the method.
         choices=["natural", "regular"],                                                                                                 # Allow only 'natural' or 'regular'.
         default="natural",                                                                                                              # Set default method to 'natural'.
         help="Point generation method: 'natural' (Poisson-Disk) or 'regular' (Grid-based)."                                             # Help text for the method argument.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_gen.add_argument(                                                                                                            # Add an argument to 'generate'.
         "--inside-regions",                                                                                                             # Flag name for generating inside regions.
         action="store_true",                                                                                                            # Store a boolean True if provided.
         help="If specified, generate points inside holes (islands) too."                                                                # Help text for inside regions flag.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_gen.add_argument(                                                                                                            # Add an argument to 'generate'.
         "-d", "--density",                                                                                                              # Flag names for the density.
         type=float,                                                                                                                     # Require a float value.
         default=1.0,                                                                                                                    # Set default density to 1.0.
         help="Density multiplier. Higher value = denser cloud."                                                                         # Help text for the density argument.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_gen.set_defaults(func=handle_generate)                                                                                       # Bind the handler function to 'generate'.
     
     # 3. Reduce command configuration
@@ -239,18 +240,18 @@ def main() -> None:
         "-i", "--input",                                                                                                                # Flag names for the input file.
         required=True,                                                                                                                  # Make this argument mandatory.
         help="Input CSV file containing an existing point cloud."                                                                       # Help text for the input argument.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_red.add_argument(                                                                                                            # Add an argument to 'reduce'.
         "-o", "--output",                                                                                                               # Flag names for the output file.
         required=True,                                                                                                                  # Make this argument mandatory.
         help="Output CSV file where the reduced point cloud will be saved."                                                             # Help text for the output argument.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_red.add_argument(                                                                                                            # Add an argument to 'reduce'.
         "--multiplier",                                                                                                                 # Flag name for the reduction multiplier.
         type=int,                                                                                                                       # Require an integer value.
         default=2,                                                                                                                      # Set default multiplier to 2.
         help="Reduction multiplier. 1 = ~50% reduction. 2 = ~75% reduction."                                                            # Help text for multiplier.
-    )
+    )                                                                                                                                   # Execute statement.
     parser_red.set_defaults(func=handle_reduce)                                                                                         # Bind the handler function to 'reduce'.
     
     # 4. Argument parsing and execution

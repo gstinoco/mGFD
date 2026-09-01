@@ -5,6 +5,9 @@ Overview:
     This module implements the regular (Poisson Disk Sampling) point generation algorithms.
     It relies on SciPy's QMC engine for fast generation and Lloyd's relaxation for uniformity.
 
+Public API:
+    generate_poisson_disk_points Generate Poisson disk interior nodes.
+
 Credits:
     All the codes presented below were developed by:
         Dr. Gerardo Tinoco-Guerrero
@@ -40,19 +43,18 @@ import numpy as np                                                              
 from scipy.spatial import cKDTree                                                                                                       # Import KDTree for distance checks.
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 from scipy.stats.qmc import PoissonDisk                                                                                                 # Import SciPy Poisson Disk generator.
-from shapely.geometry.base import BaseGeometry                                                                                          # Base geometry class for typing.
 from concurrent.futures import ProcessPoolExecutor                                                                                      # Parallel execution.
-from typing import List, Tuple, Optional, Any, Union, cast                                                                              # Type hinting.
+from typing import List, Tuple, Optional, Any, cast                                                                                     # Type hinting.
 
 from mGFD.cloud_generator.core.point_generation.relaxation import lloyd_relaxation                                                      # Node relaxation.
 from mGFD.cloud_generator.utils.utils import calculate_cloud_size, create_closed_contour                                                # Utility functions.
 from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                                # Boundary generation.
 from mGFD.cloud_generator.core.point_generation.geometry import create_fast_polygon_checker                                             # Geometric operations.
 from mGFD.cloud_generator.core.point_generation.regular_generation import (                                                             # Fallback regular generation methods.
-    generate_interior_points,
-    generate_region_cloud_with_uniform_density,
-    generate_region_cloud_with_holes
-)
+    generate_interior_points,                                                                                                           # Execute statement.
+    generate_region_cloud_with_uniform_density,                                                                                         # Execute statement.
+    generate_region_cloud_with_holes                                                                                                    # Execute statement.
+)                                                                                                                                       # Execute statement.
 
 def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary_points: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:
     """
@@ -106,7 +108,7 @@ def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary
         
         mask = np.zeros((height_px, width_px), dtype=np.uint8)                                                                          # Initialize the OpenCV mask array.
         
-        def to_pixel_coords(coords: List[Tuple[float, ...]]) -> np.ndarray:                                                           # Coordinate transformation helper.
+        def to_pixel_coords(coords: List[Tuple[float, ...]]) -> np.ndarray:                                                             # Coordinate transformation helper.
             """
             to_pixel_coords
             
@@ -156,7 +158,7 @@ def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary
         interior_points = [                                                                                                             # List comprehension for fallback filtering.
             (x, y) for x, y in samples                                                                                                  # Iterate over samples.
             if fast_contains(x, y)                                                                                                      # Check inclusion.
-        ]
+        ]                                                                                                                               # Execute statement.
     
     if not interior_points:                                                                                                             # Check if any points survived filtering.
         return []                                                                                                                       # Return empty list if not.
@@ -317,7 +319,7 @@ def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[floa
         
         # Apply Lloyd's relaxation
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.
-            interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), cast(Polygon, polygon_with_holes), iterations=5).tolist()
+            interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), cast(Polygon, polygon_with_holes), iterations=5).tolist() # Assign interior_points.
                                                                                                                                         # Apply smoothing.
 
         return boundary_points, interior_points, cloud_size                                                                             # Return generated data.

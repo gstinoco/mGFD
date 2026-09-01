@@ -56,12 +56,11 @@ Last Modification:
 import numpy as np                                                                                                                      # Core numerical operations.
 import numba as nb                                                                                                                      # JIT compiler.
 
-from scipy.optimize import nnls                                                                                                         # Core numerical operations.
 from scipy.sparse import csr_matrix                                                                                                     # Core sparse matrix representations.
-from typing import Callable, Optional, Tuple, List, Union, Any                                                                          # Type hinting.
-from scipy.sparse.linalg import LinearOperator, bicgstab, spilu                                                                         # SciPy iterative solver interface.
+from typing import Callable, Optional, Tuple, Union                                                                                     # Type hinting.
+from scipy.sparse.linalg import LinearOperator, bicgstab                                                                                # SciPy iterative solver interface.
 
-@nb.njit(cache=True, fastmath=True)
+@nb.njit(cache=True, fastmath=True)                                                                                                     # Assign @nb.njit(cache.
 def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray:
     """
     _nnls_numba
@@ -159,7 +158,7 @@ def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray
     
     return x                                                                                                                            # Return solution.
 
-@nb.njit(cache=True, fastmath=True, parallel=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
 def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
     """
     _compute_cloud_dense_jit
@@ -189,7 +188,7 @@ def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> n
             
             if nvec_i == 0:                                                                                                             # If no neighbors available.
                 K[i, i] = 1.0                                                                                                           # Fallback to identity.
-            else:
+            else:                                                                                                                       # Execute fallback branch.
                 dx            = np.zeros(nvec_i, dtype=np.float64)                                                                      # Neighbor x-offsets (relative to node i).
                 dy            = np.zeros(nvec_i, dtype=np.float64)                                                                      # Neighbor y-offsets (relative to node i).
                 neigh_indices = np.zeros(nvec_i, dtype=np.int64)                                                                        # Neighbor indices array.
@@ -213,9 +212,11 @@ def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> n
                     M[3, j] = dx[j] * dy[j]                                                                                             # dx*dy term.
                     M[4, j] = dy[j]**2                                                                                                  # dy^2 term.
                 
-                M_pinv = np.linalg.pinv(M)                                                                                              # Compute pseudoinverse of reconstruction matrix.
-                YY     = np.dot(M_pinv, L)                                                                                              # Compute neighbor weights.
-                K[i, i] = -np.sum(YY)                                                                                                   # Assign central weight to diagonal.
+                L_derivatives = L[:5]                                                                                                   # Spatial derivative coefficients [D, E, A, B, C].
+                F_react       = L[5] if L.shape[0] > 5 else 0.0                                                                         # Reaction term coefficient F(p_i) per Eq. 190 of paper.
+                M_pinv        = np.linalg.pinv(M)                                                                                       # Compute pseudoinverse of reconstruction matrix.
+                YY            = np.dot(M_pinv, L_derivatives)                                                                           # Compute neighbor weights.
+                K[i, i]       = -np.sum(YY) + F_react                                                                                   # Central weight includes reaction term per Eq. 190.
                 
                 for j in range(nvec_i):                                                                                                 # Assign neighbor weights.
                     K[i, neigh_indices[j]] = YY[j]                                                                                      # Set weight for neighbor j.
@@ -225,7 +226,7 @@ def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> n
             
     return K                                                                                                                            # Return dense stencil matrix.
 
-@nb.njit(cache=True, fastmath=True, parallel=True)
+@nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
 def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float) -> Tuple[np.ndarray, np.ndarray]:
     """
     _compute_cloud_stencil_jit
@@ -234,7 +235,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
     Input:
         p           m x 3           ndarray             Point cloud [x, y, flag].
         vec         m x nvec        ndarray[int]        Neighbor indices per node (padded with -1).
-        L           5               ndarray             Operator coefficients [D, E, A, B, C].
+        L           5 or 6          ndarray             Operator coefficients [D, E, A, B, C] or [D, E, A, B, C, F_react].
         reg_factor                  float               Regularization factor.
     
     Output:
@@ -242,10 +243,12 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
         w           m x nvec        ndarray             Neighbor weights aligned with vec indices.
     """
     # 1. Variable initialization
-    m    = p.shape[0]                                                                                                                   # Number of nodes.
-    nvec = vec.shape[1]                                                                                                                 # Neighbor slots per node.
-    diag = np.zeros(m, dtype=np.float64)                                                                                                # Diagonal weights (central coefficient).
-    w    = np.zeros((m, nvec), dtype=np.float64)                                                                                        # Neighbor weights for each node.
+    m             = p.shape[0]                                                                                                          # Number of nodes.
+    nvec          = vec.shape[1]                                                                                                        # Neighbor slots per node.
+    diag          = np.zeros(m, dtype=np.float64)                                                                                       # Diagonal weights (central coefficient).
+    w             = np.zeros((m, nvec), dtype=np.float64)                                                                               # Neighbor weights for each node.
+    L_derivatives = L[:5]                                                                                                               # Spatial derivative coefficients [D, E, A, B, C].
+    F_react       = L[5] if L.shape[0] > 5 else 0.0                                                                                     # Reaction term coefficient F(p_i) per Eq. 190 of paper.
     
     # 2. Stencil computation
     for i in nb.prange(m):                                                                                                              # type: ignore
@@ -258,7 +261,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
             
             if nvec_i == 0:                                                                                                             # Degenerate case: no neighbors available.
                 diag[i] = 1.0                                                                                                           # Fall back to identity row.
-            else:
+            else:                                                                                                                       # Execute fallback branch.
                 dx  = np.zeros(nvec_i, dtype=np.float64)                                                                                # Neighbor x-offsets.
                 dy  = np.zeros(nvec_i, dtype=np.float64)                                                                                # Neighbor y-offsets.
                 idx = 0                                                                                                                 # Local index.
@@ -294,7 +297,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
                     A_aug[5+j, j] = sqrt_lam                                                                                            # Set diagonal regularization.
                 
                 b_aug     = np.zeros(5 + nvec_i, dtype=np.float64)                                                                      # Augmented RHS vector for NNLS.
-                b_aug[:5] = L                                                                                                           # Inject operator coefficients.
+                b_aug[:5] = L_derivatives                                                                                               # Inject operator coefficients.
                 YY_nnls   = _nnls_numba(A_aug, b_aug)                                                                                   # Try non-negative least squares solve.
                 
                 if np.sum(YY_nnls) >= 1e-10:                                                                                            # Check if solution is non-trivial.
@@ -306,7 +309,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
                     tr       = np.trace(G)                                                                                              # Trace of normal matrix.
                     reg      = (1e-12 + reg_factor * tr) if tr > 0.0 else 1e-12                                                         # Adaptive regularization parameter.
                     
-                    c        = np.linalg.solve(G + reg * np.eye(5), L)                                                                  # Solve for regularized coefficients.
+                    c        = np.linalg.solve(G + reg * np.eye(5), L_derivatives)                                                      # Solve for regularized coefficients.
                     YY_ls    = np.dot(M.T, c)                                                                                           # Compute neighbor weights.
                     valid_YY = True                                                                                                     # Assume valid temporarily.
                     
@@ -320,7 +323,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
                 
                 if not valid_YY:                                                                                                        # Absolute fallback to pseudoinverse.
                     M_pinv   = np.linalg.pinv(M)                                                                                        # Direct pseudoinverse computation.
-                    YY_pinv  = np.dot(M_pinv, L)                                                                                        # Direct neighbor weights computation.
+                    YY_pinv  = np.dot(M_pinv, L_derivatives)                                                                            # Direct neighbor weights computation.
                     valid_YY = True                                                                                                     # Assume valid temporarily.
                     
                     for j in range(nvec_i):                                                                                             # Check for NaN/Inf.
@@ -333,9 +336,9 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
                 
                 if not valid_YY:                                                                                                        # If all solvers failed.
                     diag[i] = 1.0                                                                                                       # Identity diagonal.
-                else:
+                else:                                                                                                                   # Execute fallback branch.
                     # 4. Result assignment
-                    diag[i] = -np.sum(YY)                                                                                               # Central weight ensures sum-to-zero structure.
+                    diag[i] = -np.sum(YY) + F_react                                                                                     # Central weight includes reaction term per Eq. 190.
                     idx     = 0                                                                                                         # Local index.
                     
                     for j in range(nvec):                                                                                               # Iterate over neighbor slots.
@@ -612,7 +615,7 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
 
     return x                                                                                                                            # Return final iterate.
 
-@nb.njit(parallel=True, fastmath=True)
+@nb.njit(parallel=True, fastmath=True)                                                                                                  # Assign @nb.njit(parallel.
 def _compute_K_matvec_numba(x: np.ndarray, diag: np.ndarray, w: np.ndarray, vec: np.ndarray) -> np.ndarray:
     """
     _compute_K_matvec_numba
