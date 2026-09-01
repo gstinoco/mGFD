@@ -126,7 +126,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                                        # Extract input_types, default all.
+    input_types     = kwargs.get('input_types', ['callable'])                                                           # Extract input_types, default callable.
     config_id       = f'nvec_{nvec}_{device}'                                                                                           # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache

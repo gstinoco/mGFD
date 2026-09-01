@@ -1,0 +1,167 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 1555,
+            "Interior_Nodes": 1135,
+            "Boundary_Nodes": 420,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_20_cpu_upwind_True": {
+                "RMSE": 0.00033489710700599496,
+                "Time_Secs": 0.033349752018693835,
+                "Time_Callable": 0.033349752018693835
+            },
+            "nvec_20_cpu_upwind_False": {
+                "RMSE": 0.00033489710700599496,
+                "Time_Secs": 0.03577829303685576,
+                "Time_Callable": 0.03577829303685576
+            },
+            "nvec_20_cuda_upwind_True": {
+                "RMSE": 0.0003348971070059937,
+                "Time_Secs": 0.04897652595536783,
+                "Time_Callable": 0.04897652595536783
+            },
+            "nvec_20_cuda_upwind_False": {
+                "RMSE": 0.0003348971070059937,
+                "Time_Secs": 0.06347212794935331,
+                "Time_Callable": 0.06347212794935331
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 5145,
+            "Interior_Nodes": 4444,
+            "Boundary_Nodes": 701,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_20_cpu_upwind_True": {
+                "RMSE": 6.179372860486956e-05,
+                "Time_Secs": 0.13691613101400435,
+                "Time_Callable": 0.13691613101400435
+            },
+            "nvec_20_cpu_upwind_False": {
+                "RMSE": 6.179372860486956e-05,
+                "Time_Secs": 0.1513490339857526,
+                "Time_Callable": 0.1513490339857526
+            },
+            "nvec_20_cuda_upwind_True": {
+                "RMSE": 6.179372860486459e-05,
+                "Time_Secs": 0.18735242704860866,
+                "Time_Callable": 0.18735242704860866
+            },
+            "nvec_20_cuda_upwind_False": {
+                "RMSE": 6.179372860486459e-05,
+                "Time_Secs": 0.18602463701972738,
+                "Time_Callable": 0.18602463701972738
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 10862,
+            "Interior_Nodes": 10015,
+            "Boundary_Nodes": 847,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_20_cpu_upwind_True": {
+                "RMSE": 7.551894627529573e-05,
+                "Time_Secs": 0.33602087397594005,
+                "Time_Callable": 0.33602087397594005
+            },
+            "nvec_20_cpu_upwind_False": {
+                "RMSE": 7.551894627529573e-05,
+                "Time_Secs": 0.3305660850019194,
+                "Time_Callable": 0.3305660850019194
+            },
+            "nvec_20_cuda_upwind_True": {
+                "RMSE": 7.551894627529054e-05,
+                "Time_Secs": 0.5146685789804906,
+                "Time_Callable": 0.5146685789804906
+            },
+            "nvec_20_cuda_upwind_False": {
+                "RMSE": 7.551894627529054e-05,
+                "Time_Secs": 0.5124931539758109,
+                "Time_Callable": 0.5124931539758109
+            }
+        }
+    },
+    "Scale_4": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 18749,
+            "Interior_Nodes": 17748,
+            "Boundary_Nodes": 1001,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_20_cpu_upwind_True": {
+                "RMSE": 3.558944074900378e-05,
+                "Time_Secs": 0.23812431801343337,
+                "Time_Callable": 0.23812431801343337
+            },
+            "nvec_20_cpu_upwind_False": {
+                "RMSE": 3.558944074900378e-05,
+                "Time_Secs": 0.23912169795949012,
+                "Time_Callable": 0.23912169795949012
+            },
+            "nvec_20_cuda_upwind_True": {
+                "RMSE": 3.5589440748890626e-05,
+                "Time_Secs": 0.8254803350428119,
+                "Time_Callable": 0.8254803350428119
+            },
+            "nvec_20_cuda_upwind_False": {
+                "RMSE": 3.5589440748890626e-05,
+                "Time_Secs": 0.819442660023924,
+                "Time_Callable": 0.819442660023924
+            }
+        }
+    },
+    "Scale_5": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 29056,
+            "Interior_Nodes": 27809,
+            "Boundary_Nodes": 1247,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_20_cpu_upwind_True": {
+                "RMSE": 3.377050777431333e-05,
+                "Time_Secs": 0.3947682229918428,
+                "Time_Callable": 0.3947682229918428
+            },
+            "nvec_20_cpu_upwind_False": {
+                "RMSE": 3.377050777431333e-05,
+                "Time_Secs": 0.39550362597219646,
+                "Time_Callable": 0.39550362597219646
+            },
+            "nvec_20_cuda_upwind_True": {
+                "RMSE": 3.377050777438903e-05,
+                "Time_Secs": 1.4524545519961976,
+                "Time_Callable": 1.4524545519961976
+            },
+            "nvec_20_cuda_upwind_False": {
+                "RMSE": 3.377050777438903e-05,
+                "Time_Secs": 1.4641128760413267,
+                "Time_Callable": 1.4641128760413267
+            }
+        }
+    }
+}

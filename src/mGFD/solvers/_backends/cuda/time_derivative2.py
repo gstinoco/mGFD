@@ -153,13 +153,14 @@ def solve_cuda(p: np.ndarray,                                                   
                 g_val_gpu = cp.asarray(g_val)                                                                                           # Transfer velocity array to VRAM.
                 RHS                      = B1_gpu.dot(u_ap_gpu[:, k - 1]) + dt*g_val_gpu                                                 # Right-hand side for k=1.
                 RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                    # Inject exact boundary condition.
-                u_ap_gpu[:, k]           = solve1_gpu(RHS)                                                                              # GPU pre-factorized solve k=1.
+                u_ap_gpu[:, k]           = solve1_gpu(RHS[:, None]).ravel()                                                             # GPU pre-factorized solve k=1.
             else:
                 RHS                      = B2_gpu.dot(u_ap_gpu[:, k - 1]) - C2_gpu.dot(u_ap_gpu[:, k - 2])                                # Right-hand side for k>=2.
                 RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                    # Inject exact boundary condition.
-                u_ap_gpu[:, k]           = solve2_gpu(RHS)                                                                              # GPU pre-factorized solve k>=2.
+                u_ap_gpu[:, k]           = solve2_gpu(RHS[:, None]).ravel()                                                             # GPU pre-factorized solve k>=2.
                     
     u_ap = u_ap_gpu.get()                                                                                                               # Pull final solution array to CPU RAM.
+    cp.get_default_memory_pool().free_all_blocks()                                                                                     # Free CuPy VRAM blocks to prevent pool fragmentation across dataset sweeps.
     
     if verbose: logger.info("\tCUDA Solver finished successfully.")
     

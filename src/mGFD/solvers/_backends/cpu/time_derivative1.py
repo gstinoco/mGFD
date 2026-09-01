@@ -70,13 +70,18 @@ def solve_cpu(p: np.ndarray,                                                    
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Boolean mask for boundary nodes.
     inne_n = p[:, 2] == 0                                                                                                               # Boolean mask for interior nodes.
 
+    inne_idx = np.where(inne_n)[0]                                                                                                      # Integer index array for interior nodes.
+    boun_idx = np.where(boun_n)[0]                                                                                                      # Integer index array for boundary nodes.
+
     if upwind:                                                                                                                          # If an Upwind stencil is requested.
         a = -operator[0][0] if operator.ndim == 2 else -operator[0]                                                                     # X-velocity (D coefficient).
         b = -operator[1][0] if operator.ndim == 2 else -operator[1]                                                                     # Y-velocity (E coefficient).
     
     if callable(f):                                                                                                                     # If data is a function.
-        for k in range(t):                                                                                                              # Loop over time.
-            u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                                     # Boundary condition (Dirichlet).
+        try:
+            u_ap[boun_n, :] = np.asarray(f(p[boun_n, 0, None], p[boun_n, 1, None], T[None, :], coef))                                   # Vectorized 2D space-time evaluation.
+        except Exception:
+            for k in range(t): u_ap[boun_n, k] = np.asarray(f(p[boun_n, 0], p[boun_n, 1], T[k], coef))                                  # Fallback loop.
         u_ap[:, 0] = np.asarray(f(p[:, 0], p[:, 1], T[0], coef))                                                                        # Initial condition across all nodes.
     elif isinstance(f, np.ndarray):                                                                                                     # If data is an array.
         if f.ndim == 2 and f.shape == (m, t):                                                                                           # Spatiotemporal data array.
@@ -102,8 +107,8 @@ def solve_cpu(p: np.ndarray,                                                    
     if not implicit:
         K2 = eye(m) + K                                                                                                                 # LHS Explicit Matrix.
         for k in range(1, t):                                                                                                           # Loop over all time steps.
-            un              = K2.dot(u_ap[:, k-1])                                                                                      # Explicit matrix-vector multiplication.
-            u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes for time level k.
+            un = K2.dot(u_ap[:, k-1])                                                                                                   # Explicit matrix-vector multiplication.
+            u_ap[inne_idx, k] = un[inne_idx]                                                                                            # Update interior nodes for time level k.
     else:                                                                                                                               # Implicit Time Integration.
         Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
         Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
@@ -115,10 +120,9 @@ def solve_cpu(p: np.ndarray,                                                    
         solve    = factorized(A)                                                                                                        # Pre-factorize LHS ONCE for fast repeated solves.
             
         for k in range(1, t):                                                                                                           # Loop over all time steps.
-            RHS             = B.dot(u_ap[:, k-1])                                                                                       # Right-hand side from previous step.
-            RHS[boun_n]     = u_ap[boun_n, k]                                                                                           # Inject exact boundary conditions.
-            un              = solve(RHS)                                                                                                # Fast pre-factorized triangular solve.
-            u_ap[inne_n, k] = un[inne_n]                                                                                                # Update interior nodes for time level k.
+            RHS           = B.dot(u_ap[:, k-1])                                                                                         # Right-hand side from previous step.
+            RHS[boun_idx] = u_ap[boun_idx, k]                                                                                           # Inject exact boundary conditions.
+            u_ap[:, k]    = solve(RHS)                                                                                                  # Direct update across all nodes.
             
     if verbose: logger.info("\tCPU Solver finished successfully.")
     

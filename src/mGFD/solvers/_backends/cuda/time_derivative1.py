@@ -127,9 +127,10 @@ def solve_cuda(p: np.ndarray,                                                   
         for k in range(1, t):                                                                                                           # Loop over all time steps in VRAM.
             RHS                      = B_gpu.dot(u_ap_gpu[:, k-1])                                                                      # RHS product in VRAM.
             RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                        # Inject boundary condition.
-            u_ap_gpu[:, k]           = solve_gpu(RHS)                                                                                   # GPU pre-factorized triangular solve.
+            u_ap_gpu[:, k]           = solve_gpu(RHS[:, None]).ravel()                                                                  # GPU pre-factorized solve.
             
     u_ap = u_ap_gpu.get()                                                                                                               # Pull final result array to CPU RAM.
+    cp.get_default_memory_pool().free_all_blocks()                                                                                     # Free CuPy VRAM blocks to prevent pool fragmentation across dataset sweeps.
     
     if verbose: logger.info("\tCUDA Solver finished successfully.")
     

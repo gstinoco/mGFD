@@ -144,7 +144,7 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
     verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
     upwind          = kwargs.get('upwind', True)                                                                                        # Extract upwind flag, default True for AdvDif.
     device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                                        # Extract input_types, default all.
+    input_types     = kwargs.get('input_types', ['callable'])                                                           # Extract input_types, default callable.
     config_id       = f'nvec_{nvec}_{device}_upwind_{upwind}'                                                                           # Create unique config identifier for the sweep.
 
     vec0 = load_neighbors(cloud_path, nvec)                                                                                             # Load cached neighbor list if present.
