@@ -327,7 +327,14 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
                 out_nom = nom.replace('.mp4', f'{suffix}.mp4').replace('.gif', f'{suffix}.gif')                                         # Append suffix before extension.
                 if out_nom == nom: out_nom = nom + suffix                                                                               # Fallback suffix append.
                 
-            if animation.writers.is_available('ffmpeg'):                                                                                # Check if ffmpeg is available on the system.
+            if not animation.writers.is_available('ffmpeg'):                                                                            # Check if ffmpeg is available on the system.
+                try:                                                                                                                    # Attempt fallback to imageio_ffmpeg.
+                    import imageio_ffmpeg                                                                                               # Import imageio_ffmpeg for pre-compiled binary.
+                    matplotlib.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()                                      # Configure Matplotlib ffmpeg path.
+                except ImportError:                                                                                                     # Handle missing imageio_ffmpeg.
+                    pass                                                                                                                # Fall back to default writers.
+
+            if animation.writers.is_available('ffmpeg'):                                                                                # Check if ffmpeg is available.
                 writer   = 'ffmpeg'                                                                                                     # Use hardware-accelerated FFMpegWriter.
                 save_nom = out_nom if out_nom.endswith('.mp4') else out_nom + '.mp4'                                                    # Ensure output is MP4.
             else:                                                                                                                       # Fallback for systems without FFMpeg.

@@ -15,7 +15,8 @@
         12
     ],
     "device": [
-        "cpu"
+        "cpu",
+        "cuda"
     ],
     "upwind": [
         true,

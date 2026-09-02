@@ -262,8 +262,8 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
             if nvec_i == 0:                                                                                                             # Degenerate case: no neighbors available.
                 diag[i] = 1.0                                                                                                           # Fall back to identity row.
             else:                                                                                                                       # Execute fallback branch.
-                dx  = np.zeros(nvec_i, dtype=np.float64)                                                                                # Neighbor x-offsets.
-                dy  = np.zeros(nvec_i, dtype=np.float64)                                                                                # Neighbor y-offsets.
+                dx  = np.empty(nvec_i, dtype=np.float64)                                                                                # Neighbor x-offsets.
+                dy  = np.empty(nvec_i, dtype=np.float64)                                                                                # Neighbor y-offsets.
                 idx = 0                                                                                                                 # Local index.
                 
                 for j in range(nvec):                                                                                                   # Iterate over neighbor slots.
@@ -273,7 +273,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
                         dy[idx] = p[vec1, 1] - p[i, 1]                                                                                  # Compute dy offset.
                         idx    += 1                                                                                                     # Increment local index.
                 
-                M = np.zeros((5, nvec_i), dtype=np.float64)                                                                             # Reconstruction matrix.
+                M = np.empty((5, nvec_i), dtype=np.float64)                                                                             # Reconstruction matrix.
                 
                 for j in range(nvec_i):                                                                                                 # Populate reconstruction matrix.
                     M[0, j] = dx[j]                                                                                                     # dx term.

@@ -33,6 +33,7 @@ dependencies = [
     "shapely",
     "opencv-python-headless",
     "numba",
+    "imageio-ffmpeg",
 ]
 
 [project.urls]
@@ -50,6 +51,7 @@ gpu = [
 benchmark = [
     "psutil",
     "pandas",
+    "joblib",
 ]
 
 [project.scripts]

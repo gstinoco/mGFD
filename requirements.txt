@@ -1,7 +1,11 @@
-numpy
-scipy
-matplotlib
+imageio-ffmpeg
 joblib
+matplotlib
+numba
+numpy
+opencv-python-headless
 pandas
 psutil
 pyvista
+scipy
+shapely

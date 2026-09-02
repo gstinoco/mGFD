@@ -80,6 +80,9 @@ def solve_cuda(p: np.ndarray,                                                   
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Boolean mask for boundary nodes.
     inne_n = p[:, 2] == 0                                                                                                               # Boolean mask for interior nodes.
 
+    inne_idx = np.where(inne_n)[0]                                                                                                      # Integer index array for interior nodes.
+    boun_idx = np.where(boun_n)[0]                                                                                                      # Integer index array for boundary nodes.
+
     if upwind:                                                                                                                          # If an Upwind stencil is requested.
         a = -operator[0][0] if operator.ndim == 2 else -operator[0]                                                                     # X-velocity (D coefficient).
         b = -operator[1][0] if operator.ndim == 2 else -operator[1]                                                                     # Y-velocity (E coefficient).
@@ -89,7 +92,10 @@ def solve_cuda(p: np.ndarray,                                                   
 
     # 1. Evaluate Initial Condition across all nodes
     if callable(ic_use):                                                                                                                # Evaluate condition.
-        u_ap[:, 0] = np.asarray(ic_use(p[:, 0], p[:, 1], T[0], coef))                                                                   # Assign u_ap[:, 0].
+        try:                                                                                                                            # Execute statement.
+            u_ap[:, 0] = np.asarray(ic_use(p[:, 0], p[:, 1], T[0], coef))                                                               # Assign u_ap[:, 0].
+        except TypeError:                                                                                                               # Execute statement.
+            u_ap[:, 0] = np.asarray(ic_use(p[:, 0], p[:, 1]))                                                                           # Fallback to 2-arg lambda.
     elif isinstance(ic_use, np.ndarray):                                                                                                # Evaluate condition.
         if ic_use.ndim == 2 and ic_use.shape[0] == m: u_ap[:, 0] = ic_use[:, 0]                                                         # Evaluate condition.
         elif ic_use.ndim == 1 and ic_use.shape[0] == m: u_ap[:, 0] = ic_use                                                             # Evaluate condition.
@@ -101,7 +107,17 @@ def solve_cuda(p: np.ndarray,                                                   
         try:                                                                                                                            # Execute statement.
             u_ap[boun_n, 1:] = np.asarray(bc_use(p[boun_n, 0, None], p[boun_n, 1, None], T[None, 1:], coef))                            # Vectorized 2D space-time evaluation for t > 0.
         except Exception:                                                                                                               # Execute statement.
-            for k in range(1, t): u_ap[boun_n, k] = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[k], coef))                          # Fallback loop.
+            try:                                                                                                                        # Execute statement.
+                bc_nodes = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[0], coef))                                                   # 1D node vectorization attempt.
+                if bc_nodes.ndim == 1 and bc_nodes.shape[0] == len(boun_idx):                                                           # Evaluate condition.
+                    u_ap[boun_n, 1:] = bc_nodes[:, None]                                                                                # Broadcast static spatial boundary across time.
+                else:                                                                                                                   # Execute fallback branch.
+                    for k in range(1, t): u_ap[boun_n, k] = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[k], coef))                  # Fallback loop.
+            except TypeError:                                                                                                           # Execute statement.
+                bc_nodes = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1]))                                                               # 2-arg lambda attempt.
+                u_ap[boun_n, 1:] = bc_nodes[:, None]                                                                                    # Broadcast across time.
+            except Exception:                                                                                                           # Execute statement.
+                for k in range(1, t): u_ap[boun_n, k] = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[k], coef))                      # Fallback loop.
     elif isinstance(bc_use, np.ndarray):                                                                                                # Evaluate condition.
         if bc_use.ndim == 2 and bc_use.shape == (m, t): u_ap[boun_n, 1:] = bc_use[boun_n, 1:]                                           # Evaluate condition.
         elif bc_use.ndim == 1 and bc_use.shape[0] == m:                                                                                 # Evaluate condition.
@@ -119,7 +135,17 @@ def solve_cuda(p: np.ndarray,                                                   
             try:                                                                                                                        # Execute statement.
                 F_mat = np.asarray(source(p[:, 0, None], p[:, 1, None], T[None, :], coef))                                              # Assign F_mat.
             except Exception:                                                                                                           # Execute statement.
-                for k in range(t): F_mat[:, k] = np.asarray(source(p[:, 0], p[:, 1], T[k], coef))                                       # Iterate over collection.
+                try:                                                                                                                    # Execute statement.
+                    src_nodes = np.asarray(source(p[:, 0], p[:, 1], T[0], coef))                                                        # 1D node vectorization attempt.
+                    if src_nodes.ndim == 1 and src_nodes.shape[0] == m:                                                                 # Evaluate condition.
+                        F_mat[:, :] = src_nodes[:, None]                                                                                # Broadcast static spatial source across time.
+                    else:                                                                                                               # Execute fallback branch.
+                        for k in range(t): F_mat[:, k] = np.asarray(source(p[:, 0], p[:, 1], T[k], coef))                               # Fallback loop.
+                except TypeError:                                                                                                       # Execute statement.
+                    src_nodes = np.asarray(source(p[:, 0], p[:, 1]))                                                                    # 2-arg lambda attempt.
+                    F_mat[:, :] = src_nodes[:, None]                                                                                    # Broadcast across time.
+                except Exception:                                                                                                       # Execute statement.
+                    for k in range(t): F_mat[:, k] = np.asarray(source(p[:, 0], p[:, 1], T[k], coef))                                   # Fallback loop.
         elif isinstance(source, np.ndarray):                                                                                            # Evaluate condition.
             if source.ndim == 2 and source.shape == (m, t): F_mat = source                                                              # Evaluate condition.
             elif source.ndim == 1 and source.shape[0] == m:                                                                             # Evaluate condition.
@@ -147,22 +173,25 @@ def solve_cuda(p: np.ndarray,                                                   
             if F_mat_gpu is not None:                                                                                                   # Evaluate condition.
                 un[inne_idx_gpu] += dt * F_mat_gpu[inne_idx_gpu, k-1]                                                                   # Inject GPU source term F^(k-1).
             u_ap_gpu[inne_idx_gpu, k] = un[inne_idx_gpu]                                                                                # Update interior nodes on GPU.
-    else:                                                                                                                               # Implicit Direct cuSOLVER Solver.
+    else:                                                                                                                               # Implicit GPU Iterative Solver with Warm Start.
+        from cupyx.scipy.sparse.linalg import bicgstab as cp_bicgstab                                                                   # GPU iterative BiCGSTAB solver.
+
         Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
         Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
         
         A        = Id_inner @ (eye(m) - lam * K) + Id_bound                                                                             # LHS Matrix.
-        A_gpu    = cp_csc_matrix(A)                                                                                                     # Transfer LHS matrix to GPU CSC.
+        A_gpu    = cp_csr_matrix(A)                                                                                                     # Transfer LHS matrix to GPU CSR.
         B_gpu    = cp_csr_matrix(Id_inner @ (eye(m) + (1 - lam) * K))                                                                   # Transfer RHS matrix to GPU CSR.
         
-        solve_gpu = cp_factorized(A_gpu)                                                                                                # Pre-factorize LHS on GPU ONCE.
+        x_iter   = cp.copy(u_ap_gpu[:, 0])                                                                                              # Initialize warm start solution vector.
             
         for k in range(1, t):                                                                                                           # Loop over all time steps in VRAM.
             RHS                      = B_gpu.dot(u_ap_gpu[:, k-1])                                                                      # RHS product in VRAM.
             if F_mat_gpu is not None:                                                                                                   # Evaluate condition.
                 RHS[inne_idx_gpu]   += dt * (lam * F_mat_gpu[inne_idx_gpu, k] + (1 - lam) * F_mat_gpu[inne_idx_gpu, k-1])               # Inject theta-weighted GPU source term.
             RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                        # Inject boundary condition.
-            u_ap_gpu[:, k]           = solve_gpu(RHS[:, None]).ravel()                                                                  # GPU pre-factorized solve.
+            x_iter, _                = cp_bicgstab(A_gpu, RHS, x0=x_iter, rtol=1e-10, atol=1e-10, maxiter=50)                           # GPU BiCGSTAB iterative solve with warm start.
+            u_ap_gpu[:, k]           = x_iter                                                                                           # Direct update across all nodes.
             
     u_ap = u_ap_gpu.get()                                                                                                               # Pull final result array to CPU RAM.
     cp.get_default_memory_pool().free_all_blocks()                                                                                      # Free CuPy VRAM blocks to prevent pool fragmentation across dataset sweeps.

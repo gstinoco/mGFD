@@ -111,7 +111,10 @@ def solve_cpu(p: np.ndarray,                                                    
 
     # 1. Evaluate Initial Condition across all nodes
     if callable(ic_use):                                                                                                                # Evaluate condition.
-        u_ap[:, 0] = np.asarray(ic_use(p[:, 0], p[:, 1], T[0], coef))                                                                   # Assign u_ap[:, 0].
+        try:                                                                                                                            # Execute statement.
+            u_ap[:, 0] = np.asarray(ic_use(p[:, 0], p[:, 1], T[0], coef))                                                               # Assign u_ap[:, 0].
+        except TypeError:                                                                                                               # Execute statement.
+            u_ap[:, 0] = np.asarray(ic_use(p[:, 0], p[:, 1]))                                                                           # Fallback to 2-arg lambda.
     elif isinstance(ic_use, np.ndarray):                                                                                                # Evaluate condition.
         if ic_use.ndim == 2 and ic_use.shape[0] == m: u_ap[:, 0] = ic_use[:, 0]                                                         # Evaluate condition.
         elif ic_use.ndim == 1 and ic_use.shape[0] == m: u_ap[:, 0] = ic_use                                                             # Evaluate condition.
@@ -123,7 +126,17 @@ def solve_cpu(p: np.ndarray,                                                    
         try:                                                                                                                            # Execute statement.
             u_ap[boun_n, 1:] = np.asarray(bc_use(p[boun_n, 0, None], p[boun_n, 1, None], T[None, 1:], coef))                            # Vectorized 2D space-time evaluation for t > 0.
         except Exception:                                                                                                               # Execute statement.
-            for k in range(1, t): u_ap[boun_n, k] = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[k], coef))                          # Fallback loop.
+            try:                                                                                                                        # Execute statement.
+                bc_nodes = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[0], coef))                                                   # 1D node vectorization attempt.
+                if bc_nodes.ndim == 1 and bc_nodes.shape[0] == len(boun_idx):                                                           # Evaluate condition.
+                    u_ap[boun_n, 1:] = bc_nodes[:, None]                                                                                # Broadcast static spatial boundary across time.
+                else:                                                                                                                   # Execute fallback branch.
+                    for k in range(1, t): u_ap[boun_n, k] = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[k], coef))                  # Fallback loop.
+            except TypeError:                                                                                                           # Execute statement.
+                bc_nodes = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1]))                                                               # 2-arg lambda attempt.
+                u_ap[boun_n, 1:] = bc_nodes[:, None]                                                                                    # Broadcast across time.
+            except Exception:                                                                                                           # Execute statement.
+                for k in range(1, t): u_ap[boun_n, k] = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[k], coef))                      # Fallback loop.
     elif isinstance(bc_use, np.ndarray):                                                                                                # Evaluate condition.
         if bc_use.ndim == 2 and bc_use.shape == (m, t): u_ap[boun_n, 1:] = bc_use[boun_n, 1:]                                           # Evaluate condition.
         elif bc_use.ndim == 1 and bc_use.shape[0] == m:                                                                                 # Evaluate condition.
@@ -141,7 +154,17 @@ def solve_cpu(p: np.ndarray,                                                    
             try:                                                                                                                        # Execute statement.
                 F_mat = np.asarray(source(p[:, 0, None], p[:, 1, None], T[None, :], coef))                                              # Assign F_mat.
             except Exception:                                                                                                           # Execute statement.
-                for k in range(t): F_mat[:, k] = np.asarray(source(p[:, 0], p[:, 1], T[k], coef))                                       # Iterate over collection.
+                try:                                                                                                                    # Execute statement.
+                    src_nodes = np.asarray(source(p[:, 0], p[:, 1], T[0], coef))                                                        # 1D node vectorization attempt.
+                    if src_nodes.ndim == 1 and src_nodes.shape[0] == m:                                                                 # Evaluate condition.
+                        F_mat[:, :] = src_nodes[:, None]                                                                                # Broadcast static spatial source across time.
+                    else:                                                                                                               # Execute fallback branch.
+                        for k in range(t): F_mat[:, k] = np.asarray(source(p[:, 0], p[:, 1], T[k], coef))                               # Fallback loop.
+                except TypeError:                                                                                                       # Execute statement.
+                    src_nodes = np.asarray(source(p[:, 0], p[:, 1]))                                                                    # 2-arg lambda attempt.
+                    F_mat[:, :] = src_nodes[:, None]                                                                                    # Broadcast across time.
+                except Exception:                                                                                                       # Execute statement.
+                    for k in range(t): F_mat[:, k] = np.asarray(source(p[:, 0], p[:, 1], T[k], coef))                                   # Fallback loop.
         elif isinstance(source, np.ndarray):                                                                                            # Evaluate condition.
             if source.ndim == 2 and source.shape == (m, t): F_mat = source                                                              # Evaluate condition.
             elif source.ndim == 1 and source.shape[0] == m:                                                                             # Evaluate condition.
@@ -173,9 +196,10 @@ def solve_cpu(p: np.ndarray,                                                    
         B        = Id_inner @ (eye(m) + (1 - lam) * K)                                                                                  # RHS Matrix.
         
         solve    = factorized(A)                                                                                                        # Pre-factorize LHS ONCE for fast repeated solves.
+        RHS      = np.empty(m, dtype=float)                                                                                             # Pre-allocated RHS buffer.
             
         for k in range(1, t):                                                                                                           # Loop over all time steps.
-            RHS           = B.dot(u_ap[:, k-1])                                                                                         # Right-hand side from previous step.
+            RHS[:] = B.dot(u_ap[:, k-1])                                                                                                # Right-hand side from previous step.
             if F_mat is not None:                                                                                                       # Evaluate condition.
                 RHS[inne_idx] += dt * (lam * F_mat[inne_idx, k] + (1 - lam) * F_mat[inne_idx, k-1])                                     # Inject theta-weighted source term.
             RHS[boun_idx] = u_ap[boun_idx, k]                                                                                           # Inject exact boundary conditions.
