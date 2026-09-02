@@ -166,7 +166,7 @@ def solve_cpu(p: np.ndarray,                                                    
                 elif res.shape == (m,):                                                                                                 # 1D node vector returned.
                     F_mat = np.broadcast_to(res[:, None], (m, t)).copy()                                                                # Broadcast across time steps.
                 else:                                                                                                                   # Fallback on shape mismatch.
-                    raise ValueError("Shape mismatch")                                                                                      # Force fallback execution.
+                    raise ValueError("Shape mismatch")                                                                                  # Force fallback execution.
             except Exception:                                                                                                           # Execute statement.
                 try:                                                                                                                    # Execute statement.
                     src_nodes = np.asarray(source(p[:, 0], p[:, 1], T[0], coef))                                                        # 1D node vectorization attempt.
