@@ -7,11 +7,12 @@ Overview:
 
 Notes:
     - Each batch script is executed by importing it as a module with dynamically injected kwargs.
-    - This is intended for parameter exploration across the mGFD suite.
+    - Supports concurrent CPU and CUDA pipeline parallelization when parallel=True in sweep_config.json.
 
 Public API:
     import_module_from_file     Dynamically load and execute a batch runner module.
-    run_sweep                   Execute multi-cloud parameter sweep.
+    run_job                     Worker execution wrapper for process pool parallelization.
+    main                        Execute multi-cloud parameter sweep.
 
 Credits:
     All the codes presented below were developed by:
@@ -36,19 +37,20 @@ Credits:
 
 
 Date:
-    August, 2026.
+    May, 2024.
 Last Modification:
-    August, 2026.
+    September, 2026.
 """
 
 import os                                                                                                                               # OS interfaces for file/directory paths.
 import json                                                                                                                             # JSON formatting.
 import logging                                                                                                                          # Standard logging module.
 import itertools                                                                                                                        # Combinatorial iterator.
-from time import time                                                                                                                   # Time tracking.
-from typing import List, Any                                                                                                            # Type hints.
 import sys                                                                                                                              # sys.modules access for imported modules.
 import importlib.util                                                                                                                   # Dynamic module import from a file path.
+import concurrent.futures                                                                                                               # Process pool executor for parallel sweep execution.
+from time import time                                                                                                                   # Time tracking.
+from typing import List, Tuple, Any                                                                                                     # Type hints.
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Configure standard logger format.
 logger = logging.getLogger(__name__)                                                                                                    # Create module logger.
@@ -99,6 +101,48 @@ def import_module_from_file(file_path: str, verbose: bool = True, **kwargs: Any)
         
         return False                                                                                                                    # Report failure.
 
+
+def run_job(job_tuple: Tuple[str, str, int, Any, dict, bool]) -> bool:
+    """
+    run_job
+    Worker execution wrapper for process pool parallelization.
+
+    Input:
+        job_tuple                   Tuple           (file_path, run_file, nvec, upwind, kwargs, verbose)
+
+    Output:
+        ok                          bool            True when the execution succeeds, False otherwise.
+    """
+    file_path, run_file, nvec, upwind, base_kwargs, verbose = job_tuple                                                                 # Unpack job configuration tuple.
+    
+    if upwind is not None:                                                                                                              # Determine if upwind applies.
+        config_str = f'nvec={nvec}, dev={base_kwargs.get("device")}, up={upwind}'                                                       # Format config with upwind.
+    else:                                                                                                                               # Upwind doesn't apply.
+        config_str = f'nvec={nvec}, dev={base_kwargs.get("device")}'                                                                    # Format config without upwind.
+
+    if verbose:                                                                                                                         # Check verbosity.
+        logger.info(f'\nExecuting {run_file} with [{config_str}]...')                                                                   # Log current execution.
+
+    start_time = time()                                                                                                                 # Start per-script timer.
+    run_kwargs = base_kwargs.copy()                                                                                                     # Copy global kwargs to avoid side-effects.
+    run_kwargs['nvec'] = nvec                                                                                                           # Inject neighbor count into kwargs.
+
+    if upwind is not None:                                                                                                              # If upwind is required for this runner.
+        run_kwargs['upwind'] = upwind                                                                                                   # Inject upwind flag into kwargs.
+
+    ok = import_module_from_file(file_path, verbose=verbose, **run_kwargs)                                                              # Dynamically load and run script with kwargs.
+    execution_time = time() - start_time                                                                                                # Compute per-script runtime.
+
+    if ok:                                                                                                                              # Check execution success.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.info(f'Completed {run_file} [{config_str}] in {execution_time:.2f} seconds')                                         # Log completion.
+    else:                                                                                                                               # Script execution failed.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.error(f'Error executing {run_file} [{config_str}]')                                                                  # Report failure.
+
+    return ok                                                                                                                           # Return execution result.
+
+
 def main(verbose: bool = True, **kwargs: Any) -> None:
     """
     main
@@ -130,6 +174,9 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
     save_outputs = save_cfg[0] if isinstance(save_cfg, list) else save_cfg                                                              # Safely extract boolean.
     plot_cfg     = config.get('plot_approximations', False)                                                                             # Extract plot config.
     plot_appx    = plot_cfg[0] if isinstance(plot_cfg, list) else plot_cfg                                                              # Safely extract boolean.
+    parallel_cfg = config.get('parallel', True)                                                                                         # Extract parallel config (default True).
+    cpu_workers  = config.get('cpu_workers', 2)                                                                                         # Extract CPU worker count (default 2).
+
     if t_cfg is not None:                                                                                                               # If explicit t parameter is provided.
         kwargs['t'] = t_cfg[0] if isinstance(t_cfg, list) else t_cfg                                                                    # Inject explicit t into kwargs.
     if cfl_cfg is not None:                                                                                                             # If cfl parameter override is provided.
@@ -146,11 +193,13 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
     
     if verbose:                                                                                                                         # Check verbosity.
         logger.info('Starting mGFD Parameter Sweep...')                                                                                 # Console header.
+        logger.info(f'Parallel execution: {parallel_cfg} (cpu_workers={cpu_workers})')                                                  # Log parallel configuration.
         logger.info('=' * 50)                                                                                                           # Visual separator.
 
     total_start_time = time()                                                                                                           # Start total timer.
     successful_runs  = 0                                                                                                                # Counter for successful runs.
-    total_runs       = 0                                                                                                                # Counter for total executions.
+    
+    jobs: List[Tuple[str, str, int, Any, dict, bool]] = []                                                                              # Initialize jobs list.
 
     for run_file in run_files:                                                                                                          # Iterate over runners.
         file_path = os.path.join(current_dir, 'runners', run_file)                                                                      # Resolve path under runners/ folder.
@@ -163,34 +212,25 @@ def main(verbose: bool = True, **kwargs: Any) -> None:
             combinations = list(itertools.product(nvec_list, device_list, upwind_list))                                                 # Generate combinations including upwind.
         else:                                                                                                                           # Other scripts don't use upwind.
             combinations = list(itertools.product(nvec_list, device_list, [None]))                                                      # Generate combinations without upwind.
-            
-        total_runs += len(combinations)                                                                                                 # Accumulate total executions.
-        
+
         for nvec, device, upwind in combinations:                                                                                       # Iterate over configurations.
-            if upwind is not None:                                                                                                      # Determine if upwind applies.
-                config_str = f'nvec={nvec}, dev={device}, up={upwind}'                                                                  # Format config with upwind.
-            else:                                                                                                                       # Upwind doesn't apply.
-                config_str = f'nvec={nvec}, dev={device}'                                                                               # Format config without upwind.
-                
-            if verbose:                                                                                                                 # Check verbosity.
-                logger.info(f'\nExecuting {run_file} with [{config_str}]...')                                                           # Log current execution.
-            
-            start_time = time()                                                                                                         # Start per-script timer.
-            run_kwargs = kwargs.copy()                                                                                                  # Copy global kwargs to avoid side-effects.
-            run_kwargs['nvec']   = nvec                                                                                                 # Inject neighbor count into kwargs.
+            run_kwargs = kwargs.copy()                                                                                                  # Copy global kwargs.
             run_kwargs['device'] = device                                                                                               # Inject device into kwargs.
-            
-            if upwind is not None:                                                                                                      # If upwind is required for this runner.
-                run_kwargs['upwind'] = upwind                                                                                           # Inject upwind flag into kwargs.
-            
-            if import_module_from_file(file_path, verbose=verbose, **run_kwargs):                                                       # Dynamically load and run script with kwargs.
-                execution_time = time() - start_time                                                                                    # Compute per-script runtime.
-                if verbose:                                                                                                             # Check verbosity.
-                    logger.info(f'Completed {run_file} [{config_str}] in {execution_time:.2f} seconds')                                 # Log completion.
+            jobs.append((file_path, run_file, nvec, upwind, run_kwargs, verbose))                                                       # Append job tuple to queue.
+
+    total_runs = len(jobs)                                                                                                              # Total number of execution jobs.
+
+    if parallel_cfg and total_runs > 1:                                                                                                 # Execute jobs in parallel mode.
+        max_workers = cpu_workers + (1 if 'cuda' in device_list else 0)                                                                 # Calculate total process pool size.
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:                                               # Initialize process pool executor.
+            futures = [executor.submit(run_job, job) for job in jobs]                                                                   # Submit all sweep jobs to executor.
+            for future in concurrent.futures.as_completed(futures):                                                                     # Gather completed job futures.
+                if future.result():                                                                                                     # Check job execution success.
+                    successful_runs += 1                                                                                                # Increment success counter.
+    else:                                                                                                                               # Fallback to sequential sweep mode.
+        for job in jobs:                                                                                                                # Iterate sequentially over jobs.
+            if run_job(job):                                                                                                            # Execute job sequentially.
                 successful_runs += 1                                                                                                    # Increment success counter.
-            else:                                                                                                                       # Script execution failed.
-                if verbose:                                                                                                             # Check verbosity.
-                    logger.error(f'Error executing {run_file} [{config_str}]')                                                          # Report failure.
 
     total_time = time() - total_start_time                                                                                              # Compute total runtime.
     if verbose:                                                                                                                         # Check verbosity.

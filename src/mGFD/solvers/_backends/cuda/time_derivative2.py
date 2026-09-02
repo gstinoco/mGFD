@@ -106,7 +106,13 @@ def solve_cuda(p: np.ndarray,                                                   
     # 2. Evaluate Boundary Conditions across boundary nodes over time (t > 0)
     if callable(bc_use):                                                                                                                # Evaluate condition.
         try:                                                                                                                            # Execute statement.
-            u_ap[boun_n, 1:] = np.asarray(bc_use(p[boun_n, 0, None], p[boun_n, 1, None], T[None, 1:], coef))                            # Vectorized 2D space-time evaluation for t > 0.
+            res = np.asarray(bc_use(p[boun_n, 0, None], p[boun_n, 1, None], T[None, 1:], coef))                                         # Vectorized 2D space-time evaluation for t > 0.
+            if res.shape == (len(boun_idx), t - 1):                                                                                     # Exact shape match.
+                u_ap[boun_n, 1:] = res                                                                                                  # Assign 2D matrix.
+            elif res.shape == (len(boun_idx), 1):                                                                                       # Static spatial boundary column.
+                u_ap[boun_n, 1:] = np.broadcast_to(res, (len(boun_idx), t - 1))                                                         # Broadcast across time steps.
+            else:                                                                                                                       # Fallback on shape mismatch.
+                raise ValueError("Shape mismatch")                                                                                      # Force fallback execution.
         except Exception:                                                                                                               # Execute statement.
             try:                                                                                                                        # Execute statement.
                 bc_nodes = np.asarray(bc_use(p[boun_n, 0], p[boun_n, 1], T[0], coef))                                                   # 1D node vectorization attempt.
@@ -146,7 +152,15 @@ def solve_cuda(p: np.ndarray,                                                   
         F_mat = np.zeros((m, t), dtype=float)                                                                                           # Assign F_mat.
         if callable(source):                                                                                                            # Evaluate condition.
             try:                                                                                                                        # Execute statement.
-                F_mat = np.asarray(source(p[:, 0, None], p[:, 1, None], T[None, :], coef))                                              # Assign F_mat.
+                res = np.asarray(source(p[:, 0, None], p[:, 1, None], T[None, :], coef))                                                # 2D space-time evaluation attempt.
+                if res.shape == (m, t):                                                                                                 # Exact 2D matrix shape match.
+                    F_mat = res                                                                                                         # Assign matrix.
+                elif res.shape == (m, 1):                                                                                               # Single spatial column returned.
+                    F_mat = np.broadcast_to(res, (m, t)).copy()                                                                         # Broadcast across time steps.
+                elif res.shape == (m,):                                                                                                 # 1D node vector returned.
+                    F_mat = np.broadcast_to(res[:, None], (m, t)).copy()                                                                # Broadcast across time steps.
+                else:                                                                                                                   # Fallback on shape mismatch.
+                    raise ValueError("Shape mismatch")                                                                                      # Force fallback execution.
             except Exception:                                                                                                           # Execute statement.
                 try:                                                                                                                    # Execute statement.
                     src_nodes = np.asarray(source(p[:, 0], p[:, 1], T[0], coef))                                                        # 1D node vectorization attempt.
@@ -185,7 +199,7 @@ def solve_cuda(p: np.ndarray,                                                   
         
         for k in range(1, t):                                                                                                           # Loop over all time steps.
             if k == 1:                                                                                                                  # Initial time step (k=1).
-                g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
+                g_val = g_eval                                                                                                          # Use pre-evaluated initial velocity vector.
                 g_val_gpu = cp.asarray(g_val)                                                                                           # Transfer velocity array to VRAM.
                 un                      = K2_gpu.dot(u_ap_gpu[:, k - 1]) + dt*g_val_gpu                                                 # New time level (k=1).
                 if F_mat_gpu is not None:                                                                                               # Evaluate condition.
@@ -213,7 +227,7 @@ def solve_cuda(p: np.ndarray,                                                   
             
         for k in range(1, t):                                                                                                           # Loop over all time steps in VRAM.
             if k == 1:                                                                                                                  # Initial time step (k=1).
-                g_val = g(p[:, 0], p[:, 1], T[k], coef) if callable(g) else g_eval                                                      # Evaluate velocity for first step.
+                g_val = g_eval                                                                                                          # Use pre-evaluated initial velocity vector.
                 g_val_gpu = cp.asarray(g_val)                                                                                           # Transfer velocity array to VRAM.
                 RHS                      = B1_gpu.dot(u_ap_gpu[:, k - 1]) + dt*g_val_gpu                                                # Right-hand side for k=1.
                 if F_mat_gpu is not None:                                                                                               # Evaluate condition.

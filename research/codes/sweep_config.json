@@ -33,5 +33,7 @@
     ],
     "cfl": [
         0.1
-    ]
+    ],
+    "parallel": true,
+    "cpu_workers": 2
 }

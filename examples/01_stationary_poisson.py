@@ -2,7 +2,9 @@
 Example 01: Solving the Stationary Poisson Equation using mGFD
 
 Overview:
-    This tutorial demonstrates how to solve the classic Poisson Equation:\n        u_xx + u_yy = f(x, y)\n    On an irregular 2D domain (Star), using the Meshless Generalized Finite Difference (mGFD) method.
+    This tutorial demonstrates how to solve the classic Poisson Equation:
+        u_xx + u_yy = f(x, y)
+    On an irregular 2D domain (Star), using the Meshless Generalized Finite Difference (mGFD) method.
 
 Credits:
     All the codes presented below were developed by:
@@ -11,6 +13,7 @@ Credits:
         Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
+
     With the funding of:
         Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
         Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
@@ -24,10 +27,11 @@ Credits:
         Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
         https://doi.org/10.1016/j.camwa.2025.07.034
 
+
 Date:
-    August, 2026.
+    May, 2024.
 Last Modification:
-    August, 2026.
+    September, 2026.
 """
 
 import os                                                                                                                               # Standard OS imports.

@@ -149,7 +149,7 @@ def test_time_derivative2_arrays() -> None:
     for k in range(t_steps):                                                                                                            # Iterate over time.
         f_arr[:, k] = f_func(p[:, 0], p[:, 1], T[k], [c])                                                                               # Populate array values for f.
     
-    g_arr = g_func(p[:, 0], p[:, 1], T[1], [c])                                                                                         # Velocity 'g' is evaluated at k=1 in solver.
+    g_arr = g_func(p[:, 0], p[:, 1], T[0], [c])                                                                                         # Velocity 'g' is evaluated at t=0 (k=0) in solver.
     
     L = np.vstack([[0], [0], [2 * c**2], [0], [2 * c**2], [0]])                                                                         # Wave operator.
     
