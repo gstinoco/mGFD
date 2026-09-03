@@ -62,7 +62,9 @@ def solve_cuda(p: np.ndarray,                                                   
                ic: Optional[Union[Callable, np.ndarray, float, int]] = None,                                                            # Assign ic: Optional[Union[Callable, np.ndarray, float, int]].
                bc: Optional[Union[Callable, np.ndarray, float, int]] = None,                                                            # Assign bc: Optional[Union[Callable, np.ndarray, float, int]].
                source: Optional[Union[Callable, np.ndarray, float, int]] = None,                                                        # Assign source: Optional[Union[Callable, np.ndarray, float, int]].
-               t_span: Tuple[float, float] = (0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray, bool]:                                        # Assign t_span: Tuple[float, float].
+               t_span: Tuple[float, float] = (0.0, 1.0),                                                                                # Assign t_span: Tuple[float, float].
+               damping: float = 0.0,                                                                                                    # Assign damping: float (velocity damping eta).
+               alpha: float = 0.0) -> Tuple[np.ndarray, np.ndarray, bool]:                                                              # Assign alpha: float (HHT-alpha high-frequency dissipation).
     """CUDA backend for TimeDerivative2 using CuPy pre-factorized direct sparse LU solver."""
 
     try:                                                                                                                                # Attempt CuPy import.
@@ -193,9 +195,20 @@ def solve_cuda(p: np.ndarray,                                                   
     boun_idx_gpu = cp.where(cp.asarray(boun_n))[0]                                                                                      # Integer index array for boundary nodes on GPU.
     inne_idx_gpu = cp.where(cp.asarray(inne_n))[0]                                                                                      # Integer index array for interior nodes on GPU.
     
+    # Calculate HHT-alpha and Newmark parameters
+    if alpha != 0.0:                                                                                                                    # HHT-alpha specified.
+        gamma_n = 0.5 - alpha                                                                                                           # Compute HHT gamma.
+        beta_n  = 0.25 * ((1.0 - alpha) ** 2)                                                                                           # Compute HHT beta.
+    else:                                                                                                                               # Standard Newmark-beta.
+        gamma_n = 0.5                                                                                                                   # Standard gamma.
+        beta_n  = lam                                                                                                                   # Standard beta (lam).
+
+    damp_scale = damping * dt                                                                                                           # Dimensionless velocity damping scale.
+
     if not implicit:                                                                                                                    # Explicit scheme on GPU.
         K2_gpu = cp_csr_matrix(eye(m) + (1/2)*K)                                                                                        # Transfer explicit matrix k=1.
-        K4_gpu = cp_csr_matrix(2*eye(m) + K)                                                                                            # Transfer explicit matrix k>=2.
+        K4_gpu = cp_csr_matrix((2.0 - damp_scale)*eye(m) + K)                                                                           # Transfer explicit matrix k>=2.
+        K_prev_gpu = cp_csr_matrix((damp_scale - 1.0)*eye(m))                                                                           # Previous step matrix on GPU.
         
         for k in range(1, t):                                                                                                           # Loop over all time steps.
             if k == 1:                                                                                                                  # Initial time step (k=1).
@@ -206,7 +219,7 @@ def solve_cuda(p: np.ndarray,                                                   
                     un[inne_idx_gpu]   += (dt**2 / 2) * F_mat_gpu[inne_idx_gpu, k-1]                                                    # GPU source term for k=1.
                 u_ap_gpu[inne_idx_gpu, k] = un[inne_idx_gpu]                                                                            # Update interior nodes.
             else:                                                                                                                       # Execute fallback branch.
-                un                      = K4_gpu.dot(u_ap_gpu[:, k - 1]) - u_ap_gpu[:, k - 2]                                           # New time level (k>=2).
+                un                      = K4_gpu.dot(u_ap_gpu[:, k - 1]) + K_prev_gpu.dot(u_ap_gpu[:, k - 2])                           # New time level (k>=2) with damping.
                 if F_mat_gpu is not None:                                                                                               # Evaluate condition.
                     un[inne_idx_gpu]   += (dt**2) * F_mat_gpu[inne_idx_gpu, k-1]                                                        # GPU source term for k>=2.
                 u_ap_gpu[inne_idx_gpu, k] = un[inne_idx_gpu]                                                                            # Update interior nodes.
@@ -216,12 +229,19 @@ def solve_cuda(p: np.ndarray,                                                   
         Id_inner = diags(inne_n.astype(float))                                                                                          # Diagonal mask for inner nodes.
         Id_bound = diags(boun_n.astype(float))                                                                                          # Diagonal mask for boundary nodes.
         
-        A1_gpu   = cp_csr_matrix(Id_inner @ (eye(m) - lam * K) + Id_bound)                                                              # LHS Matrix k=1 CSR.
-        B1_gpu   = cp_csr_matrix(Id_inner @ (eye(m) + (0.5 - lam) * K))                                                                 # RHS Matrix k=1 CSR.
+        coef_lhs = (1.0 + gamma_n * damp_scale)                                                                                         # LHS Identity coefficient.
+        coef_b1  = (1.0 + (gamma_n - 1.0) * damp_scale)                                                                                 # B1 Identity coefficient.
+        coef_b2  = (2.0 + (2.0 * gamma_n - 1.0) * damp_scale)                                                                           # B2 Identity coefficient.
+        coef_c2  = (1.0 + (gamma_n - 1.0) * damp_scale)                                                                                 # C2 Identity coefficient.
         
-        A2_gpu   = cp_csr_matrix(Id_inner @ (eye(m) - lam * K) + Id_bound)                                                              # LHS Matrix k>=2 CSR.
-        B2_gpu   = cp_csr_matrix(Id_inner @ (2*eye(m) + (1 - 2*lam) * K))                                                               # RHS Matrix k>=2 CSR.
-        C2_gpu   = cp_csr_matrix(Id_inner @ (eye(m) - lam * K))                                                                         # RHS Matrix k-2 CSR.
+        beta_alpha_factor = beta_n * (1.0 + alpha)                                                                                      # Beta-alpha factor.
+
+        A1_gpu   = cp_csr_matrix(Id_inner @ (coef_lhs * eye(m) - beta_alpha_factor * K) + Id_bound)                                     # LHS Matrix k=1 CSR.
+        B1_gpu   = cp_csr_matrix(Id_inner @ (coef_b1 * eye(m) + (0.5 - beta_alpha_factor) * K))                                         # RHS Matrix k=1 CSR.
+        
+        A2_gpu   = cp_csr_matrix(Id_inner @ (coef_lhs * eye(m) - beta_alpha_factor * K) + Id_bound)                                     # LHS Matrix k>=2 CSR.
+        B2_gpu   = cp_csr_matrix(Id_inner @ (coef_b2 * eye(m) + (1.0 + alpha - 2.0 * beta_alpha_factor) * K))                           # RHS Matrix k>=2 CSR.
+        C2_gpu   = cp_csr_matrix(Id_inner @ (coef_c2 * eye(m) - beta_alpha_factor * K))                                                 # RHS Matrix k-2 CSR.
         
         x_iter   = cp.copy(u_ap_gpu[:, 0])                                                                                              # Initialize warm start solution vector.
             
@@ -231,15 +251,14 @@ def solve_cuda(p: np.ndarray,                                                   
                 g_val_gpu = cp.asarray(g_val)                                                                                           # Transfer velocity array to VRAM.
                 RHS                      = B1_gpu.dot(u_ap_gpu[:, k - 1]) + dt*g_val_gpu                                                # Right-hand side for k=1.
                 if F_mat_gpu is not None:                                                                                               # Evaluate condition.
-                    RHS[inne_idx_gpu]   += (dt**2) * (lam * F_mat_gpu[inne_idx_gpu, k] + (0.5 - lam) * F_mat_gpu[inne_idx_gpu, k-1])    # GPU source term for k=1.
+                    RHS[inne_idx_gpu]   += (dt**2) * (beta_alpha_factor * F_mat_gpu[inne_idx_gpu, k] + (0.5 - beta_alpha_factor) * F_mat_gpu[inne_idx_gpu, k-1]) # GPU source term for k=1.
                 RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                    # Inject exact boundary condition.
                 x_iter, _                = cp_bicgstab(A1_gpu, RHS, x0=x_iter, rtol=1e-10, atol=1e-10, maxiter=50)                      # GPU BiCGSTAB iterative solve for k=1.
                 u_ap_gpu[:, k]           = x_iter                                                                                       # Direct update across all nodes.
             else:                                                                                                                       # Execute fallback branch.
                 RHS                      = B2_gpu.dot(u_ap_gpu[:, k - 1]) - C2_gpu.dot(u_ap_gpu[:, k - 2])                              # Right-hand side for k>=2.
                 if F_mat_gpu is not None:                                                                                               # Evaluate condition.
-                    F_k_gpu = lam * F_mat_gpu[inne_idx_gpu, k] + (1 - 2*lam) * F_mat_gpu[inne_idx_gpu, k-1]                             # Term k & k-1.
-                    F_k_gpu += lam * F_mat_gpu[inne_idx_gpu, k-2]                                                                       # Add term k-2.
+                    F_k_gpu = beta_alpha_factor * F_mat_gpu[inne_idx_gpu, k] + (1.0 + alpha - 2.0*beta_alpha_factor) * F_mat_gpu[inne_idx_gpu, k-1] + beta_alpha_factor * F_mat_gpu[inne_idx_gpu, k-2] # GPU source term for k>=2.
                     RHS[inne_idx_gpu]    += (dt**2) * F_k_gpu                                                                           # GPU source term for k>=2.
                 RHS[boun_idx_gpu]        = u_ap_gpu[boun_idx_gpu, k]                                                                    # Inject exact boundary condition.
                 x_iter, _                = cp_bicgstab(A2_gpu, RHS, x0=x_iter, rtol=1e-10, atol=1e-10, maxiter=50)                      # GPU BiCGSTAB iterative solve for k>=2.

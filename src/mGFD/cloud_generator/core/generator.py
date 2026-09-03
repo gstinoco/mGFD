@@ -61,7 +61,8 @@ from mGFD.cloud_generator.core.point_generation import (                        
 )                                                                                                                                       # Execute statement.
 
 def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main_region_strategy: Callable, interior_regions_strategy: Callable, 
-                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict: # Assign inside_regions: bool.
+                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0,             # Assign inside_regions: bool.
+                         save: bool = True, show: bool = False) -> Dict:                                                                # Assign inside_regions: bool.
     """
     _generate_cloud_core
     Core generation logic shared between different distribution methods.
@@ -75,7 +76,8 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
         inside_regions              bool        Whether to process interior holes.
         cloud_size                  Optional    Override distance parameter.
         density_multiplier          float       Density scaling factor.
-        save                        bool        Whether to save visualization files or show interactively.
+        save                        bool        Whether to save PNG/SVG visualization files to disk.
+        show                        bool        Whether to show interactive plot window.
         
     Output:
         results                     Dict        Comprehensive results dictionary.
@@ -144,7 +146,7 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
             return {"success": False, "error": "Failed to export CSV"}                                                                  # Return failure status.
         
         output_base = os.path.splitext(output_file)[0]                                                                                  # Get base filename without extension.
-        create_visualization(all_points_arr, all_regions, output_base, classifications, save)                                           # Generate visual representation.
+        create_visualization(all_points_arr, all_regions, output_base, classifications, save=save, show=show)                           # Generate visual representation.
         
         # 8. Result packaging
         results = {                                                                                                                     # Build the success dictionary.
@@ -171,7 +173,8 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
 def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:             # Assign cloud_size: Optional[float].
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0,                                         # Assign cloud_size: Optional[float].
+                           save: bool = True, show: bool = False) -> Dict:                                                              # Assign cloud_size: Optional[float].
     """
     generate_cloud_natural
     Generate point cloud using Natural Distribution algorithm with Poisson Disk Sampling.
@@ -186,7 +189,8 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         inside_regions      bool        Enable multi-region processing for interior holes.
         cloud_size          float       Override automatic cloud size calculation.
         density_multiplier  float       Multiplier for the point cloud density. Default is 1.0.
-        save                bool        If True, save to disk. If False, show interactive plot.
+        save                bool        If True, save PNG/SVG files to disk.
+        show                bool        If True, display interactive plot window.
     
     Output:
         results             Dict        Comprehensive results dictionary.
@@ -199,7 +203,7 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         return _generate_cloud_core(                                                                                                    # Execute core logic.
             csv_file, output_file, "Natural",                                                                                           # Set file paths and method name.
             main_strategy, interior_strategy,                                                                                           # Set appropriate generation strategies.
-            inside_regions, cloud_size, density_multiplier, save                                                                        # Forward other parameters.
+            inside_regions, cloud_size, density_multiplier, save, show                                                                  # Forward other parameters.
         )                                                                                                                               # Execute statement.
         
     # 2. Exception handling
@@ -209,7 +213,8 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
 def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0, save: bool = True) -> Dict:             # Assign cloud_size: Optional[float].
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0,                                         # Assign cloud_size: Optional[float].
+                           save: bool = True, show: bool = False) -> Dict:                                                              # Assign cloud_size: Optional[float].
     """
     generate_cloud_regular
     Generate point cloud using Regular Distribution algorithm with grid-based approach.
@@ -224,7 +229,8 @@ def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool
         inside_regions      bool        Enable multi-region processing for interior holes.
         cloud_size          float       Override automatic cloud size calculation.
         density_multiplier  float       Multiplier for the point cloud density. Default is 1.0.
-        save                bool        If True, save to disk. If False, show interactive plot.
+        save                bool        If True, save PNG/SVG files to disk.
+        show                bool        If True, display interactive plot window.
     
     Output:
         results             Dict        Comprehensive results dictionary.
@@ -237,7 +243,7 @@ def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool
         return _generate_cloud_core(                                                                                                    # Execute core logic.
             csv_file, output_file, "Regular",                                                                                           # Set file paths and method name.
             main_strategy, interior_strategy,                                                                                           # Set appropriate generation strategies.
-            inside_regions, cloud_size, density_multiplier, save                                                                        # Forward other parameters.
+            inside_regions, cloud_size, density_multiplier, save, show                                                                  # Forward other parameters.
         )                                                                                                                               # Execute statement.
         
     # 2. Exception handling

@@ -47,7 +47,7 @@ import matplotlib.pyplot as plt                                                 
 from typing import List, Optional                                                                                                       # Import type hints.
 from matplotlib.collections import LineCollection                                                                                       # For fast line rendering.
 
-def create_visualization(points: np.ndarray, regions_list: List[int], output_base: str, classifications: Optional[List[str]] = None, save: bool = True) -> bool:
+def create_visualization(points: np.ndarray, regions_list: List[int], output_base: str, classifications: Optional[List[str]] = None, save: bool = True, show: bool = False) -> bool:
     """
     create_visualization
     Create a visualization of the generated point cloud.
@@ -60,11 +60,15 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
         regions_list        List[int]               Region assignments for each node.
         output_base         str                     Base path for output files (without extension).
         classifications     Optional[List[str]]     Node classifications ('boundary' or 'interior'). Default is None.
-        save                bool                    If True, save to disk. If False, show interactive plot.
+        save                bool                    If True, save to disk.
+        show                bool                    If True, show interactive plot window.
     
     Output:
         success             bool                    True if visualization was successful, False otherwise.
     """
+    if not save and not show:                                                                                                           # Skip figure creation if neither save nor show is requested.
+        return True                                                                                                                     # Return success immediately without rendering GUI.
+
     try:                                                                                                                                # Start plotting process.
         # 1. Define colors (RGB tuples scaled to 0-1 for matplotlib)
         interior_colors = [                                                                                                             # Colors for internal nodes.
@@ -134,14 +138,15 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
         plt.title(f'Generated Point Cloud\n{len(points)} Total Nodes', fontsize=14)                                                     # Set main title with node count.
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., fontsize='small', markerscale=1.5)                     # Place legend outside plot.
         
-        # 7. Save output files
+        # 7. Save or show output files
         if save:                                                                                                                        # If saving to disk is requested.
             png_file = f"{output_base}.png"                                                                                             # Save PNG.
             plt.savefig(png_file, format='png', bbox_inches='tight', dpi=300)                                                           # Write PNG to disk.
             
             svg_file = f"{output_base}.svg"                                                                                             # Save SVG.
             plt.savefig(svg_file, format='svg', bbox_inches='tight')                                                                    # Write SVG to disk.
-        else:                                                                                                                           # If interactive plotting is requested.
+            
+        if show:                                                                                                                        # If interactive plotting is requested.
             plt.show()                                                                                                                  # Display the interactive plot window.
             
         plt.close()                                                                                                                     # Close figure to prevent memory leak.

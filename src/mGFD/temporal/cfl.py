@@ -64,7 +64,16 @@ def estimate_cfl_dt(p: np.ndarray,
         t                           int             Recommended number of time steps.
         actual_cfl                  float           Resulting CFL number based on discrete step counts.
     """
-    _, h_avg = compute_mesh_spacing(p, vec)                                                                                             # Compute characteristic average node spacing.
+    h_min, h_avg = compute_mesh_spacing(p, vec)                                                                                         # Compute minimum and average node spacing.
+    
+    # Use 3rd percentile distance if available via KDTree, providing conservative safety margin against local density variations
+    if p.shape[0] > 20:                                                                                                                 # If sufficient nodes present.
+        from scipy.spatial import KDTree                                                                                                # Query nearest neighbor distances.
+        tree         = KDTree(p[:, :2])                                                                                                 # Build spatial KDTree.
+        dists, _     = tree.query(p[:, :2], k=2, workers=-1)                                                                            # Query nearest neighbor.
+        h_eff        = max(float(np.percentile(dists[:, 1], 3)), 0.1 * h_avg)                                                           # 3rd percentile spatial scale with safety margin.
+    else:                                                                                                                               # Fallback for small test clouds.
+        h_eff        = max(h_min, 0.1 * h_avg)                                                                                          # Effective mesh spacing.
     
     # Extract operator components
     D = abs(float(operator[0][0] if operator.ndim == 2 else operator[0]))                                                               # Advection x (D).
@@ -80,12 +89,12 @@ def estimate_cfl_dt(p: np.ndarray,
         if speed <= 0.0:                                                                                                                # Evaluate condition.
             speed = 1.0                                                                                                                 # Safeguard for zero operator.
             
-        dt_max = cfl * (h_avg / speed)                                                                                                  # Compute safe characteristic time step limit.
+        dt_max = cfl * (h_eff / speed)                                                                                                  # Compute safe characteristic time step limit.
     else:                                                                                                                               # Second-order transient PDE (Wave).
         c_wave = np.sqrt(max(A, C) / 2.0) if max(A, C) > 0 else 1.0                                                                     # Effective wave speed.
-        dt_max = cfl * (h_avg / (c_wave * np.sqrt(2)))                                                                                  # Courant-Friedrichs-Lewy wave time step limit.
+        dt_max = 0.60 * cfl * (h_eff / (c_wave * np.sqrt(2)))                                                                           # Conservative Courant-Friedrichs-Lewy wave time step limit.
 
-    t = max(1, int(np.ceil(t_end / dt_max)))                                                                                            # Number of discrete time steps.
+    t = max(2, int(np.ceil(t_end / dt_max)))                                                                                            # Ensure at least 2 discrete time steps (initial + final).
     dt = t_end / t                                                                                                                      # Discrete time step size.
     actual_cfl = cfl * (dt / dt_max) if dt_max > 0 else cfl                                                                             # Actual effective CFL number.
 

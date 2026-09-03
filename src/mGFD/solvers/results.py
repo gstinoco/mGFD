@@ -42,7 +42,7 @@ Last Modification:
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
 
-from typing import Iterator, Optional                                                                                                   # Typing for iteration unpacking and optional fields.
+from typing import Iterator, Optional, Tuple                                                                                            # Typing for iteration unpacking and optional fields.
 from dataclasses import dataclass                                                                                                       # Dataclass structure definition.
 
 @dataclass                                                                                                                              # Execute statement.
@@ -73,6 +73,7 @@ class SolverResult:
     dt: Optional[float] = None                                                                                                          # Effective time step size.
     cfl: Optional[float] = None                                                                                                         # Effective CFL number.
     t_steps: Optional[int] = None                                                                                                       # Total discrete time steps.
+    p: Optional[np.ndarray] = None                                                                                                      # Optional point cloud coordinates array.
 
     def __iter__(self) -> Iterator[np.ndarray]:
         """
@@ -88,3 +89,47 @@ class SolverResult:
         """
         yield self.solution                                                                                                             # Yield mathematical solution as first element.
         yield self.neighbors                                                                                                            # Yield neighborhood array as second element.
+
+    def export_vtk(self, filepath: str, p: Optional[np.ndarray] = None) -> bool:                                                         # Export solution to VTK format.
+        """
+        export_vtk
+        Export numerical solution to VTK format (.vtu) for visualization in ParaView.
+        
+        Input:
+            filepath    str                 Target output filename (e.g. 'result.vtu').
+            p           Optional[ndarray]   Optional point cloud coordinates override.
+            
+        Output:
+            success     bool                True if VTK export succeeded.
+        """
+        from mGFD.io.export_vtk import export_vtk as vtk_export                                                                         # Lazy import to avoid circular dependency.
+        pts = p if p is not None else self.p                                                                                            # Select point cloud array.
+        if pts is None:                                                                                                                 # Verify point data exists.
+            raise ValueError("Point cloud array 'p' must be provided or attached to SolverResult for VTK export.")                      # Raise error if missing.
+        return vtk_export(pts, self.solution, filepath)                                                                                 # Execute VTK export function.
+
+    def plot(self, p: Optional[np.ndarray] = None, save: bool = False, show: bool = True,
+             filename: str = "solution_plot", title: str = "mGFD Solution",                                                             # Assign filename: str.
+             t_span: Tuple[float, float] = (0.0, 1.0)) -> None:                                                                         # Render solution plot.
+        """
+        plot
+        Render a 3D surface plot of the solution (stationary or transient).
+        
+        Input:
+            p           Optional[ndarray]       Optional point cloud coordinates override.
+            save        bool                    Save figure to PNG file.
+            show        bool                    Display interactive plot window.
+            filename    str                     Base filename for saving.
+            title       str                     Figure title string.
+            t_span      Tuple[float, float]     Physical time range for transient problems.
+        """
+        from mGFD.viz.graph import plot_stationary, plot_transient                                                                      # Lazy import of viz routines.
+        pts = p if p is not None else self.p                                                                                            # Select point cloud array.
+        if pts is None:                                                                                                                 # Verify point data exists.
+            raise ValueError("Point cloud array 'p' must be provided or attached to SolverResult for plotting.")                        # Raise error if missing.
+
+        sol = np.squeeze(self.solution)                                                                                                 # Squeeze solution array.
+        if sol.ndim == 1:                                                                                                               # Stationary 1D solution array.
+            plot_stationary(pts, sol, save=save, show=show, nom=filename, title=title)                                                  # Render stationary plot.
+        else:                                                                                                                           # Transient 2D solution array.
+            plot_transient(pts, self.solution, save=save, show=show, nom=filename, title=title, t_span=t_span)                          # Render transient plot.

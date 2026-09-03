@@ -44,29 +44,29 @@ Last Modification:
 """
 
 ## Library importation.
-import os                                                                                                                               # Filesystem and path utilities.
-import sys                                                                                                                              # sys.path manipulation.
-import logging                                                                                                                          # Standard logging module.
-import numpy as np                                                                                                                      # Numerical arrays and math.
-import pandas as pd                                                                                                                     # Dataframes and series for new v0.10.0 interface.
-from typing import Any                                                                                                                  # Type hinting.
+import os                                                                                                               # Filesystem and path utilities.
+import sys                                                                                                              # sys.path manipulation.
+import logging                                                                                                          # Standard logging module.
+import numpy as np                                                                                                      # Numerical arrays and math.
+import pandas as pd                                                                                                     # Dataframes and series for new v0.10.0 interface.
+from typing import Any                                                                                                  # Type hinting.
 
-from mGFD import Stationary                                                                                                             # First-order transient solver to run the reference case.
-from mGFD.io.io import load_points                                                                                                      # Point cloud loading utility.
-from mGFD.viz.graph import plot_stationary                                                                                              # Plotting utilities for the results.
+from mGFD import Cloud, Dirichlet, PoissonEquation, Solver                                                              # OOP Architecture classes.
+from mGFD.io.io import load_points                                                                                      # Point cloud loading utility.
+from mGFD.viz.graph import plot_stationary                                                                              # Plotting utilities for the results.
 
-BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                                             # Research root directory (for local utils).
-sys.path.append(BASE_DIR)                                                                                                               # Allow importing from research/codes/utils/.
+BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))                                             # Research root directory (for local utils).
+sys.path.append(BASE_DIR)                                                                                               # Allow importing from research/codes/utils/.
 
-import utils.metrics as Errors                                                                                                          # Error metrics for stationary/transient runs.
+import utils.metrics as Errors                                                                                          # Error metrics for stationary/transient runs.
 
-from utils.batch_utils import load_neighbors, save_neighbors, run_batch_suite, save_metrics                                             # Dataset loading + neighbor cache helpers.
+from utils.batch_utils import load_neighbors, save_neighbors, run_batch_suite, save_metrics                             # Dataset loading + neighbor cache helpers.
 
-logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
-logging.basicConfig(level=logging.INFO, format='%(message)s')                                                                           # Basic logger configuration.
+logger = logging.getLogger(__name__)                                                                                    # Module level logger.
+logging.basicConfig(level=logging.INFO, format='%(message)s')                                                           # Basic logger configuration.
 
-DATA_ROOT: str    = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                                     # Input dataset root directory.
-RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                                  # Output results root directory.
+DATA_ROOT: str    = os.path.join(os.path.dirname(BASE_DIR), 'data')                                                     # Input dataset root directory.
+RESULTS_ROOT: str = os.path.join(os.path.dirname(BASE_DIR), 'results')                                                  # Output results root directory.
 
 def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
@@ -80,7 +80,7 @@ def phi(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     Output:
         phi_val         m           ndarray         Evaluated boundary condition.
     """
-    return 2 * np.exp(2 * x + y)                                                                                                        # Return output values.
+    return 2 * np.exp(2 * x + y)                                                                                        # Return output values.
 
 def f(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
@@ -94,7 +94,7 @@ def f(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     Output:
         f_val           m           ndarray         Evaluated forcing term.
     """
-    return 10 * np.exp(2 * x + y)                                                                                                       # Return output values.
+    return 10 * np.exp(2 * x + y)                                                                                       # Return output values.
 
 def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, save: bool, verbose: bool = True, **kwargs: Any) -> None:
     """
@@ -114,100 +114,106 @@ def process_cloud(dataset: str, scale: str, cloud_path: str, results_path: str, 
         None
     """
     # 0. Input validation
-    if not isinstance(dataset, str):                                                                                                    # Validate dataset argument.
-        raise TypeError("Dataset name must be a string.")                                                                               # Raise explicit error on bad input.
-    if not isinstance(scale, str):                                                                                                      # Validate scale argument.
-        raise TypeError("Scale must be a string.")                                                                                      # Raise explicit error on bad input.
-    if not isinstance(cloud_path, str) or not os.path.exists(cloud_path):                                                               # Validate cloud path.
-        raise ValueError("Cloud path must be a valid existing file path.")                                                              # Raise explicit error on bad input.
+    if not isinstance(dataset, str):                                                                                    # Validate dataset argument.
+        raise TypeError("Dataset name must be a string.")                                                               # Raise explicit error on bad input.
+    if not isinstance(scale, str):                                                                                      # Validate scale argument.
+        raise TypeError("Scale must be a string.")                                                                      # Raise explicit error on bad input.
+    if not isinstance(cloud_path, str) or not os.path.exists(cloud_path):                                               # Validate cloud path.
+        raise ValueError("Cloud path must be a valid existing file path.")                                              # Raise explicit error on bad input.
         
     # 1. Variable initialization
-    region_id = f'{dataset}/{scale}'                                                                                                    # Region identifier.
-    out_dir   = os.path.join(results_path, 'Poisson', dataset)                                                                          # Output directory for this region.
-    os.makedirs(out_dir, exist_ok = True)                                                                                               # Ensure output directory exists.
+    region_id = f'{dataset}/{scale}'                                                                                    # Region identifier.
+    out_dir   = os.path.join(results_path, 'Poisson', dataset)                                                          # Output directory for this region.
+    os.makedirs(out_dir, exist_ok = True)                                                                               # Ensure output directory exists.
     
-    if verbose:                                                                                                                         # Check if verbosity is enabled.
-        logger.info(f'Working on region: {region_id}')                                                                                  # Progress message for the batch run.
+    if verbose:                                                                                                         # Check if verbosity is enabled.
+        logger.info(f'Working on region: {region_id}')                                                                  # Progress message for the batch run.
 
-    nvec            = kwargs.get('nvec', 12)                                                                                            # Extract neighbor count from config, default 12.
-    verbose_solvers = kwargs.get('verbose_solvers', False)                                                                              # Extract verbose flag.
-    device          = kwargs.get('device', 'cpu')                                                                                       # Extract device backend, default cpu.
-    input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                                        # Extract input_types, default all.
-    config_id       = f'nvec_{nvec}_{device}'                                                                                           # Create unique config identifier for the sweep.
+    nvec            = kwargs.get('nvec', 12)                                                                            # Extract neighbor count from config, default 12.
+    verbose_solvers = kwargs.get('verbose_solvers', False)                                                              # Extract verbose flag.
+    device          = kwargs.get('device', 'cpu')                                                                       # Extract device backend, default cpu.
+    input_types     = kwargs.get('input_types', ['callable', 'array', 'pandas'])                                        # Extract input_types, default all.
+    config_id       = f'nvec_{nvec}_{device}'                                                                           # Create unique config identifier for the sweep.
 
     # 2. Data Loading & Neighbor Cache
-    p    = load_points(cloud_path, verbose=False)                                                                                       # Load point cloud into (m, 3) array [x, y, flag].
-    vec0 = load_neighbors(cloud_path, nvec)                                                                                             # Load cached neighbor list if present.
-    L    = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                                    # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
+    p    = load_points(cloud_path, verbose=False)                                                                       # Load point cloud into (m, 3) array [x, y, flag].
+    vec0 = load_neighbors(cloud_path, nvec)                                                                             # Load cached neighbor list if present.
+    L    = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                    # Operator coefficients for Au_xx + Bu_xy + Cu_yy + Du_x + Eu_y + Fu.
     
-    # 3. Solver Execution
-    u_ap, vec = None, vec0                                                                                                              # Initialize solution and neighbors.
-    comp_time = 0.0                                                                                                                     # Initialize compute time.
-    phi_arr = phi(p[:, 0], p[:, 1])                                                                                                     # Precompute boundary array.
-    f_arr   = f(p[:, 0], p[:, 1])                                                                                                       # Precompute forcing term array.
+    # 3. Solver Execution via OOP Interface
+    u_ap, vec = None, vec0                                                                                              # Initialize solution and neighbors.
+    comp_time = 0.0                                                                                                     # Initialize compute time.
+    phi_arr = phi(p[:, 0], p[:, 1])                                                                                     # Precompute boundary array.
+    f_arr   = f(p[:, 0], p[:, 1])                                                                                       # Precompute forcing term array.
+
+    cloud = Cloud.from_array(p)                                                                                         # Instantiate Cloud.
+    if vec0 is not None: cloud.neighbors = vec0                                                                         # Set cached neighbors.
 
     # --- A. Using Callable ---
-    if 'callable' in input_types:                                                                                                       # Check if callable test is enabled.
-        res_call = Stationary(                                                                                                          # Solve the stationary Poisson problem (Callable).
-            p, phi, f, operator = L, vec = vec0, nvec = nvec, device = device, verbose = verbose_solvers                                # Execute with dynamic config.
-        )                                                                                                                               # Extract solver result object.
-        u_ap, vec  = res_call.solution, res_call.neighbors                                                                              # Unpack approximate solution and neighbor list.
-        comp_time  = res_call.compute_time                                                                                              # Get solver execution time from v0.10.0 dataclass.
+    if 'callable' in input_types:                                                                                       # Check if callable test is enabled.
+        domain   = cloud.set_boundary(Dirichlet(phi))                                                                   # Set Dirichlet boundary.
+        pde      = PoissonEquation(source=f)                                                                            # Formulate Poisson PDE.
+        solver   = Solver(domain, pde, device=device, nvec=nvec, verbose=verbose_solvers)                               # Create Solver.
+        res_call = solver.solve()                                                                                       # Solve PDE.
+        u_ap, vec = res_call.solution, res_call.neighbors                                                               # Unpack solution and neighbors.
+        comp_time = res_call.compute_time                                                                               # Get compute time.
     
     # --- B. Using Numpy Arrays ---
-    if 'array' in input_types:                                                                                                          # Check if array test is enabled.
-        res_arr = Stationary(                                                                                                           # Solve using array inputs.
-            p, phi_arr, f_arr, operator = L, vec = vec0, nvec = nvec, device = device, verbose = False                                  # Silent execution for array test.
-        )                                                                                                                               # Execute statement.
-        if u_ap is not None:                                                                                                            # If previous result exists, validate.
-            assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."                           # Validate output equivalence.
-        else:                                                                                                                           # If callable was skipped.
-            u_ap, vec  = res_arr.solution, res_arr.neighbors                                                                            # Unpack approximate solution and neighbor list.
-            comp_time  = res_arr.compute_time                                                                                           # Get solver execution time from v0.10.0 dataclass.
+    if 'array' in input_types:                                                                                          # Check if array test is enabled.
+        domain   = cloud.set_boundary(Dirichlet(phi_arr))                                                               # Set Dirichlet boundary.
+        pde      = PoissonEquation(source=f_arr)                                                                        # Formulate Poisson PDE.
+        solver   = Solver(domain, pde, device=device, nvec=nvec, verbose=False)                                         # Create Solver.
+        res_arr  = solver.solve()                                                                                       # Solve PDE.
+        if u_ap is not None:                                                                                            # If previous result exists, validate.
+            assert np.allclose(u_ap, res_arr.solution), "Mismatch between Callable and Array solver outputs."           # Validate output equivalence.
+        else:                                                                                                           # If callable was skipped.
+            u_ap, vec = res_arr.solution, res_arr.neighbors                                                             # Unpack solution and neighbors.
+            comp_time = res_arr.compute_time                                                                            # Get compute time.
     
     # --- C. Using Pandas DataFrames/Series ---
-    if 'pandas' in input_types:                                                                                                         # Check if pandas test is enabled.
-        phi_pd = pd.Series(phi_arr.tolist())                                                                                            # Wrap array in Pandas Series.
-        f_pd   = pd.Series(f_arr.tolist())                                                                                              # Wrap array in Pandas Series.
-        res_pd = Stationary(                                                                                                            # Solve using Pandas inputs.
-            p, phi_pd, f_pd, operator = L, vec = vec0, nvec = nvec, device = device, verbose = False                                    # Silent execution for Pandas test.
-        )                                                                                                                               # Execute statement.
-        if u_ap is not None:                                                                                                            # If previous result exists, validate.
-            assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."                     # Validate output equivalence.
-        else:                                                                                                                           # If no previous result exists.
-            u_ap, vec  = res_pd.solution, res_pd.neighbors                                                                              # Unpack approximate solution and neighbor list.
-            comp_time  = res_pd.compute_time                                                                                            # Get solver execution time from v0.10.0 dataclass.
+    if 'pandas' in input_types:                                                                                         # Check if pandas test is enabled.
+        phi_pd = pd.Series(phi_arr.tolist())                                                                            # Wrap array in Pandas Series.
+        f_pd   = pd.Series(f_arr.tolist())                                                                              # Wrap array in Pandas Series.
+        domain = cloud.set_boundary(Dirichlet(phi_pd))                                                                  # Set Dirichlet boundary.
+        pde    = PoissonEquation(source=f_pd)                                                                           # Formulate Poisson PDE.
+        solver = Solver(domain, pde, device=device, nvec=nvec, verbose=False)                                           # Create Solver.
+        res_pd = solver.solve()                                                                                         # Solve PDE.
+        if u_ap is not None:                                                                                            # If previous result exists, validate.
+            assert np.allclose(u_ap, res_pd.solution), "Mismatch between Array/Callable and Pandas solver outputs."     # Validate output equivalence.
+        else:                                                                                                           # If no previous result exists.
+            u_ap, vec  = res_pd.solution, res_pd.neighbors                                                              # Unpack approximate solution and neighbor list.
+            comp_time  = res_pd.compute_time                                                                            # Get solver execution time from v0.10.0 dataclass.
             
-    if u_ap is None: raise ValueError("No valid input_types were specified.")                                                           # Safety fallback.
+    if u_ap is None: raise ValueError("No valid input_types were specified.")                                           # Safety fallback.
     
     # 4. Exact Solution and Metrics
-    u_ex    = phi_arr                                                                                                                   # Compute exact theoretical solution locally (already computed as phi_arr).
-    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time = comp_time)                                           # Compute comprehensive stationary error metrics.
+    u_ex    = phi_arr                                                                                                   # Compute exact theoretical solution locally (already computed as phi_arr).
+    metrics = Errors.Compute_Metrics_Stationary(p, vec, u_ap, u_ex, compute_time = comp_time)                           # Compute comprehensive stationary error metrics.
     
     # Track extra compute times for numpy/pandas to demonstrate overhead
-    if 'array' in input_types: metrics['Time_Array']  = res_arr.compute_time                                                            # Array execution time if computed.
-    if 'pandas' in input_types: metrics['Time_Pandas'] = res_pd.compute_time                                                            # Pandas execution time if computed.
-    if verbose:                                                                                                                         # Check if verbosity is enabled.
-        logger.info(f'\tError (RMSE): {metrics["RMSE"]}')                                                                               # Print RMSE error for quick inspection.
+    if 'array' in input_types: metrics['Time_Array']  = res_arr.compute_time                                            # Array execution time if computed.
+    if 'pandas' in input_types: metrics['Time_Pandas'] = res_pd.compute_time                                            # Pandas execution time if computed.
+    if verbose:                                                                                                         # Check if verbosity is enabled.
+        logger.info(f'\tError (RMSE): {metrics["RMSE"]}')                                                               # Print RMSE error for quick inspection.
 
     # 5. Output persistence
-    if vec0 is None:                                                                                                                    # If there was no cache, persist computed neighbors.
-        save_neighbors(cloud_path, nvec, vec)                                                                                           # Save vec to the canonical cache file.
+    if vec0 is None:                                                                                                    # If there was no cache, persist computed neighbors.
+        save_neighbors(cloud_path, nvec, vec)                                                                           # Save vec to the canonical cache file.
 
-    save_metrics(out_dir, metrics, config_id=config_id, scale=scale, p=p)                                                               # Save metrics using the common utility.
+    save_metrics(out_dir, metrics, config_id=config_id, scale=scale, p=p)                                               # Save metrics using the common utility.
 
     # 6. Graphical rendering
-    if save:                                                                                                                            # Save graphical outputs if requested.
-        cloud_name = os.path.basename(cloud_path).replace('.csv', '')                                                                   # Extract clean cloud name.
-        if scale == '3':                                                                                                                # Only for scale 3.
-            if config_id.startswith('nvec_20_spsolve') or kwargs.get('plot_approximations', False):                                     # Only plot baseline config or if explicitly requested.
-                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),                        # Assign plot_stationary(p, u_ap, save.
-                            title='Stationary Appx', verbose=verbose)                                                                   # Save 3D scatter image.
+    if save:                                                                                                            # Save graphical outputs if requested.
+        cloud_name = os.path.basename(cloud_path).replace('.csv', '')                                                   # Extract clean cloud name.
+        if scale == '3':                                                                                                # Only for scale 3.
+            if config_id.startswith('nvec_20_spsolve') or kwargs.get('plot_approximations', False):                     # Only plot baseline config or if explicitly requested.
+                plot_stationary(p, u_ap, save=True, nom=os.path.join(out_dir, f'Appx_{config_id}_{cloud_name}'),        # Assign plot_stationary(p, u_ap, save.
+                            title='Stationary Appx', verbose=verbose)                                                   # Save 3D scatter image.
         
-            exact_nom = os.path.join(out_dir, f'Exact_{cloud_name}')                                                                    # Define exact solution filename linked to the cloud.
-            if not os.path.exists(exact_nom + '.png'):                                                                                  # Check for PNG rendering.
-                plot_stationary(p, u_ex, save=True, nom=exact_nom,                                                                      # Assign plot_stationary(p, u_ex, save.
-                            title='Theoretical Solution', verbose=verbose)                                                              # Create independent plot of exact solution.
+            exact_nom = os.path.join(out_dir, f'Exact_{cloud_name}')                                                    # Define exact solution filename linked to the cloud.
+            if not os.path.exists(exact_nom + '.png'):                                                                  # Check for PNG rendering.
+                plot_stationary(p, u_ex, save=True, nom=exact_nom,                                                      # Assign plot_stationary(p, u_ex, save.
+                            title='Theoretical Solution', verbose=verbose)                                              # Create independent plot of exact solution.
 
 def main(**kwargs: Any) -> None:
     """
@@ -220,7 +226,7 @@ def main(**kwargs: Any) -> None:
     Output:
         None
     """
-    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, **kwargs)                                                                   # Execute universal batch orchestrator.
+    run_batch_suite(process_cloud, DATA_ROOT, RESULTS_ROOT, **kwargs)                                                   # Execute universal batch orchestrator.
 
-if __name__ == "__main__":                                                                                                              # Evaluate condition.
-    main()                                                                                                                              # Execute statement.
+if __name__ == "__main__":                                                                                              # Evaluate condition.
+    main()                                                                                                              # Execute statement.

@@ -1,5 +1,5 @@
 """
-test_cfl.py — Unit tests for Adaptive Time-Stepping and CFL estimation in mGFD
+test_cfl.py — Unit tests for Adaptive Time-Stepping and CFL estimation in mGFD (OOP Interface)
 """
 
 import pytest
@@ -7,7 +7,7 @@ import numpy as np
 
 from mGFD.spatial.neighbors import compute_mesh_spacing
 from mGFD.temporal.cfl import estimate_cfl_dt
-from mGFD.solvers import TimeDerivative1, TimeDerivative2
+from mGFD import Cloud, Dirichlet, HeatEquation, WaveEquation, Solver
 
 @pytest.fixture
 def sample_cloud():
@@ -35,7 +35,7 @@ def test_compute_mesh_spacing(sample_cloud):
 
 def test_estimate_cfl_dt(sample_cloud):
     """Test estimate_cfl_dt for parabolic and wave operators."""
-    operator = np.vstack([[0], [0], [2], [0], [2], [0]])  # Heat operator: A=2, C=2
+    operator = np.vstack([[0], [0], [2], [0], [2], [0]])                                                                # Heat operator: A=2, C=2
     
     # Parabolic (Order 1)
     dt1, t1, cfl1 = estimate_cfl_dt(sample_cloud, operator, cfl=0.5, order=1, t_end=1.0)
@@ -50,13 +50,16 @@ def test_estimate_cfl_dt(sample_cloud):
     assert cfl2 > 0.0
 
 def test_adaptive_time_derivative1(sample_cloud):
-    """Test TimeDerivative1 with automatic t resolution via cfl parameter."""
-    def f_init(x, y, t_val, coef):
-        return np.exp(-2 * coef[0] * np.pi**2 * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)
+    """Test Solver with HeatEquation with automatic t resolution via cfl parameter."""
+    def f_init(x, y, t_val=0.0, coef=None):
+        return np.exp(-2 * 0.2 * np.pi**2 * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)
         
     v = 0.2
-    # Solve without explicit t parameter
-    res = TimeDerivative1(sample_cloud, f_init, coef=[v], cfl=0.5, verbose=False)
+    cloud  = Cloud.from_array(sample_cloud)
+    domain = cloud.set_boundary(Dirichlet(f_init))
+    pde    = HeatEquation(k=v)
+    solver = Solver(domain, pde, cfl=0.5, verbose=False)
+    res    = solver.solve()
     
     assert res.converged
     assert res.dt is not None and res.dt > 0.0
@@ -69,15 +72,16 @@ def test_adaptive_time_derivative1(sample_cloud):
     assert u_ap.shape[1] == res.t_steps
 
 def test_adaptive_time_derivative2(sample_cloud):
-    """Test TimeDerivative2 with automatic t resolution via cfl parameter."""
-    def f_init(x, y, t_val, coef):
-        return np.cos(np.pi * coef[0] * np.sqrt(2) * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)
-    def g_init(x, y, t_val, coef):
-        return np.zeros_like(x)
+    """Test Solver with WaveEquation with automatic t resolution via cfl parameter."""
+    def f_init(x, y, t_val=0.0, coef=None):
+        return np.cos(np.pi * 0.5 * np.sqrt(2) * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)
         
     c = 0.5
-    # Solve without explicit t parameter
-    res = TimeDerivative2(sample_cloud, f_init, g_init, coef=[c], cfl=0.5, verbose=False)
+    cloud  = Cloud.from_array(sample_cloud)
+    domain = cloud.set_boundary(Dirichlet(f_init))
+    pde    = WaveEquation(c=c, g=0.0)
+    solver = Solver(domain, pde, cfl=0.5, verbose=False)
+    res    = solver.solve()
     
     assert res.converged
     assert res.dt is not None and res.dt > 0.0

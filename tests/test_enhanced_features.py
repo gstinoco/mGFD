@@ -1,5 +1,5 @@
 """
-Unit tests for mGFD enhanced solver features:
+Unit tests for mGFD enhanced solver features (OOP Interface):
 - Custom time domain t_span
 - Independent initial (ic) and boundary (bc) conditions
 - Independent source / forcing terms (source)
@@ -9,14 +9,13 @@ Unit tests for mGFD enhanced solver features:
 import pytest
 import numpy as np
 
-from mGFD.solvers.time_derivative1 import TimeDerivative1
-from mGFD.solvers.time_derivative2 import TimeDerivative2
+from mGFD import Cloud, Dirichlet, Domain, HeatEquation, Solver
 from mGFD.spatial.gammas import compute_sparse_matrix
 
 def test_reaction_coefficient_gammas():
     """Verify that 6th operator coefficient F_react modifies diagonal per Eq. 190: diag[i] = -sum(YY) + F_react."""
     p = np.array([
-        [0.0, 0.0, 0], # Interior node
+        [0.0, 0.0, 0],                                                                                                  # Interior node
         [1.0, 0.0, 1],
         [-1.0, 0.0, 1],
         [0.0, 1.0, 1],
@@ -50,8 +49,13 @@ def test_t_span_custom_domain():
         [0.0, 1.0, 1],
         [0.0, -1.0, 1]
     ])
-    res = TimeDerivative1(p, f=0.0, t=10, implicit=True, t_span=(0.0, 100.0), verbose=False)
-    assert res.solution.shape == (5, 10)
+    cloud  = Cloud.from_array(p)
+    domain = cloud.set_boundary(Dirichlet(0.0))
+    pde    = HeatEquation(ic=0.0)
+    solver = Solver(domain, pde, verbose=False)
+    res    = solver.solve(t_span=(0.0, 100.0), dt=10.0)
+
+    assert res.solution.shape == (5, 11)
     assert res.dt is not None
     assert np.isclose(res.dt, 100.0 / 10)
 
@@ -64,8 +68,12 @@ def test_independent_ic_and_bc():
         [0.0, 1.0, 1],
         [0.0, -1.0, 1]
     ])
-    res = TimeDerivative1(p, ic=20.0, bc=100.0, t=5, implicit=True, verbose=False)
-    sol = res.solution
+    cloud  = Cloud.from_array(p)
+    domain = cloud.set_boundary(Dirichlet(100.0))
+    pde    = HeatEquation(ic=20.0)
+    solver = Solver(domain, pde, verbose=False)
+    res    = solver.solve(t_span=(0.0, 1.0), dt=0.25)
+    sol    = res.solution
     
     # Initial condition at t=0 across all nodes
     assert np.allclose(sol[:, 0], 20.0)
@@ -81,8 +89,14 @@ def test_independent_source_term():
         [0.0, 1.0, 1],
         [0.0, -1.0, 1]
     ])
-    res_no_source = TimeDerivative1(p, ic=0.0, bc=0.0, source=0.0, t=5, implicit=True, verbose=False)
-    res_with_source = TimeDerivative1(p, ic=0.0, bc=0.0, source=5.0, t=5, implicit=True, verbose=False)
+    cloud           = Cloud.from_array(p)
+    domain          = cloud.set_boundary(Dirichlet(0.0))
+    
+    pde_no_source   = HeatEquation(ic=0.0, source=0.0)
+    res_no_source   = Solver(domain, pde_no_source, verbose=False).solve(t_span=(0.0, 1.0), dt=0.25)
+
+    pde_with_source = HeatEquation(ic=0.0, source=5.0)
+    res_with_source = Solver(domain, pde_with_source, verbose=False).solve(t_span=(0.0, 1.0), dt=0.25)
     
     # Interior node (row 0) should be > 0 with positive heat generation source term
     assert res_with_source.solution[0, -1] > res_no_source.solution[0, -1]

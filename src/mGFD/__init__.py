@@ -1,35 +1,22 @@
 """
-mGFD — Meshless Generalized Finite Differences
+mGFD — Meshless Generalized Finite Differences (OOP Architecture)
 
 Overview:
-    Meshless solvers for 2D stationary and transient PDEs using generalized finite differences (GFD).
-    Spatial derivatives are approximated using local reconstructions over a node neighborhood (nvec).
+    Commercial-grade meshless solver suite for 2D stationary and transient PDEs using generalized finite differences (GFD).
+    Exposes an intuitive Object-Oriented Architecture (Cloud, Dirichlet, Neumann, Domain, PDE physics, Solver, SolverResult).
 
 Public API:
-    Stationary          Stationary problems with Dirichlet boundary conditions.
-    TimeDerivative1     First-order-in-time problems (heat / advection-diffusion family).
-    TimeDerivative2     Second-order-in-time problems (wave family).
-
-Data conventions:
-    p       (m, 3) ndarray
-            Point cloud with columns [x, y, flag]. flag = 0 for interior; flag = 1/2 for boundary.
-    vec     (m, nvec) ndarray[int]
-            Neighbor list. Each row contains neighbor indices; unused slots are padded with -1.
-            If vec is not provided, it is computed from p using Neighbors.compute_neighbors / Neighbors.compute_upwind_neighbors.
-
-Operator conventions:
-    operator                array-like
-            A 6-coefficient vector [D, E, A, B, C, F] (shape (6,) or (6, 1)).
-            The spatial stencil is built with L = operator[:5] = [D, E, A, B, C], interpreted as:
-                D*u_x + E*u_y + A*u_xx + B*u_xy + C*u_yy
-            The reaction term F*u is reserved in the last coefficient, but it is not applied by the
-            current implementation. For the Laplacian, use [0, 0, 2, 0, 2, 0].
-            When upwind=True, neighbor selection is upwind-biased using velocities (D, E).
-
-Notes:
-    NumPy is required. SciPy is optional, but implicit schemes require SciPy for sparse linear algebra.
-    Transient solvers use a normalized time grid T = linspace(0, 1, t).
-    When instability is detected, the solver may retry with expanded neighborhoods (8→12→16→20→30).
+    Cloud                   Point cloud geometry representation.
+    Dirichlet               Dirichlet boundary condition class (u = val).
+    Neumann                 Neumann boundary condition class (du/dn = val).
+    Domain                  Pairs Cloud and BoundaryCondition.
+    PDE                     Base PDE class.
+    PoissonEquation         Stationary Poisson PDE.
+    HeatEquation            1st-order transient Heat PDE.
+    AdvectionDiffusion      1st-order transient Advection-Diffusion PDE.
+    WaveEquation            2nd-order transient Wave PDE.
+    Solver                  High-level solver orchestrator.
+    SolverResult            Standardized solution result object.
 
 Credits:
     All the codes presented below were developed by:
@@ -38,42 +25,38 @@ Credits:
         Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
+
     With the funding of:
-        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
-        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI. México.
+        Coordination of Scientific Research, CIC-UMSNH. México.
         Aula CIMNE-Morelia. México.
         SIIIA-MATH: Soluciones de Ingeniería. México.
 
-    Based on the theoretical concepts presented in:
-        "mGFD: A meshless generalized finite difference method",
-        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
-        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
-        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
-        https://doi.org/10.1016/j.camwa.2025.07.034
-
-
 Date:
-    May, 2024.
-Last Modification:
-    August, 2026.
+    September, 2026.
 """
 
 ## Library importation.
-from mGFD.solvers.stationary import Stationary
-from mGFD.solvers.time_derivative1 import TimeDerivative1
-from mGFD.solvers.time_derivative2 import TimeDerivative2
 from mGFD.solvers.results import SolverResult
 
 from mGFD.spatial.neighbors import compute_neighbors, compute_mesh_spacing
-from mGFD.spatial.gammas import compute_sparse_matrix, Cloud
+from mGFD.spatial.gammas import compute_sparse_matrix
 
 from mGFD.temporal.cfl import estimate_cfl_dt
 
 from mGFD.cloud_generator import generate_cloud_natural, generate_cloud_regular, reduce_points_by_region
 
+from mGFD.oop import (
+    Cloud, Dirichlet, Neumann, Domain, PDE,
+    PoissonEquation, HeatEquation, WaveEquation, AdvectionDiffusion,
+    Solver
+)
+
 __all__ = [
-    'Stationary', 'TimeDerivative1', 'TimeDerivative2', 'SolverResult',
-    'compute_neighbors', 'compute_mesh_spacing', 'compute_sparse_matrix', 'Cloud',
+    'Cloud', 'Dirichlet', 'Neumann', 'Domain', 'PDE',
+    'PoissonEquation', 'HeatEquation', 'WaveEquation', 'AdvectionDiffusion',
+    'Solver', 'SolverResult',
+    'compute_neighbors', 'compute_mesh_spacing', 'compute_sparse_matrix',
     'estimate_cfl_dt',
     'generate_cloud_natural', 'generate_cloud_regular', 'reduce_points_by_region'
 ]

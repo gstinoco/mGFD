@@ -26,10 +26,10 @@
         "callable"
     ],
     "save": [
-        true
+        false
     ],
     "plot_approximations": [
-        true
+        false
     ],
     "cfl": [
         0.1

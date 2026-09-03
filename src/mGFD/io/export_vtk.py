@@ -113,7 +113,8 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basenam
     mesh.point_data['U_ap']           = u_ap                                                                                            # Store approximate solution.
     
     # 3. VTK saving
-    filepath = os.path.join(out_dir, f"{basename}.vtp")                                                                                 # Assemble full output path.
+    clean_basename, _ = os.path.splitext(basename)                                                                                      # Strip extension if passed.
+    filepath          = os.path.join(out_dir, f"{clean_basename}.vtp")                                                                  # Assemble .vtp file path.
     mesh.save(filepath)                                                                                                                 # Save VTP file to disk.
     
     if verbose:                                                                                                                         # Check if verbosity is enabled.
@@ -182,3 +183,31 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basename
         
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                                                    # Report successful save.
+
+def export_vtk(p: np.ndarray, u_ap: np.ndarray, filepath: str, verbose: bool = True) -> bool:                                          # Unified VTK export function.
+    """
+    export_vtk
+    Unified export function for stationary (.vtp/.vtu) and transient (.pvd) VTK formats.
+    
+    Input:
+        p           ndarray     (m, 3) point cloud array.
+        u_ap        ndarray     (m,) or (m, t) solution array.
+        filepath    str         Target VTK output path or directory.
+        verbose     bool        Verbose logging.
+        
+    Output:
+        success     bool        True if export succeeded.
+    """
+    out_dir, filename = os.path.split(filepath)                                                                                          # Split directory and filename.
+    if not out_dir:                                                                                                                     # Default to current directory if empty.
+        out_dir = "."                                                                                                                   # Set current directory.
+    if not filename:                                                                                                                    # Fallback if empty filename.
+        filename = "Solution"                                                                                                           # Set default filename.
+
+    u = np.squeeze(u_ap)                                                                                                                # Squeeze solution array dimensions.
+    if u.ndim == 1 or (u.ndim == 2 and u.shape[1] == 1):                                                                                # Check if 1D stationary solution.
+        export_stationary_vtk(p, u, out_dir, basename=filename, verbose=verbose)                                                       # Export stationary VTP/VTU file.
+    else:                                                                                                                               # Transient solution series.
+        basename, _ = os.path.splitext(filename)                                                                                        # Extract base name for PVD collection.
+        export_transient_vtk(p, u, out_dir, basename=basename, verbose=verbose)                                                        # Export transient PVD series.
+    return True                                                                                                                         # Return success boolean.

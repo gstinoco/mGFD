@@ -182,7 +182,7 @@ def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary
         
     return interior_points                                                                                                              # Return points directly if no boundary checks needed.
 
-def generate_interior_points_poisson(polygon: Polygon, cloud_size: float) -> List[Tuple[float, float]]:
+def generate_interior_points_poisson(polygon: Polygon, cloud_size: float, boundary_points: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:
     """
     generate_interior_points_poisson
     Generate interior points using Poisson Disk Sampling for more natural distribution.
@@ -190,6 +190,7 @@ def generate_interior_points_poisson(polygon: Polygon, cloud_size: float) -> Lis
     Input:
         polygon             Polygon     Shapely polygon representing the region.
         cloud_size          float       Target spacing between points (used as radius).
+        boundary_points     List        Optional boundary points to filter distance against.
     
     Output:
         interior_points     List        List of (x, y) tuples representing interior points.
@@ -198,7 +199,7 @@ def generate_interior_points_poisson(polygon: Polygon, cloud_size: float) -> Lis
     radius = cloud_size * 0.8                                                                                                           # Set the sampling radius.
     
     try:                                                                                                                                # Start generation.
-        interior_points = poisson_disk_sampling(polygon, radius)                                                                        # Perform Poisson sampling.
+        interior_points = poisson_disk_sampling(polygon, radius, boundary_points=boundary_points)                                       # Perform Poisson sampling with boundary distance check.
         
         return interior_points                                                                                                          # Return the interior points.
     except Exception as e:                                                                                                              # On failure.
@@ -233,7 +234,8 @@ def generate_region_cloud_poisson(region_points: List[Tuple[float, float]], clou
             polygon = polygon.buffer(0)                                                                                                 # Fix self-intersections.
         
         # 4. Generate interior points
-        interior_points = generate_interior_points_poisson(polygon, cloud_size)                                                         # Populate interior with Poisson disk.
+        boundary_tuples = [(bp[0], bp[1]) for bp in boundary_points] if len(boundary_points) > 0 else None                              # Convert boundary array to list of tuples.
+        interior_points = generate_interior_points_poisson(polygon, cloud_size, boundary_points=boundary_tuples)                        # Populate interior with Poisson disk.
         
         # 5. Apply Lloyd's relaxation
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.
@@ -315,7 +317,8 @@ def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[floa
             polygon_with_holes = main_polygon                                                                                           # Proceed with the solid main polygon.
         
         # 7. Generate interior points avoiding holes using Poisson Disk Sampling
-        interior_points = generate_interior_points_poisson(cast(Polygon, polygon_with_holes), cloud_size)                               # Fill space with Poisson sampling.
+        boundary_tuples = [(bp[0], bp[1]) for bp in boundary_points] if len(boundary_points) > 0 else None                              # Convert boundary array to list of tuples.
+        interior_points = generate_interior_points_poisson(cast(Polygon, polygon_with_holes), cloud_size, boundary_points=boundary_tuples) # Fill space with Poisson sampling & boundary check.
         
         # Apply Lloyd's relaxation
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.

@@ -1,12 +1,10 @@
-"""
-Example 03: Solving the Wave Equation using mGFD
+r"""
+Example 03: Solving the Wave Equation using mGFD (OOP Interface)
 
 Overview:
     This tutorial demonstrates how to solve a hyperbolic PDE (the Wave Equation):
-        u_tt = c^2 (u_xx + u_yy) + F(x, y, t)
-    On a circular/star domain, using the Meshless Generalized Finite Difference (mGFD) method.
-    Highlights independent acoustic driving source terms F(x, y, t), custom physical time spans t_span=(0, 3.0),
-    and energy-conserving implicit Newmark-beta.
+        u_tt + \eta u_t = c^2 (u_xx + u_yy) + F(x, y, t)
+    On a star domain, using the modern OOP Architecture of mGFD with HHT-\alpha and damping.
 
 Credits:
     All the codes presented below were developed by:
@@ -16,117 +14,66 @@ Credits:
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
 
-    With the funding of:
-        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
-        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
-        Aula CIMNE-Morelia. México.
-        SIIIA-MATH: Soluciones de Ingeniería. México.
-
-    Based on the theoretical concepts presented in:
-        "mGFD: A meshless generalized finite difference method",
-        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
-        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
-        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
-        https://doi.org/10.1016/j.camwa.2025.07.034
-
-
 Date:
-    May, 2024.
+    September, 2026.
 Last Modification:
     September, 2026.
 """
 
-import os                                                                                                                               # Standard OS imports.
-import csv                                                                                                                              # Standard CSV imports.
-import numpy as np                                                                                                                      # Numpy for arrays.
-import pandas as pd                                                                                                                     # Pandas for dataframes.
+## Library importation.
+import csv, os                                                                                                                          # Standard OS and CSV interfaces.
+import numpy as np                                                                                                                      # Core numerical array operations.
+import mGFD as mgfd                                                                                                                     # Import mGFD library.
 
-from mGFD import TimeDerivative2                                                                                                        # Import the second-order time derivative solver.
-from mGFD.viz.graph import plot_transient                                                                                               # Import the transient plotting tool.
-from mGFD.cloud_generator.core.generator import generate_cloud_regular                                                                 # Import the regular point cloud generator.
+def main() -> None:                                                                                                                     # Main execution routine.
+    print("=================================================================================")                                          # Separator log.
+    print("                 Example 03: Wave Equation PDE (OOP API)                        ")                                           # Title log.
+    print("=================================================================================\n")                                        # Separator log.
 
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 1. Define the Problem Physics
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 1: Defining the Problem Physics...")                                                                                        # Log step 1.
+    # 1. Define geometry contour & generate point cloud via mGFD.Cloud
+    print("Step 1: Building irregular point cloud geometry...")                                                                         # Log step 1.
+    theta  = np.linspace(0, 2 * np.pi, 150)                                                                                             # Parametric angular coordinates.
+    r_star = 0.5 + 0.15 * np.sin(5 * theta)                                                                                             # Polar radius of star domain.
+    star_contour = [(0.5 + r_star[i] * np.cos(theta[i]), 0.5 + r_star[i] * np.sin(theta[i])) for i in range(len(theta))]                # Compute (x, y) contour boundary.
 
-# The PDE Operator: L u = A u_xx + B u_xy + C u_yy + D u_x + E u_y + F u
-# For the Wave Equation (u_tt = c^2(u_xx + u_yy) + F), A = c^2, C = c^2.
-def create_wave_operator(c):                                                                                                            # Function to generate the correct operator.
-    return np.vstack([[0], [0], [2 * c**2], [0], [2 * c**2], [0]])                                                                      # Returns exactly [D, E, 2A, B, 2C, F].
+    contour_file = 'star_contour_wave.csv'                                                                                              # Contour filename.
+    cloud_file   = 'star_cloud_wave.csv'                                                                                                # Output cloud filename.
 
-c = 0.8                                                                                                                                 # Define wave speed propagation constant.
-L = create_wave_operator(c)                                                                                                             # Compute operator matrix.
+    with open(contour_file, 'w', newline='') as f:                                                                                      # Write CSV contour.
+        writer = csv.writer(f)                                                                                                          # Initialize CSV writer.
+        writer.writerow(['x', 'y'])                                                                                                     # Write header.
+        for pt in star_contour: writer.writerow(pt)                                                                                     # Write vertices.
 
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 2. Build the Point Cloud
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 2: Building the irregular point cloud...")                                                                                  # Log step 2.
+    cloud = mgfd.Cloud.generate_natural(contour_file, cloud_file, cloud_size=0.015, save=False, show=False)                             # High-level point cloud generation.
+    print(f"Generated {cloud}: {cloud.num_nodes} nodes.")                                                                               # Log cloud summary.
 
-theta = np.linspace(0, 2 * np.pi, 150)                                                                                                  # Parametric angular coordinates.
-r_star = 0.5 + 0.15 * np.sin(5 * theta)                                                                                                 # Polar radius of star domain.
-star_contour = [(0.5 + r_star[i] * np.cos(theta[i]), 0.5 + r_star[i] * np.sin(theta[i])) for i in range(len(theta))]                    # Compute (x, y) contour boundary.
+    # 2. Set Dirichlet boundary conditions and construct Domain
+    print("\nStep 2: Binding Dirichlet boundary condition and domain...")                                                               # Log step 2.
+    domain = cloud.set_boundary(mgfd.Dirichlet(0.0))                                                                                    # Bind zero Dirichlet boundary condition.
 
-contour_file = 'star_contour_wave.csv'                                                                                                  # Define contour filename.
-with open(contour_file, 'w', newline='') as f:                                                                                          # Open file for writing.
-    writer = csv.writer(f)                                                                                                              # Initialize CSV writer.
-    writer.writerow(['x', 'y'])                                                                                                         # Write CSV header.
-    for pt in star_contour:                                                                                                             # Iterate over the star coordinates.
-        writer.writerow(pt)                                                                                                             # Write each point to the file.
+    # 3. Define Physics & Instantiate Solver
+    print("\nStep 3: Formulating Wave PDE physics with HHT-alpha and velocity damping...")                                              # Log step 3.
+    ic_func = lambda x, y: np.exp(-100 * ((x - 0.5)**2 + (y - 0.5)**2))                                                                 # Initial position Gaussian bump.
+    c_wave  = 0.8                                                                                                                       # Wave speed propagation.
+    
+    pde     = mgfd.WaveEquation(c=c_wave, damping=0.05, alpha=-0.15, ic=ic_func, g=0.0)                                                 # Formulate Wave PDE physics.
+    solver  = mgfd.Solver(domain, pde, nvec=16, cfl=0.25, verbose=True)                                                                 # Instantiate high-level Solver.
 
-cloud_file = 'star_cloud_wave.csv'                                                                                                      # Define output cloud filename.
-print(f"Generating Regular Cloud on Star domain (spacing = 0.02)...")                                                                   # Output progress to user.
-generate_cloud_regular(contour_file, cloud_file, cloud_size=0.02, save=False)                                                           # Call the mGFD point cloud generator.
+    # 4. Solve over t_span=(0, 3.0) and Plot
+    print("\nStep 4: Solving Wave PDE over t_span=(0.0, 3.0)...")                                                                       # Log step 4.
+    t_span = (0.0, 3.0)                                                                                                                 # Physical time span domain.
+    result = solver.solve(t_span=t_span)                                                                                                # Execute transient solver.
+    print(f"Wave solution computed in {result.compute_time:.4f} seconds (dt = {result.dt:.6f}, t_steps = {result.t_steps})!")           # Log metrics.
 
-df = pd.read_csv(cloud_file)                                                                                                            # Read the generated cloud into a DataFrame.
-df['flag'] = df['classification'].map({'boundary': 1, 'interior': 0})                                                                   # Map the generator's string labels to mGFD numeric flags.
-p = df[['x', 'y', 'flag']].to_numpy(dtype=np.float64)                                                                                   # Convert the DataFrame directly to a Numpy array.
+    result.export_vtk("wave_solution.vtu")                                                                                              # Export to ParaView VTK file.
+    print("Exported VTK file: wave_solution.vtu")                                                                                       # Log VTK export confirmation.
 
-print(f"Successfully generated point cloud with {len(p)} nodes.")                                                                       # Print the total number of nodes generated.
+    result.plot(save=False, show=True, filename='03_wave_result', title="mGFD Solution: Wave Equation", t_span=t_span)                  # Render solution plot.
 
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 3. Create Initial Position, Initial Velocity, Boundary, and Acoustic Source Functions
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 3: Creating initial position, velocity, boundary, and acoustic driving source functions...")                                # Log step 3.
+    # Clean up temporary CSV files
+    if os.path.exists(contour_file): os.remove(contour_file)                                                                            # Clean contour file.
+    if os.path.exists(cloud_file): os.remove(cloud_file)                                                                                # Clean cloud file.
+    if os.path.exists("wave_solution.vtu"): os.remove("wave_solution.vtu")                                                              # Clean VTK file.
 
-def initial_position(x, y):                                                                                                             # Initial Gaussian pulse centered at (0.5, 0.5).
-    r2 = (x - 0.5)**2 + (y - 0.5)**2                                                                                                    # Distance squared from center.
-    return np.exp(-100 * r2)                                                                                                            # Gaussian bump.
-
-def initial_velocity(x, y):                                                                                                             # Initial velocity u_t(x, y, 0).
-    return 0.0                                                                                                                          # Starts from rest.
-
-def boundary_condition(x, y, t, coef):                                                                                                  # Fixed Dirichlet boundary condition.
-    return 0.0                                                                                                                          # Rigid boundary walls.
-
-def acoustic_source(x, y, t, coef):                                                                                                     # Independent oscillating acoustic source term F(x, y, t).
-    r2 = (x - 0.5)**2 + (y - 0.5)**2                                                                                                    # Distance squared from center speaker.
-    return 5.0 * np.cos(6 * np.pi * t) * np.exp(-80 * r2)                                                                               # Oscillating acoustic wave driver.
-
-print("Prepared initial pulse, zero velocity, boundary, and acoustic driver source F(x, y, t) functions.")                              # Log success.
-
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 4. Solve the Wave Equation over Custom Physical Time Span t_span=(0, 3.0)
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 4: Solving the Wave equation with mGFD (t_span=(0, 3.0), CFL Auto-Dt)...")                                                 # Log step 4.
-
-# We pass physical time domain t_span=(0, 3.0), independent source term acoustic_source, and implicit Newmark-beta.
-result = TimeDerivative2(                                                                                                               # Call second-order transient solver.
-    p, boundary_condition, g=initial_velocity, ic=initial_position, source=acoustic_source,                                             # Pass physical callables & independent source.
-    t_span=(0.0, 3.0), coef=[c], operator=L, nvec=12, implicit=True, lam=0.25, cfl=0.5, verbose=True                                    # Physical t_span & automatic CFL step count.
-)                                                                                                                                       # Execute solver call.
-
-u_approx     = result.solution                                                                                                          # Extract the computed spatiotemporal solution array.
-u_approx_vis = np.clip(u_approx, -2.0, 2.0)                                                                                             # Clip focal singularity for visualization.
-compute_time = result.compute_time                                                                                                      # Extract the computation elapsed time.
-
-print(f"Transient solution computed in {compute_time:.4f} seconds (dt = {result.dt:.6f}, steps = {result.t_steps})!")                    # Report total solving time.
-
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 5. Visualize the Result using mGFD's native renderer
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 5: Rendering the animation...")                                                                                             # Log step 5.
-plot_transient(p, u_approx_vis, save=False, nom='03_wave_result', title=f"mGFD Solution: Wave Equation with Source (t_span=[0, 3])")     # Render and save animation.
-
-if os.path.exists(contour_file): os.remove(contour_file)                                                                                # Clean up temporary contour CSV.
-if os.path.exists(cloud_file): os.remove(cloud_file)                                                                                    # Clean up temporary cloud CSV.
+if __name__ == '__main__':                                                                                                              # Entry point guard.
+    main()                                                                                                                              # Run main.

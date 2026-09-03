@@ -188,13 +188,15 @@ def _generate_static_views(render_func: Callable, title: str, save_path: Optiona
                 logger.info(f'\tSaved figure to {save_path}{suffix}.png')                                                               # Print confirmation of save.
             
             plt.close(fig)                                                                                                              # Close figure to release memory.
+        elif not show:                                                                                                                  # If not saved and not displayed.
+            plt.close(fig)                                                                                                              # Close figure to release memory.
             
     # 4. Interactive display
     if show:                                                                                                                            # Check if figures should be shown.
         plt.show()                                                                                                                      # Display the interactive plot window.
 
 
-def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
+def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, show: bool = True, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
     """
     plot_stationary
     Render a single 3D scatter plot of the solution for a stationary PDE problem.
@@ -203,10 +205,14 @@ def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: 
         p           m x 4           ndarray         Point cloud with columns [x, y, flag, region].
         u           m               ndarray         Array with the solution evaluated at all nodes.
         save                        bool            If True, saves the figure to disk instead of displaying.
+        show                        bool            If True, displays interactive plot window.
         nom                         str             Base filename for the saved output (if save=True).
         title                       str             Title for the figure and Z-axis label.
         verbose                     bool            If True, prints progress and errors to console.
     """
+    if not save and not show:                                                                                                           # Short-circuit if neither saving nor showing.
+        return                                                                                                                          # Return immediately without rendering.
+
     # 1. Plot data preparation
     min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
@@ -235,7 +241,7 @@ def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: 
         _generate_static_views(draw_plot, title, show=True, verbose=verbose)                                                            # Generate and show interactive views.
 
 
-def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, nom: str = '', title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:
+def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, show: bool = True, nom: str = '', title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:
     """
     plot_transient
     Render a single 3D scatter plot of the solution for a transient PDE problem,
@@ -245,11 +251,15 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
         p           m x 4           ndarray         Point cloud with columns [x, y, flag, region].
         u           m x t           ndarray         Matrix with the solution evaluated at all nodes at each time step.
         save                        bool            If True, saves the animation to disk instead of displaying interactively.
+        show                        bool            If True, displays interactive plot window.
         nom                         str             Base filename for the saved output (if save=True).
         title                       str             Title for the figure and Z-axis label.
         verbose                     bool            If True, prints progress and errors to console.
         t_span      Tuple[float]                    Physical time domain tuple (t_start, t_end). Default (0.0, 1.0).
     """
+    if not save and not show:                                                                                                           # Short-circuit if neither saving nor showing.
+        return                                                                                                                          # Return immediately without rendering.
+
     # 1. Variable initialization
     t                                                           = int(u.shape[1])                                                       # Get total number of time steps.
     step                                                        = max(1, t // 50)                                                       # Calculate step size to limit frame count.
@@ -370,8 +380,7 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
         draw_frame(fig, ax1, t - 1, angle_view=True)                                                                                    # Render the current frame.
         draw_frame(fig_top, ax1_t, t - 1, angle_view=False)                                                                             # Render final top view frame.
         plt.pause(0.1)                                                                                                                  # Pause to allow UI to update.
-        plt.close(fig)                                                                                                                  # Close figure to release memory.
-        plt.close(fig_top)                                                                                                              # Close figure to release memory.
+        plt.show()                                                                                                                      # Display interactive plot window.
 
 
 def plot_transient_steps(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], nom: str, title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:

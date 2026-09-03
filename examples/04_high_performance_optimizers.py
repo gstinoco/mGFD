@@ -1,12 +1,11 @@
 """
-Example 04: High Performance & Optimizers using mGFD
+Example 04: High Performance & Optimizers using mGFD (OOP Interface)
 
 Overview:
     This tutorial demonstrates how to use mGFD's advanced optimizers to solve highly complex,
     large-scale PDEs efficiently. We simulate an Advection-Diffusion Equation:
         u_t = v(u_xx + u_yy) - (v_x u_x + v_y u_y) + F(x, y, t)
-    Highlights Upwind Schemes, Independent Source Terms F(x, y, t), Custom Physical Time Spans t_span=(0, 2.5),
-    Pre-factorized CPU Direct Solvers, and CUDA GPU Acceleration with Warm-Start Iterative Solvers.
+    On a Kite-shaped domain using the modern OOP Architecture of mGFD, comparing CPU vs CUDA backends.
 
 Credits:
     All the codes presented below were developed by:
@@ -16,129 +15,80 @@ Credits:
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
 
-    With the funding of:
-        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
-        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
-        Aula CIMNE-Morelia. México.
-        SIIIA-MATH: Soluciones de Ingeniería. México.
-
-    Based on the theoretical concepts presented in:
-        "mGFD: A meshless generalized finite difference method",
-        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
-        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
-        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
-        https://doi.org/10.1016/j.camwa.2025.07.034
-
-
 Date:
-    May, 2024.
+    September, 2026.
 Last Modification:
     September, 2026.
 """
 
-import os                                                                                                                               # Standard OS imports.
-import csv                                                                                                                              # Standard CSV imports.
-import numpy as np                                                                                                                      # Numpy for arrays.
-import pandas as pd                                                                                                                     # Pandas for dataframes.
+## Library importation.
+import csv, os                                                                                                                          # Standard OS and CSV interfaces.
+import numpy as np                                                                                                                      # Core numerical array operations.
+import mGFD as mgfd                                                                                                                     # Import mGFD library.
 
-from mGFD import TimeDerivative1                                                                                                        # Import the first-order time derivative solver.
-from mGFD.viz.graph import plot_transient                                                                                               # Import the transient plotting tool.
-from mGFD.exceptions import ParameterError                                                                                              # Import exception handling.
-from mGFD.cloud_generator.core.generator import generate_cloud_natural                                                                  # Import the point cloud generator.
+def main() -> None:                                                                                                                     # Main execution routine.
+    print("=================================================================================")                                          # Separator log.
+    print("            Example 04: Advection-Diffusion & High Performance (OOP API)         ")                                          # Title log.
+    print("=================================================================================\n")                                        # Separator log.
 
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 1. Define the Advection-Diffusion Physics
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 1: Defining Advection-Diffusion Physics...")                                                                                # Log step 1.
+    # 1. Define geometry contour & generate point cloud via mGFD.Cloud
+    print("Step 1: Building irregular point cloud geometry...")                                                                         # Log step 1.
+    kite_contour = [
+        (1.0, 0.5), (0.85, 0.7), (0.5, 1.0), (0.15, 0.7),
+        (0.0, 0.5), (0.15, 0.3), (0.5, 0.0), (0.85, 0.3)
+    ]                                                                                                                                   # Define Kite boundary vertices.
 
-# The PDE Operator: L u = A u_xx + B u_xy + C u_yy + D u_x + E u_y + F u
-# Advection-Diffusion: u_t = v(u_xx + u_yy) - (v_x u_x + v_y u_y) + F(x, y, t)
-# A = v, C = v, D = -v_x, E = -v_y.
-def create_adv_diff_operator(v, v_x, v_y):                                                                                              # Function to generate the correct operator.
-    return np.vstack([[-v_x], [-v_y], [2 * v], [0], [2 * v], [0]])                                                                      # Returns exactly [D, E, 2A, B, 2C, F].
+    contour_file = 'kite_contour.csv'                                                                                                   # Contour filename.
+    cloud_file   = 'kite_cloud.csv'                                                                                                     # Output cloud filename.
 
-v = 0.05                                                                                                                                # Diffusion coefficient.
-v_x, v_y = 0.2, 0.2                                                                                                                     # Advection velocity components (strong diagonal wind).
-L = create_adv_diff_operator(v, v_x, v_y)                                                                                               # Compute operator matrix.
+    with open(contour_file, 'w', newline='') as f:                                                                                      # Write CSV contour.
+        writer = csv.writer(f)                                                                                                          # Initialize CSV writer.
+        writer.writerow(['x', 'y'])                                                                                                     # Write header.
+        for pt in kite_contour: writer.writerow(pt)                                                                                     # Write vertices.
 
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 2. Build a Dense Point Cloud (Irregular Kite Shape)
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 2: Generating the irregular point cloud...")                                                                                # Log step 2.
+    cloud = mgfd.Cloud.generate_natural(contour_file, cloud_file, cloud_size=0.015, save=False, show=False)                             # High-level point cloud generation.
+    print(f"Generated {cloud}: {cloud.num_nodes} nodes.")                                                                               # Log cloud summary.
 
-kite_contour = [
-    (1.0, 0.5), (0.85, 0.7), (0.5, 1.0), (0.15, 0.7),
-    (0.0, 0.5), (0.15, 0.3), (0.5, 0.0), (0.85, 0.3)
-]                                                                                                                                       # Define Kite boundary.
+    # 2. Set Dirichlet boundary conditions and construct Domain
+    print("\nStep 2: Binding Dirichlet boundary condition and domain...")                                                               # Log step 2.
+    domain = cloud.set_boundary(mgfd.Dirichlet(0.0))                                                                                    # Bind zero Dirichlet boundary condition.
 
-contour_file = 'kite_contour.csv'                                                                                                       # Define contour filename.
-with open(contour_file, 'w', newline='') as f:                                                                                          # Open file for writing.
-    writer = csv.writer(f)                                                                                                              # Initialize CSV writer.
-    writer.writerow(['x', 'y'])                                                                                                         # Write CSV header.
-    for pt in kite_contour:                                                                                                             # Iterate over the Kite coordinates.
-        writer.writerow(pt)                                                                                                             # Write each point to the file.
+    # 3. Define Physics & Instantiate Solvers
+    print("\nStep 3: Formulating Advection-Diffusion PDE physics...")                                                                   # Log step 3.
+    v_diff, v_x, v_y = 0.01, 0.15, 0.15                                                                                                 # Physical diffusion and velocity components.
+    ic_func          = lambda x, y: np.exp(-30 * ((x - 0.25)**2 + (y - 0.25)**2))                                                       # Initial injection Gaussian blob.
+    emitter_source   = lambda x, y, t=0, coef=None: 3.0 * np.exp(-30 * ((x - 0.25)**2 + (y - 0.25)**2))                                 # Continuous chimney emitter source F(x, y, t).
 
-cloud_file = 'kite_cloud.csv'                                                                                                           # Define output cloud filename.
-# We use a dense spacing to demonstrate high-performance GPU/CPU PDE solving.
-generate_cloud_natural(contour_file, cloud_file, cloud_size=0.015, save=False)                                                          # Call generator.
+    pde = mgfd.AdvectionDiffusion(v=v_diff, v_x=v_x, v_y=v_y, ic=ic_func, source=emitter_source)                                        # Formulate Advection-Diffusion PDE.
 
-df = pd.read_csv(cloud_file)                                                                                                            # Read the generated cloud into a DataFrame.
-df['flag'] = df['classification'].map({'boundary': 1, 'interior': 0})                                                                   # Map the generator's string labels to mGFD numeric flags.
-p = df[['x', 'y', 'flag']].to_numpy(dtype=np.float64)                                                                                   # Convert the DataFrame directly to a Numpy array.
+    t_span = (0.0, 1.5)                                                                                                                 # Physical time span domain.
 
-print(f"Generated dense point cloud with {len(p)} nodes.")                                                                              # Print the total number of nodes generated.
+    # ------------------------------------------------------------------------------------------------------------------------------ #
+    # Strategy A: CPU Solver
+    # ------------------------------------------------------------------------------------------------------------------------------ #
+    print("\n--- Strategy A: CPU Execution (Pre-factorized Direct Solver) ---")                                                         # Log Strategy A header.
+    solver_cpu = mgfd.Solver(domain, pde, device="cpu", cfl=0.5, implicit=True, upwind=False, verbose=True)                             # Instantiate CPU Solver.
+    result_cpu = solver_cpu.solve(t_span=t_span)                                                                                        # Execute CPU solver.
+    print(f"Strategy A completed in {result_cpu.compute_time:.4f} seconds!")                                                            # Log CPU duration.
 
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 3. Initial, Boundary, and Continuous Pollutant Emitter Source Functions
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 3: Creating boundary, initial, and continuous pollutant emitter source functions...")                                        # Log step 3.
+    # ------------------------------------------------------------------------------------------------------------------------------ #
+    # Strategy B: GPU CUDA Solver
+    # ------------------------------------------------------------------------------------------------------------------------------ #
+    print("\n--- Strategy B: GPU Execution (CUDA Accelerated) ---")                                                                     # Log Strategy B header.
+    try:                                                                                                                                # Attempt CUDA solver instantiation.
+        solver_cuda = mgfd.Solver(domain, pde, device="cuda", cfl=0.5, implicit=True, upwind=False, verbose=True)                       # Instantiate CUDA Solver.
+        result_cuda = solver_cuda.solve(t_span=t_span)                                                                                  # Execute CUDA solver.
+        print(f"Strategy B completed in {result_cuda.compute_time:.4f} seconds!")                                                       # Log CUDA duration.
+    except ImportError:                                                                                                                 # Catch missing CuPy or CUDA hardware.
+        print("CuPy is not installed or CUDA GPU is not available. Skipping Strategy B.")                                               # Soft fail notice.
 
-def initial_injection(x, y):                                                                                                            # Initial pollutant blob injection.
-    r2 = (x - 0.25)**2 + (y - 0.25)**2                                                                                                  # Distance squared from injection point.
-    return np.exp(-100 * r2)                                                                                                            # Gaussian concentration.
+    # 4. Render Solution Plot
+    print("\nStep 4: Rendering Advection-Diffusion animation...")                                                                       # Log step 4.
+    result_cpu.plot(save=False, show=True, filename='04_optimizers_result', title="mGFD Solution: Advection-Diffusion", t_span=t_span)  # Render solution plot.
 
-def boundary_outflow(x, y, t, coef):                                                                                                    # Boundary outflow condition.
-    return 0.0                                                                                                                          # Dirichlet outflow.
+    # Clean up temporary CSV files
+    if os.path.exists(contour_file): os.remove(contour_file)                                                                            # Clean contour file.
+    if os.path.exists(cloud_file): os.remove(cloud_file)                                                                                # Clean cloud file.
 
-def continuous_emitter_source(x, y, t, coef):                                                                                           # Independent continuous chimney emitter source term F(x, y, t).
-    r2 = (x - 0.25)**2 + (y - 0.25)**2                                                                                                  # Distance squared from chimney emitter.
-    return 2.0 * np.exp(-100 * r2)                                                                                                      # Continuous pollutant injection.
-
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 4. Solvers & Optimizers Comparison (CPU vs CUDA Warm-Start over t_span=(0, 2.5))
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("Step 4: Solvers and Optimizers Comparison")                                                                                      # Log step 4.
-print("\n--- Strategy A: CPU Execution (Pre-factorized Direct Solver) ---")                                                             # Separator log.
-
-try:                                                                                                                                    # Attempt CPU execution.
-    result_A = TimeDerivative1(                                                                                                         # Call the time derivative solver.
-        p, boundary_outflow, ic=initial_injection, source=continuous_emitter_source,                                                    # Pass physical callables & independent source.
-        t_span=(0.0, 2.5), coef=[v, v_x, v_y], operator=L,                                                                              # Custom physical t_span=(0, 2.5).
-        nvec=15, implicit=True, upwind=True, device="cpu", cfl=0.5, verbose=True                                                        # Upwind CPU direct solver.
-    )                                                                                                                                   # End of solver call.
-    print(f"Strategy A completed in {result_A.compute_time:.4f} seconds!")                                                              # Log Strategy A completion time.
-except Exception as e:                                                                                                                  # Catch any numerical divergence issues.
-    print(f"Strategy A failed: {e}")                                                                                                    # Log Strategy A failure reason.
-
-print("\n--- Strategy B: GPU Accelerated (CUDA BiCGSTAB with Warm-Start) ---")                                                           # Separator log.
-
-try:                                                                                                                                    # Attempt GPU execution via CuPy.
-    result_B = TimeDerivative1(                                                                                                         # Call the time derivative solver.
-        p, boundary_outflow, ic=initial_injection, source=continuous_emitter_source,                                                    # Pass physical callables & independent source.
-        t_span=(0.0, 2.5), coef=[v, v_x, v_y], operator=L,                                                                              # Custom physical t_span=(0, 2.5).
-        nvec=15, implicit=True, upwind=True, device='cuda', cfl=0.5, verbose=True                                                       # Exploit GPU parallelism via CuPy!
-    )                                                                                                                                   # End of solver call.
-    print(f"Strategy B completed in {result_B.compute_time:.4f} seconds!")                                                              # Log Strategy B completion time.
-except ImportError:                                                                                                                     # Catch missing CuPy library on non-CUDA systems.
-    print("CuPy is not installed or no NVIDIA GPU detected. Skipping Strategy B.")                                                      # Soft fail and notify user.
-except ParameterError as e:                                                                                                             # Catch mGFD strict parameter validation errors.
-    print(f"mGFD Configuration Error: {e}")                                                                                             # Log configuration error.
-
-# ------------------------------------------------------------------------------------------------------------------------------ #
-# 5. Visualize Strategy A
-# ------------------------------------------------------------------------------------------------------------------------------ #
-print("\nStep 5: Rendering Advection-Diffusion animation...")                                                                           # Log step 5.
-plot_transient(p, result_A.solution, save=False, nom='04_optimizers_result', title="mGFD Solution: Advection-Diffusion with Source")      # Render and save plot.
-
-if os.path.exists(contour_file): os.remove(contour_file)                                                                                # Clean up temporary contour CSV.
-if os.path.exists(cloud_file): os.remove(cloud_file)                                                                                    # Clean up temporary cloud CSV.
+if __name__ == '__main__':                                                                                                              # Entry point guard.
+    main()                                                                                                                              # Run main.
