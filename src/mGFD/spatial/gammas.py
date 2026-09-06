@@ -273,66 +273,71 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
                         dy[idx] = p[vec1, 1] - p[i, 1]                                                                                  # Compute dy offset.
                         idx    += 1                                                                                                     # Increment local index.
                 
-                h_i = 0.0                                                                                                               # Compute local stencil scale h_i.
-                for j in range(nvec_i):                                                                                                 # Find maximum neighbor distance.
-                    d_j = np.sqrt(dx[j]*dx[j] + dy[j]*dy[j])                                                                            # Distance to neighbor j.
-                    if d_j > h_i: h_i = d_j                                                                                             # Update h_i.
-                if h_i < 1e-12: h_i = 1.0                                                                                               # Guard against division by zero.
-
-                dx_hat = dx / h_i                                                                                                       # Non-dimensionalized x-offset.
-                dy_hat = dy / h_i                                                                                                       # Non-dimensionalized y-offset.
-
-                M = np.empty((5, nvec_i), dtype=np.float64)                                                                             # Scaled reconstruction matrix.
-                for j in range(nvec_i):                                                                                                 # Populate scaled matrix.
-                    M[0, j] = dx_hat[j]                                                                                                 # dx_hat term.
-                    M[1, j] = dy_hat[j]                                                                                                 # dy_hat term.
-                    M[2, j] = dx_hat[j]**2                                                                                              # dx_hat^2 term.
-                    M[3, j] = dx_hat[j] * dy_hat[j]                                                                                     # dx_hat*dy_hat term.
-                    M[4, j] = dy_hat[j]**2                                                                                              # dy_hat^2 term.
-
-                L_scaled = np.empty(5, dtype=np.float64)                                                                                # Scaled operator coefficients.
-                L_scaled[0] = L_derivatives[0] / h_i                                                                                    # D / h_i.
-                L_scaled[1] = L_derivatives[1] / h_i                                                                                    # E / h_i.
-                L_scaled[2] = L_derivatives[2] / (h_i**2)                                                                               # A / h_i^2.
-                L_scaled[3] = L_derivatives[3] / (h_i**2)                                                                               # B / h_i^2.
-                L_scaled[4] = L_derivatives[4] / (h_i**2)                                                                               # C / h_i^2.
-
+                M = np.empty((5, nvec_i), dtype=np.float64)                                                                             # Reconstruction matrix.
+                
+                for j in range(nvec_i):                                                                                                 # Populate reconstruction matrix.
+                    M[0, j] = dx[j]                                                                                                     # dx term.
+                    M[1, j] = dy[j]                                                                                                     # dy term.
+                    M[2, j] = dx[j]**2                                                                                                  # dx^2 term.
+                    M[3, j] = dx[j] * dy[j]                                                                                             # dx*dy term.
+                    M[4, j] = dy[j]**2                                                                                                  # dy^2 term.
+                
                 YY       = np.zeros(nvec_i, dtype=np.float64)                                                                           # Placeholder for neighbor weights.
                 valid_YY = False                                                                                                        # Validity flag for neighbor weights.
-                w_dist   = np.empty(nvec_i, dtype=np.float64)                                                                           # Distance weighting array.
-                for j in range(nvec_i):                                                                                                 # Compute quadratic distance weights.
-                    r2_j = dx_hat[j]**2 + dy_hat[j]**2                                                                                  # Squared distance to neighbor j.
-                    w_dist[j] = 1.0 / (r2_j + 1e-4)                                                                                     # Inverse distance squared weighting (1 / r^2).
-
-                M_W    = np.empty((5, nvec_i), dtype=np.float64)                                                                        # Distance-weighted reconstruction matrix.
-                for j in range(nvec_i):                                                                                                 # Populate distance-weighted columns.
-                    M_W[0, j] = M[0, j] * w_dist[j]                                                                                     # Weighted dx.
-                    M_W[1, j] = M[1, j] * w_dist[j]                                                                                     # Weighted dy.
-                    M_W[2, j] = M[2, j] * w_dist[j]                                                                                     # Weighted dx^2.
-                    M_W[3, j] = M[3, j] * w_dist[j]                                                                                     # Weighted dx*dy.
-                    M_W[4, j] = M[4, j] * w_dist[j]                                                                                     # Weighted dy^2.
-
-                G_weighted = np.dot(M_W, M.T)                                                                                           # Distance-weighted normal matrix.
-                tr         = np.trace(G_weighted)                                                                                       # Trace of weighted normal matrix.
-                reg        = (1e-12 + reg_factor * tr) if tr > 0.0 else 1e-12                                                           # Adaptive Tikhonov regularization.
                 
-                c_coeffs   = np.linalg.solve(G_weighted + reg * np.eye(5), L_scaled)                                                    # Solve for coefficient vector c.
-                YY         = w_dist * np.dot(M.T, c_coeffs)                                                                             # Compute distance-weighted stencil weights.
-                valid_YY   = True                                                                                                       # Mark solution as valid.
-
-                for j in range(nvec_i):                                                                                                 # Check solution for NaN/Inf.
-                    if not np.isfinite(YY[j]):                                                                                          # If invalid element found.
-                        valid_YY = False                                                                                                # Mark invalid.
-                        break                                                                                                           # Stop checking.
-
-                if not valid_YY:                                                                                                        # Fallback if matrix solve failed.
+                # 3. Solver attempts
+                M_Mt         = np.dot(M, M.T)                                                                                           # Normal matrix.
+                G_trace      = np.trace(M_Mt)                                                                                           # Trace of the normal matrix.
+                lam          = (1e-12 + reg_factor * G_trace) if G_trace > 0.0 else 1e-12                                               # Regularization parameter.
+                A_aug        = np.zeros((5 + nvec_i, nvec_i), dtype=np.float64)                                                         # Augmented matrix for NNLS.
+                A_aug[:5, :] = M                                                                                                        # Inject reconstruction matrix.
+                sqrt_lam     = np.sqrt(lam)                                                                                             # Compute square root of lambda.
+                
+                for j in range(nvec_i):                                                                                                 # Inject regularization terms.
+                    A_aug[5+j, j] = sqrt_lam                                                                                            # Set diagonal regularization.
+                
+                b_aug     = np.zeros(5 + nvec_i, dtype=np.float64)                                                                      # Augmented RHS vector for NNLS.
+                b_aug[:5] = L_derivatives                                                                                               # Inject operator coefficients.
+                YY_nnls   = _nnls_numba(A_aug, b_aug)                                                                                   # Try non-negative least squares solve.
+                
+                if np.sum(YY_nnls) >= 1e-10:                                                                                            # Check if solution is non-trivial.
+                    YY       = YY_nnls                                                                                                  # Accept solution.
+                    valid_YY = True                                                                                                     # Flag as valid.
+                
+                if not valid_YY:                                                                                                        # Fallback to regularized least squares.
+                    G        = M_Mt                                                                                                     # Normal matrix.
+                    tr       = np.trace(G)                                                                                              # Trace of normal matrix.
+                    reg      = (1e-12 + reg_factor * tr) if tr > 0.0 else 1e-12                                                         # Adaptive regularization parameter.
+                    
+                    c        = np.linalg.solve(G + reg * np.eye(5), L_derivatives)                                                      # Solve for regularized coefficients.
+                    YY_ls    = np.dot(M.T, c)                                                                                           # Compute neighbor weights.
+                    valid_YY = True                                                                                                     # Assume valid temporarily.
+                    
+                    for j in range(nvec_i):                                                                                             # Check for NaN/Inf.
+                        if not np.isfinite(YY_ls[j]):                                                                                   # If invalid element found.
+                            valid_YY = False                                                                                            # Mark invalid.
+                            break                                                                                                       # Stop checking.
+                    
+                    if valid_YY:                                                                                                        # If strictly valid.
+                        YY = YY_ls                                                                                                      # Accept solution.
+                
+                if not valid_YY:                                                                                                        # Absolute fallback to pseudoinverse.
+                    M_pinv   = np.linalg.pinv(M)                                                                                        # Direct pseudoinverse computation.
+                    YY_pinv  = np.dot(M_pinv, L_derivatives)                                                                            # Direct neighbor weights computation.
+                    valid_YY = True                                                                                                     # Assume valid temporarily.
+                    
+                    for j in range(nvec_i):                                                                                             # Check for NaN/Inf.
+                        if not np.isfinite(YY_pinv[j]):                                                                                 # If invalid element found.
+                            valid_YY = False                                                                                            # Mark invalid.
+                            break                                                                                                       # Stop checking.
+                    
+                    if valid_YY:                                                                                                        # If strictly valid.
+                        YY = YY_pinv                                                                                                    # Accept solution.
+                
+                if not valid_YY:                                                                                                        # If all solvers failed.
                     diag[i] = 1.0                                                                                                       # Identity diagonal.
-                else:                                                                                                                   # Execute valid branch.
-                    # 4. Result assignment with M-matrix non-negativity projection
-                    for j in range(nvec_i):                                                                                             # Iterate over neighbor slots.
-                        if YY[j] < 0.0:                                                                                                 # If negative off-diagonal weight (anti-diffusion mode).
-                            YY[j] = 0.0                                                                                                 # Clamp to 0.0 to guarantee negative semi-definite spectrum.
-
+                else:                                                                                                                   # Execute fallback branch.
+                    # 4. Result assignment
                     diag[i] = -np.sum(YY) + F_react                                                                                     # Central weight includes reaction term per Eq. 190.
                     idx     = 0                                                                                                         # Local index.
                     
@@ -419,7 +424,7 @@ def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Union[Callab
 
     return R                                                                                                                            # Return assembled RHS.
 
-def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float = 1e-4) -> Tuple[np.ndarray, np.ndarray]:
+def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float = 1e-8) -> Tuple[np.ndarray, np.ndarray]:
     """
     CloudStencil
     Compute a stencil representation (diag, w) for a 2D point cloud without assembling a dense matrix.
@@ -434,7 +439,7 @@ def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: floa
         p           m x 3           ndarray             Point cloud [x, y, flag].
         vec         m x nvec        ndarray             Neighbor indices per node (padded with -1).
         L           5 x 1           ndarray             Operator coefficients [D, E, A, B, C].
-        reg_factor                  float               Regularization factor (default: 1e-4).
+        reg_factor                  float               Regularization factor (default: 1e-8).
     
     Output:
         diag        m               ndarray             Central weights.
