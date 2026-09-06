@@ -10,11 +10,7 @@ Public API:
     Dirichlet               Dirichlet boundary condition class (u = val).
     Neumann                 Neumann boundary condition class (du/dn = val).
     Domain                  Pairs Cloud and BoundaryCondition.
-    PDE                     Base PDE class.
-    PoissonEquation         Stationary Poisson PDE.
-    HeatEquation            1st-order transient Heat PDE.
-    AdvectionDiffusion      1st-order transient Advection-Diffusion PDE.
-    WaveEquation            2nd-order transient Wave PDE.
+    PDE                     Unified generalized physics definition class.
     Solver                  High-level solver orchestrator.
     SolverResult            Standardized solution result object.
 
@@ -37,26 +33,21 @@ Date:
 """
 
 ## Library importation.
-from mGFD.solvers.results import SolverResult
+from mGFD.solvers.results import SolverResult                                                                                           # Standardized solver result container.
+from mGFD.temporal.cfl import estimate_cfl_dt                                                                                           # Temporal CFL condition calculation.
+from mGFD.spatial.gammas import compute_sparse_matrix                                                                                   # GFD star coefficients matrix computation.
+from mGFD.spatial.neighbors import compute_neighbors, compute_mesh_spacing                                                              # Spatial neighborhood utilities.
+from mGFD.cloud_generator import generate_cloud_natural, generate_cloud_regular, reduce_points_by_region                                # Point cloud generator interfaces.
+from mGFD.oop import (                                                                                                                  # High-level OOP abstractions.
+    Cloud, Dirichlet, Neumann, Domain, PDE,                                                                                             # Core geometry and boundary classes.
+    Solver                                                                                                                              # High-level solver orchestrator.
+)                                                                                                                                       # End of OOP imports.
 
-from mGFD.spatial.neighbors import compute_neighbors, compute_mesh_spacing
-from mGFD.spatial.gammas import compute_sparse_matrix
+__all__ = [                                                                                                                             # List of public symbols exported.
+    'Cloud', 'Dirichlet', 'Neumann', 'Domain', 'PDE',                                                                                   # Core domain and physics classes.
+    'Solver', 'SolverResult',                                                                                                           # Solvers and result containers.
+    'compute_neighbors', 'compute_mesh_spacing', 'compute_sparse_matrix',                                                               # Spatial discretization functions.
+    'estimate_cfl_dt',                                                                                                                  # Temporal discretization functions.
+    'generate_cloud_natural', 'generate_cloud_regular', 'reduce_points_by_region'                                                       # Cloud generation functions.
+]                                                                                                                                       # End of exported symbols.
 
-from mGFD.temporal.cfl import estimate_cfl_dt
-
-from mGFD.cloud_generator import generate_cloud_natural, generate_cloud_regular, reduce_points_by_region
-
-from mGFD.oop import (
-    Cloud, Dirichlet, Neumann, Domain, PDE,
-    PoissonEquation, HeatEquation, WaveEquation, AdvectionDiffusion,
-    Solver
-)
-
-__all__ = [
-    'Cloud', 'Dirichlet', 'Neumann', 'Domain', 'PDE',
-    'PoissonEquation', 'HeatEquation', 'WaveEquation', 'AdvectionDiffusion',
-    'Solver', 'SolverResult',
-    'compute_neighbors', 'compute_mesh_spacing', 'compute_sparse_matrix',
-    'estimate_cfl_dt',
-    'generate_cloud_natural', 'generate_cloud_regular', 'reduce_points_by_region'
-]

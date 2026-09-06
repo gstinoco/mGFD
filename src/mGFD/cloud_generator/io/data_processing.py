@@ -44,7 +44,7 @@ import csv                                                                      
 
 from typing import List, Tuple, Dict, Any                                                                                               # Import type hints.
 
-def load_regions(csv_file: str) -> List[List[Tuple[float, float]]]:
+def load_regions(csv_file: str) -> List[List[Tuple[float, float]]]:                                                                     # Load boundary regions from CSV.
     """
     Load boundary region data from a CSV file.
     

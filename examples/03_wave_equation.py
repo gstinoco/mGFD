@@ -1,10 +1,13 @@
-r"""
-Example 03: Solving the Wave Equation using mGFD (OOP Interface)
+"""
+Example 03: Wave Equation — Solving Hyperbolic Wave PDE using mGFD (OOP Interface)
 
 Overview:
     This tutorial demonstrates how to solve a hyperbolic PDE (the Wave Equation):
-        u_tt + \eta u_t = c^2 (u_xx + u_yy) + F(x, y, t)
-    On a star domain, using the modern OOP Architecture of mGFD with HHT-\alpha and damping.
+        u_tt + \\eta u_t = c^2 (u_xx + u_yy) + F(x, y, t)
+    on a star domain, using the modern OOP Architecture of mGFD with HHT-\\alpha and damping.
+
+Public API:
+    main                                    Main execution routine for the Wave equation tutorial.
 
 Credits:
     All the codes presented below were developed by:
@@ -13,6 +16,18 @@ Credits:
         Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
 
 Date:
     September, 2026.
@@ -26,6 +41,16 @@ import numpy as np                                                              
 import mGFD as mgfd                                                                                                                     # Import mGFD library.
 
 def main() -> None:                                                                                                                     # Main execution routine.
+    """
+    main
+    Executes Example 03 tutorial solving hyperbolic Wave equation on a star domain.
+
+    Input:
+        None
+
+    Output:
+        None
+    """
     print("=================================================================================")                                          # Separator log.
     print("                 Example 03: Wave Equation PDE (OOP API)                        ")                                           # Title log.
     print("=================================================================================\n")                                        # Separator log.
@@ -44,7 +69,7 @@ def main() -> None:                                                             
         writer.writerow(['x', 'y'])                                                                                                     # Write header.
         for pt in star_contour: writer.writerow(pt)                                                                                     # Write vertices.
 
-    cloud = mgfd.Cloud.generate_natural(contour_file, cloud_file, cloud_size=0.015, save=False, show=False)                             # High-level point cloud generation.
+    cloud = mgfd.Cloud.generate_natural(contour_file, cloud_file, cloud_size=0.02, save=False, show=False)                              # High-level point cloud generation.
     print(f"Generated {cloud}: {cloud.num_nodes} nodes.")                                                                               # Log cloud summary.
 
     # 2. Set Dirichlet boundary conditions and construct Domain
@@ -52,12 +77,18 @@ def main() -> None:                                                             
     domain = cloud.set_boundary(mgfd.Dirichlet(0.0))                                                                                    # Bind zero Dirichlet boundary condition.
 
     # 3. Define Physics & Instantiate Solver
-    print("\nStep 3: Formulating Wave PDE physics with HHT-alpha and velocity damping...")                                              # Log step 3.
+    print("\nStep 3: Formulating generalized Wave PDE physics with HHT-alpha and velocity damping...")                                  # Log step 3.
     ic_func = lambda x, y: np.exp(-100 * ((x - 0.5)**2 + (y - 0.5)**2))                                                                 # Initial position Gaussian bump.
-    c_wave  = 0.8                                                                                                                       # Wave speed propagation.
+    c_wave  = 0.5                                                                                                                       # Wave speed propagation.
     
-    pde     = mgfd.WaveEquation(c=c_wave, damping=0.05, alpha=-0.15, ic=ic_func, g=0.0)                                                 # Formulate Wave PDE physics.
-    solver  = mgfd.Solver(domain, pde, nvec=16, cfl=0.25, verbose=True)                                                                 # Instantiate high-level Solver.
+    # For Wave: u_tt = c^2 * (u_xx + u_yy) - eta * u_t.
+    # The operator vector [D, E, A, B, C, F] is [0, 0, 2*c^2, 0, 2*c^2, 0] (since A=(1/2)*u_xx, C=(1/2)*u_yy).
+    # The damping (eta) and HHT-alpha numerical dispersion are coefficients passed to coef or explicitly.
+    # To use HHT-alpha and damping in a custom PDE, we pass them in coef dictionary!
+    custom_operator = [0.0, 0.0, 2.0 * c_wave**2, 0.0, 2.0 * c_wave**2, 0.0]                                                            # Custom Wave Operator.
+    pde             = mgfd.PDE(operator=custom_operator, ic=ic_func, g=0.0, order=2, coef={'damping': 0.05, 'alpha': -0.25})            # Instantiate fully generalized 2nd order PDE.
+    
+    solver          = mgfd.Solver(domain, pde, nvec=16, cfl=0.1, verbose=True)                                                          # Instantiate high-level Solver.
 
     # 4. Solve over t_span=(0, 3.0) and Plot
     print("\nStep 4: Solving Wave PDE over t_span=(0.0, 3.0)...")                                                                       # Log step 4.

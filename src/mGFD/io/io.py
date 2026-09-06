@@ -38,7 +38,7 @@ import numpy as np                                                              
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
-def load_points(file_path: str, verbose: bool = False) -> np.ndarray:
+def load_points(file_path: str, verbose: bool = False) -> np.ndarray:                                                                   # Load point cloud dataset from CSV.
     """
     load_points
     Load a point cloud from a CSV file into the (m, 3) format used by mGFD.
@@ -69,7 +69,8 @@ def load_points(file_path: str, verbose: bool = False) -> np.ndarray:
                 cls  = np.asarray(data['classification']).astype(str)                                                                   # Extract classifications as strings.
                 cls  = np.char.lower(cls)                                                                                               # Convert to lowercase for comparison.
                 flag = np.zeros(cls.shape, dtype = int)                                                                                 # Initialize integer flags array.
-                flag[np.isin(cls, ['boundary'])] = 1                                                                                    # Map outer boundaries to flag 1.
+                
+                flag[np.isin(cls, ['boundary'])]                                    = 1                                                 # Map outer boundaries to flag 1.
                 flag[np.isin(cls, ['hole', 'interior_boundary', 'inner_boundary'])] = 2                                                 # Map internal boundaries to flag 2.
             else:                                                                                                                       # Missing flag or classification.
                 flag = np.zeros(x.shape, dtype = int)                                                                                   # Default to interior points.

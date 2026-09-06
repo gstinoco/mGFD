@@ -203,7 +203,7 @@ def solve_cpu(p: np.ndarray,                                                    
             F_mat[:, :] = float(source)                                                                                                 # Assign F_mat[:, :].
     
     if vec is None:                                                                                                                     # If no neighbor list is provided.
-        if upwind: vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                                              # Upwind-biased neighbor selection.
+        if upwind and (a != 0.0 or b != 0.0): vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                   # Upwind-biased neighbor selection.
         else: vec = Neighbors.compute_neighbors(p, nvec)                                                                                # Standard distance-based neighbors.
 
     L         = operator.flatten()                                                                                                      # Flatten operator weights (5 or 6 elements).
@@ -221,14 +221,14 @@ def solve_cpu(p: np.ndarray,                                                    
     damp_scale = damping * dt                                                                                                           # Dimensionless velocity damping scale.
 
     if not implicit:                                                                                                                    # Explicit scheme.
-        K2 = eye(m) + (1/2)*K                                                                                                           # Explicit matrix for k = 1.
-        K4 = (2.0 - damp_scale)*eye(m) + K                                                                                              # Explicit matrix for k = 2, ..., t with damping.
+        K2     = eye(m) + (1/2)*K                                                                                                       # Explicit matrix for k = 1.
+        K4     = (2.0 - damp_scale)*eye(m) + K                                                                                          # Explicit matrix for k = 2, ..., t with damping.
         K_prev = (damp_scale - 1.0)*eye(m)                                                                                              # Previous step matrix for k >= 2.
         
         for k in range(1, t):                                                                                                           # Loop over all time steps.
             if k == 1:                                                                                                                  # Initial time step (k=1).
                 g_val = g_eval                                                                                                          # Use pre-evaluated initial velocity vector.
-                un              = K2.dot(u_ap[:, k - 1]) + dt*g_val                                                                     # New time level (k=1).
+                un    = K2.dot(u_ap[:, k - 1]) + dt*g_val                                                                               # New time level (k=1).
                 if F_mat is not None:                                                                                                   # Evaluate condition.
                     un[inne_idx] += (dt**2 / 2) * F_mat[inne_idx, k-1]                                                                  # Source term for k=1.
                 u_ap[inne_idx, k] = un[inne_idx]                                                                                        # Update interior nodes.
@@ -249,12 +249,12 @@ def solve_cpu(p: np.ndarray,                                                    
         beta_alpha_factor = beta_n * (1.0 + alpha)                                                                                      # Beta-alpha factor.
 
         A1       = Id_inner @ (coef_lhs * eye(m) - beta_alpha_factor * K) + Id_bound                                                    # LHS Matrix for k=1.
-        B1       = Id_inner @ (coef_b1 * eye(m) + (0.5 - beta_alpha_factor) * K)                                                        # RHS Matrix for k=1.
+        B1       = (Id_inner @ (coef_b1 * eye(m) + (0.5 - beta_alpha_factor) * K)).tocsr()                                              # RHS Matrix for k=1 in fast CSR format.
         
         A2       = Id_inner @ (coef_lhs * eye(m) - beta_alpha_factor * K) + Id_bound                                                    # LHS Matrix for k>=2.
         A2       = A2.tocsc()                                                                                                           # CSC format for SuperLU factorization.
-        B2       = Id_inner @ (coef_b2 * eye(m) + (1.0 + alpha - 2.0 * beta_alpha_factor) * K)                                          # RHS Matrix for k>=2.
-        C2       = Id_inner @ (coef_c2 * eye(m) - beta_alpha_factor * K)                                                                # RHS Matrix for k-2 term.
+        B2       = (Id_inner @ (coef_b2 * eye(m) + (1.0 + alpha - 2.0 * beta_alpha_factor) * K)).tocsr()                                # RHS Matrix for k>=2 in fast CSR format.
+        C2       = (Id_inner @ (coef_c2 * eye(m) - beta_alpha_factor * K)).tocsr()                                                      # RHS Matrix for k-2 term in fast CSR format.
         
         solve1   = factorized(A1.tocsc())                                                                                               # Pre-factorize LHS for k=1.
         solve2   = factorized(A2)                                                                                                       # Pre-factorize LHS for k>=2.
@@ -266,14 +266,17 @@ def solve_cpu(p: np.ndarray,                                                    
                 RHS[:] = B1.dot(u_ap[:, k - 1])                                                                                         # Right-hand side from previous step.
                 RHS   += dt*g_val                                                                                                       # Add initial velocity term.
                 if F_mat is not None:                                                                                                   # Evaluate condition.
-                    RHS[inne_idx] += (dt**2) * (beta_alpha_factor * F_mat[inne_idx, k] + (0.5 - beta_alpha_factor) * F_mat[inne_idx, k-1]) # Source term for k=1.
+                    term1 = beta_alpha_factor * F_mat[inne_idx, k] + (0.5 - beta_alpha_factor) * F_mat[inne_idx, k-1]                   # Compute HHT forcing term k=1.
+                    RHS[inne_idx] += (dt**2) * term1                                                                                    # Source term for k=1.
                 RHS[boun_idx] = u_ap[boun_idx, k]                                                                                       # Inject exact boundary condition.
                 u_ap[:, k]    = solve1(RHS)                                                                                             # Direct update across all nodes.
             else:                                                                                                                       # Execute fallback branch.
                 RHS[:]  = B2.dot(u_ap[:, k - 1])                                                                                        # Multiply B2 by u^(k-1).
                 RHS    -= C2.dot(u_ap[:, k - 2])                                                                                        # Subtract C2 by u^(k-2).
                 if F_mat is not None:                                                                                                   # Evaluate condition.
-                    F_k = beta_alpha_factor * F_mat[inne_idx, k] + (1.0 + alpha - 2.0 * beta_alpha_factor) * F_mat[inne_idx, k-1] + beta_alpha_factor * F_mat[inne_idx, k-2] # Spatiotemporal HHT source term.
+                    F_k = (beta_alpha_factor * F_mat[inne_idx, k] +                                                                     # HHT source component at step k.
+                           (1.0 + alpha - 2.0 * beta_alpha_factor) * F_mat[inne_idx, k-1] +                                             # HHT source component at step k-1.
+                           beta_alpha_factor * F_mat[inne_idx, k-2])                                                                    # HHT source component at step k-2.
                     RHS[inne_idx] += (dt**2) * F_k                                                                                      # Source term for k>=2.
                 RHS[boun_idx] = u_ap[boun_idx, k]                                                                                       # Inject exact boundary condition.
                 u_ap[:, k]    = solve2(RHS)                                                                                             # Direct update across all nodes.

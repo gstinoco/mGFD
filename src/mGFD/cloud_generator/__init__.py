@@ -37,11 +37,12 @@ Last Modification:
     August, 2026.
 """
 
-from .core.reduction import reduce_points_by_region
-from .core.generator import generate_cloud_natural, generate_cloud_regular
+from .core.reduction import reduce_points_by_region                                                                                     # Import point cloud reduction.
+from .core.generator import generate_cloud_natural, generate_cloud_regular                                                              # Import natural and regular generators.
 
-__all__ = [
-    "generate_cloud_natural",
-    "generate_cloud_regular",
-    "reduce_points_by_region",
-]
+__all__ = [                                                                                                                             # List of public symbols.
+    "generate_cloud_natural",                                                                                                           # Natural point cloud generation.
+    "generate_cloud_regular",                                                                                                           # Regular point cloud generation.
+    "reduce_points_by_region",                                                                                                          # Regional point reduction.
+]                                                                                                                                       # End of symbols list.
+

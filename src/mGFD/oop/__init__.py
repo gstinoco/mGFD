@@ -11,11 +11,7 @@ Public API:
     Dirichlet               Dirichlet boundary condition class (u = val).
     Neumann                 Neumann boundary condition class (du/dn = val).
     Domain                  Pairs Cloud and BoundaryCondition.
-    PDE                     Base PDE class.
-    PoissonEquation         Stationary Poisson PDE.
-    HeatEquation            1st-order transient Heat PDE.
-    AdvectionDiffusion      1st-order transient Advection-Diffusion PDE.
-    WaveEquation            2nd-order transient Wave PDE.
+    PDE                     Unified generalized physics definition class.
     Solver                  High-level solver orchestrator.
 
 Credits:
@@ -31,14 +27,15 @@ Date:
 """
 
 ## Library importation.
-from mGFD.oop.boundary import BoundaryCondition, Dirichlet, Neumann
-from mGFD.oop.cloud import Cloud
-from mGFD.oop.domain import Domain
-from mGFD.oop.pde import PDE, PoissonEquation, HeatEquation, AdvectionDiffusion, WaveEquation
-from mGFD.oop.solver import Solver
+from mGFD.oop.boundary import BoundaryCondition, Dirichlet, Neumann                                                                     # Import boundary condition classes.
+from mGFD.oop.cloud import Cloud                                                                                                        # Import point cloud abstraction.
+from mGFD.oop.domain import Domain                                                                                                      # Import domain abstraction.
+from mGFD.oop.pde import PDE                                                                                                            # Import PDE abstraction.
+from mGFD.oop.solver import Solver                                                                                                      # Import high-level solver abstraction.
 
-__all__ = [
-    'Cloud', 'BoundaryCondition', 'Dirichlet', 'Neumann', 'Domain',
-    'PDE', 'PoissonEquation', 'HeatEquation', 'AdvectionDiffusion', 'WaveEquation',
-    'Solver'
-]
+__all__ = [                                                                                                                             # List of public symbols exported.
+    'Cloud', 'BoundaryCondition', 'Dirichlet', 'Neumann', 'Domain',                                                                     # Core domain classes.
+    'PDE',                                                                                                                              # Generalized PDE class.
+    'Solver'                                                                                                                            # Numerical solver class.
+]                                                                                                                                       # End of exported symbols list.
+

@@ -41,7 +41,7 @@ from typing import Optional, Tuple                                              
 
 from mGFD.spatial.neighbors import compute_mesh_spacing                                                                                 # Spatial mesh spacing estimation.
 
-def estimate_cfl_dt(p: np.ndarray,
+def estimate_cfl_dt(p: np.ndarray,                                                                                                      # Function signature part 1.
                     operator: np.ndarray,                                                                                               # Execute statement.
                     cfl: float = 0.5,                                                                                                   # Assign cfl: float.
                     order: int = 1,                                                                                                     # Assign order: int.
@@ -65,37 +65,28 @@ def estimate_cfl_dt(p: np.ndarray,
         actual_cfl                  float           Resulting CFL number based on discrete step counts.
     """
     h_min, h_avg = compute_mesh_spacing(p, vec)                                                                                         # Compute minimum and average node spacing.
+    h_char       = max(h_min, 0.25 * h_avg) if h_min > 0.0 else h_avg                                                                   # Characteristic mesh spacing (conservative lower bound).
     
-    # Use 3rd percentile distance if available via KDTree, providing conservative safety margin against local density variations
-    if p.shape[0] > 20:                                                                                                                 # If sufficient nodes present.
-        from scipy.spatial import KDTree                                                                                                # Query nearest neighbor distances.
-        tree         = KDTree(p[:, :2])                                                                                                 # Build spatial KDTree.
-        dists, _     = tree.query(p[:, :2], k=2, workers=-1)                                                                            # Query nearest neighbor.
-        h_eff        = max(float(np.percentile(dists[:, 1], 3)), 0.1 * h_avg)                                                           # 3rd percentile spatial scale with safety margin.
-    else:                                                                                                                               # Fallback for small test clouds.
-        h_eff        = max(h_min, 0.1 * h_avg)                                                                                          # Effective mesh spacing.
-    
-    # Extract operator components
     D = abs(float(operator[0][0] if operator.ndim == 2 else operator[0]))                                                               # Advection x (D).
     E = abs(float(operator[1][0] if operator.ndim == 2 else operator[1]))                                                               # Advection y (E).
     A = abs(float(operator[2][0] if operator.ndim == 2 else operator[2]))                                                               # Diffusion/Wave xx (A).
     C = abs(float(operator[4][0] if operator.ndim == 2 else operator[4]))                                                               # Diffusion/Wave yy (C).
+    F = float(operator[5][0] if operator.ndim == 2 else operator[5]) if (operator.size >= 6) else 0.0                                   # Reaction coefficient (F).
 
     if order == 1:                                                                                                                      # First-order transient PDE (Heat/AdvDif).
-        V_adv = float(np.hypot(D, E))                                                                                                   # Advective speed magnitude.
-        nu    = max(A, C) / 2.0                                                                                                         # Diffusion coefficient.
-        
-        speed = V_adv + np.sqrt(nu)                                                                                                     # Characteristic propagation speed.
-        if speed <= 0.0:                                                                                                                # Evaluate condition.
-            speed = 1.0                                                                                                                 # Safeguard for zero operator.
+        V_adv      = float(np.hypot(D, E))                                                                                              # Advective speed magnitude.
+        nu         = max(A, C) / 2.0                                                                                                    # Diffusion coefficient.
+        speed      = V_adv + np.sqrt(nu)                                                                                                # Characteristic propagation speed scale.
+        if speed <= 0.0:                                                                                                                # Safeguard for zero operator.
+            speed  = 1.0                                                                                                                # Default reference speed.
             
-        dt_max = cfl * (h_eff / speed)                                                                                                  # Compute safe characteristic time step limit.
+        dt_max     = cfl * (h_avg / speed)                                                                                              # Compute characteristic linear time step limit.
     else:                                                                                                                               # Second-order transient PDE (Wave).
-        c_wave = np.sqrt(max(A, C) / 2.0) if max(A, C) > 0 else 1.0                                                                     # Effective wave speed.
-        dt_max = 0.60 * cfl * (h_eff / (c_wave * np.sqrt(2)))                                                                           # Conservative Courant-Friedrichs-Lewy wave time step limit.
+        c_wave     = np.sqrt(max(A, C) / 2.0) if max(A, C) > 0.0 else 1.0                                                               # Effective wave speed.
+        dt_max     = cfl * (h_char / (c_wave * np.sqrt(2)))                                                                             # Courant-Friedrichs-Lewy wave time step limit.
 
-    t = max(2, int(np.ceil(t_end / dt_max)))                                                                                            # Ensure at least 2 discrete time steps (initial + final).
-    dt = t_end / t                                                                                                                      # Discrete time step size.
-    actual_cfl = cfl * (dt / dt_max) if dt_max > 0 else cfl                                                                             # Actual effective CFL number.
+    t          = max(2, int(np.ceil(t_end / dt_max)))                                                                                   # Ensure at least 2 discrete time steps (initial + final).
+    dt         = t_end / t                                                                                                              # Discrete time step size.
+    actual_cfl = cfl * (dt / dt_max) if dt_max > 0.0 else cfl                                                                           # Actual effective CFL number.
 
     return dt, t, actual_cfl                                                                                                            # Return step parameters.

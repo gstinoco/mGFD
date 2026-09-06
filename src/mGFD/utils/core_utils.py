@@ -46,7 +46,7 @@ from typing import Optional, Tuple, List, Any, Union                            
 
 from mGFD.spatial.neighbors import find_distances                                                                                       # Distance estimator.
 
-def poly_area(x: Union[np.ndarray, Any], y: Union[np.ndarray, Any]) -> float:
+def poly_area(x: Union[np.ndarray, Any], y: Union[np.ndarray, Any]) -> float:                                                           # Shoelace polygon area calculation.
     """
     poly_area
     Compute the area of a polygon defined by its ordered vertices (x, y).
@@ -72,7 +72,7 @@ def poly_area(x: Union[np.ndarray, Any], y: Union[np.ndarray, Any]) -> float:
     return float(area)                                                                                                                  # Return scalar area.
 
 
-def get_valid_triangulation(p: Union[np.ndarray, Any], nom: Optional[str] = None) -> Optional[Union[np.ndarray, Any]]:
+def get_valid_triangulation(p: Union[np.ndarray, Any], nom: Optional[str] = None) -> Optional[Union[np.ndarray, Any]]:                  # Valid boundary-aware triangulation.
     """
     get_valid_triangulation
     Compute a valid triangulation for the point cloud p by filtering out Delaunay
@@ -182,7 +182,7 @@ def get_valid_triangulation(p: Union[np.ndarray, Any], nom: Optional[str] = None
     return None                                                                                                                         # Return None.
 
 
-def get_aspect_and_bounds(p: Union[np.ndarray, Any]) -> Tuple[Tuple[float, float, float], List[float], List[float]]:
+def get_aspect_and_bounds(p: Union[np.ndarray, Any]) -> Tuple[Tuple[float, float, float], List[float], List[float]]:                    # Compute aspect ratio and bounds.
     """
     get_aspect_and_bounds
     Extract physical aspect ratio and bounding box from a point cloud.

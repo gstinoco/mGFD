@@ -168,10 +168,10 @@ def solve_cuda(p: np.ndarray,                                                   
             F_mat[:, :] = float(source)                                                                                                 # Assign F_mat[:, :].
     
     if vec is None:                                                                                                                     # If no neighbor list is provided.
-        if upwind: vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                                              # Upwind-biased neighbor selection.
+        if upwind and (a != 0.0 or b != 0.0): vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                   # Upwind-biased neighbor selection.
         else: vec = Neighbors.compute_neighbors(p, nvec)                                                                                # Standard distance-based neighbors.
 
-    L = operator.flatten()                                                                                                              # Flatten operator coefficients (5 or 6 elements).
+    L         = operator.flatten()                                                                                                      # Flatten operator coefficients (5 or 6 elements).
     K_spatial = Gammas.compute_sparse_matrix(p, vec, L)                                                                                 # Build sparse spatial differentiation matrix (includes F_react).
     K         = dt * K_spatial                                                                                                          # Scale by time step.
     

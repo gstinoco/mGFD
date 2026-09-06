@@ -41,20 +41,20 @@ Last Modification:
     August, 2026.
 """
 
-class mGFDError(Exception):
+class mGFDError(Exception):                                                                                                             # Base exception class for mGFD.
     """
     Base exception class for all custom errors in the mGFD package.
     """
     pass                                                                                                                                # Base marker, no specific logic inside.
 
-class CloudShapeError(mGFDError):
+class CloudShapeError(mGFDError):                                                                                                       # Invalid point cloud structure error.
     """
     Raised when the point cloud 'p' does not conform to the expected format.
     Specifically, it must be a 2D numpy array with 3 columns: [x, y, flag].
     """
     pass                                                                                                                                # Marker for geometry-related errors.
 
-class InputTypeError(mGFDError):
+class InputTypeError(mGFDError):                                                                                                        # Unsupported input type error.
     """
     Raised when an input parameter (like a forcing term or boundary condition)
     is of an unsupported type. Supported types generally include Callables,
@@ -62,21 +62,21 @@ class InputTypeError(mGFDError):
     """
     pass                                                                                                                                # Marker for unsupported parameter type errors.
 
-class DimensionMismatchError(mGFDError):
+class DimensionMismatchError(mGFDError):                                                                                                # Algebraic dimension mismatch error.
     """
     Raised when the dimensions of provided empirical arrays (e.g. data vectors)
     do not match the shape of the point cloud or the time discretization grid.
     """
     pass                                                                                                                                # Marker for algebraic dimension mismatches.
 
-class OperatorFormatError(mGFDError):
+class OperatorFormatError(mGFDError):                                                                                                   # Malformed differential operator error.
     """
     Raised when the provided differential operator vector 'L' does not have
     the required number of coefficients (typically at least 5 for the 2D PDE).
     """
     pass                                                                                                                                # Marker for malformed PDE operator inputs.
 
-class ParameterError(mGFDError):
+class ParameterError(mGFDError):                                                                                                        # Invalid numerical parameter error.
     """
     Raised when a numerical parameter is strictly invalid 
     (e.g., negative number of time steps, invalid iteration count).

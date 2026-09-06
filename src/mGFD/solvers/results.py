@@ -46,7 +46,7 @@ from typing import Iterator, Optional, Tuple                                    
 from dataclasses import dataclass                                                                                                       # Dataclass structure definition.
 
 @dataclass                                                                                                                              # Execute statement.
-class SolverResult:
+class SolverResult:                                                                                                                     # Structured solver result container.
     """
     Standardized return object for mGFD PDE solvers.
     
@@ -75,7 +75,7 @@ class SolverResult:
     t_steps: Optional[int] = None                                                                                                       # Total discrete time steps.
     p: Optional[np.ndarray] = None                                                                                                      # Optional point cloud coordinates array.
 
-    def __iter__(self) -> Iterator[np.ndarray]:
+    def __iter__(self) -> Iterator[np.ndarray]:                                                                                         # Backward-compatible unpacking iterator.
         """
         Allows backward-compatible unpacking of the result.
         
@@ -90,7 +90,7 @@ class SolverResult:
         yield self.solution                                                                                                             # Yield mathematical solution as first element.
         yield self.neighbors                                                                                                            # Yield neighborhood array as second element.
 
-    def export_vtk(self, filepath: str, p: Optional[np.ndarray] = None) -> bool:                                                         # Export solution to VTK format.
+    def export_vtk(self, filepath: str, p: Optional[np.ndarray] = None) -> bool:                                                        # Export solution to VTK format.
         """
         export_vtk
         Export numerical solution to VTK format (.vtu) for visualization in ParaView.
@@ -108,7 +108,7 @@ class SolverResult:
             raise ValueError("Point cloud array 'p' must be provided or attached to SolverResult for VTK export.")                      # Raise error if missing.
         return vtk_export(pts, self.solution, filepath)                                                                                 # Execute VTK export function.
 
-    def plot(self, p: Optional[np.ndarray] = None, save: bool = False, show: bool = True,
+    def plot(self, p: Optional[np.ndarray] = None, save: bool = False, show: bool = True,                                               # Plot method part 1.
              filename: str = "solution_plot", title: str = "mGFD Solution",                                                             # Assign filename: str.
              t_span: Tuple[float, float] = (0.0, 1.0)) -> None:                                                                         # Render solution plot.
         """

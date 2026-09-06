@@ -42,7 +42,7 @@ from typing import Callable                                                     
 from matplotlib.path import Path                                                                                                        # Point-in-polygon checking fallback.
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 
-def create_fast_polygon_checker(polygon: Polygon) -> Callable:
+def create_fast_polygon_checker(polygon: Polygon) -> Callable:                                                                          # Fast point-in-polygon checker generator.
     """
     create_fast_polygon_checker
     Returns a fast point-in-polygon checker function using matplotlib Path.

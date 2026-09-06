@@ -46,7 +46,7 @@ import numpy as np                                                              
 
 from typing import List                                                                                                                 # Import type hints.
 
-def export_to_csv(points: np.ndarray, classifications: List[str], regions_list: List[int], output_file: str) -> bool:
+def export_to_csv(points: np.ndarray, classifications: List[str], regions_list: List[int], output_file: str) -> bool:                   # Export point cloud to CSV file.
     """
     Export node data to CSV file with validation and verification.
     
@@ -74,7 +74,7 @@ def export_to_csv(points: np.ndarray, classifications: List[str], regions_list: 
         # 4. Write to file using csv module
         with open(output_file, 'w', newline='', encoding='utf-8') as f:                                                                 # Open the output CSV file for writing.
             fieldnames = ['x', 'y', 'region', 'classification']                                                                         # Define the column headers.
-            writer = csv.DictWriter(f, fieldnames=fieldnames)                                                                           # Create a CSV DictWriter.
+            writer     = csv.DictWriter(f, fieldnames=fieldnames)                                                                       # Create a CSV DictWriter.
             
             writer.writeheader()                                                                                                        # Write the header row to the file.
             

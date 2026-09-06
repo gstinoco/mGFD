@@ -3,15 +3,20 @@ Batch Utils — I/O and helper functions for research batches
 
 Overview:
     Utilities designed exclusively for iterating through the experimental datasets
-    (Data folder) and caching/retrieving neighbor lists. These functions are intended
-    for research benchmarks and are not part of the public mGFD API.
+    (Data folder), caching/retrieving neighbor lists, executing dynamic batch runners,
+    and aggregating parameter sweep benchmarks across the mGFD research laboratory.
 
 Public API:
-    project_root        Get the root directory of the research batches.
-    neighbors_path      Build the filename for the neighbor cache.
-    load_neighbors      Load cached neighbor lists from disk.
-    save_neighbors      Save computed neighbor lists to disk.
-    iter_clouds         Iterate through all dataset CSVs for given scales.
+    project_root                Get the root directory of the research batches.
+    neighbors_path              Build the filename for storing the neighbor cache.
+    load_neighbors              Load cached neighbor lists from disk.
+    save_neighbors              Save computed neighbor lists to disk.
+    import_module_from_file     Dynamically load and execute a Python runner module.
+    run_job                     Worker execution wrapper for process pool parallelization.
+    iter_clouds                 Iterate through all dataset CSVs for given scales.
+    run_batch_suite             Universal orchestrator for all runner batch scripts.
+    save_metrics                Record and serialize execution time and numerical error metrics.
+    generate_sweep_summary      Aggregate individual batch JSON metric files into a master CSV.
 
 Credits:
     All the codes presented below were developed by:
@@ -27,19 +32,41 @@ Credits:
         Aula CIMNE-Morelia. México.
         SIIIA-MATH: Soluciones de Ingeniería. México.
 
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
+
 Date:
     May, 2024.
 Last Modification:
-    August, 2026.
+    September, 2026.
 """
 
 ## Library importation.
 import os                                                                                                                               # OS interfaces for file/directory paths.
+import sys                                                                                                                              # System specific parameters and path manipulation.
 import glob                                                                                                                             # File pattern matching.
-import numpy as np                                                                                                                      # Core numerical operations.
 import json                                                                                                                             # JSON formatting.
+import logging                                                                                                                          # Standard logging module.
+import importlib.util                                                                                                                   # Dynamic module import from a file path.
 
+import pandas as pd                                                                                                                     # Tabular data manipulation.
+import numpy as np                                                                                                                      # Core numerical operations.
+
+from time import time                                                                                                                   # High-resolution wall-clock timer.
+from datetime import datetime                                                                                                           # Datetime stamp generation.
 from typing import Optional, Union, Tuple, Iterator, Dict, Any, Callable                                                                # Type hints.
+
+logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
+
+_repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))                                               # Resolve repository root directory.
+_src_dir   = os.path.join(_repo_root, 'src')                                                                                            # Resolve core library source directory.
+if _src_dir not in sys.path:                                                                                                            # Ensure src directory is on system path.
+    sys.path.insert(0, _src_dir)                                                                                                        # Add src directory to system path.
+
 
 def project_root() -> str:
     """
@@ -116,6 +143,88 @@ def load_neighbors(cloud_path: str, nvec: int, tag: Optional[str] = None) -> Opt
         return None                                                                                                                     # Return None if mismatch.
     
     return vec                                                                                                                          # Return cached matrix.
+
+def import_module_from_file(file_path: str, verbose: bool = True, **kwargs: Any) -> bool:
+    """
+    Dynamically load and execute a Python module from its absolute filepath.
+
+    Loads the module at runtime using importlib, adds its directory to sys.path,
+    registers it in sys.modules, executes its top-level code, and invokes its main()
+    entry point with injected keyword arguments.
+
+    Input:
+        file_path       1           str             Absolute file path of the runner script.
+        verbose         1           bool            If True, logs warnings and errors.
+        **kwargs                    Any             Optional arguments forwarded directly to the module's main().
+
+    Output:
+        success         1           bool            True if execution succeeded without exception, False otherwise.
+    """
+    if not isinstance(file_path, str):                                                                                                  # Validate file_path argument.
+        raise TypeError("file_path must be a string.")                                                                                  # Explicit error on bad input.
+    if not os.path.exists(file_path):                                                                                                   # Validate file existence.
+        raise ValueError(f"File not found: {file_path}")                                                                                # Explicit error on bad input.
+    try:                                                                                                                                # Catch import-time errors to keep the batch runner alive.
+        script_dir = os.path.dirname(os.path.abspath(file_path))                                                                        # Get directory of the script.
+        if script_dir not in sys.path:                                                                                                  # Prevent duplicate paths.
+            sys.path.insert(0, script_dir)                                                                                              # Add script's directory to sys.path so it can find its local imports.
+        src_dir = os.path.join(os.path.dirname(project_root()), 'src')                                                                  # Resolve core library source directory.
+        if src_dir not in sys.path:                                                                                                     # Ensure src directory is on system path.
+            sys.path.insert(0, src_dir)                                                                                                 # Add src directory to system path.
+        module_name = os.path.splitext(os.path.basename(file_path))[0]                                                                  # Derive a stable module name from filename.
+        spec        = importlib.util.spec_from_file_location(module_name, file_path)                                                    # Build import spec from file path.
+        if spec is None or spec.loader is None:                                                                                         # Ensure a valid spec and loader were found.
+            raise ImportError(f"Cannot load module from {file_path}")                                                                   # Raise an exception if spec is missing.
+        module                   = importlib.util.module_from_spec(spec)                                                                # Create module object from spec.
+        sys.modules[module_name] = module                                                                                               # Register module to allow intra-import references.
+        spec.loader.exec_module(module)                                                                                                 # Execute the module (runs top-level batch script).
+        if hasattr(module, 'main'):                                                                                                     # Explicitly call main() if it exists.
+            module.main(**kwargs)                                                                                                       # Execute statement.
+        return True                                                                                                                     # Report success.
+    except Exception as e:                                                                                                              # Catch any failure while importing/executing the script.
+        if verbose:                                                                                                                     # Check if verbosity is enabled.
+            import traceback                                                                                                            # Import traceback for diagnostic dump.
+            logger.error(f'Error importing {file_path}: {traceback.format_exc()}')                                                      # Print an actionable error message.
+        return False                                                                                                                    # Report failure.
+
+def run_job(job_tuple: tuple) -> bool:
+    """
+    Worker execution wrapper for process pool parallelization.
+
+    Unpacks the runner configuration tuple, measures per-script wall-clock execution
+    time, and safely invokes import_module_from_file in a subprocess worker.
+
+    Input:
+        job_tuple       6           tuple           Tuple containing (file_path, run_file, nvec, upwind, base_kwargs, verbose).
+
+    Output:
+        success         1           bool            True if the runner finished successfully, False on error.
+    """
+    file_path, run_file, nvec, upwind, base_kwargs, verbose = job_tuple                                                                 # Unpack job configuration tuple.
+    if upwind is not None:                                                                                                              # Determine if upwind applies.
+        config_str = f'nvec={nvec}, dev={base_kwargs.get("device")}, up={upwind}'                                                       # Format config with upwind.
+    else:                                                                                                                               # Upwind doesn't apply.
+        config_str = f'nvec={nvec}, dev={base_kwargs.get("device")}'                                                                    # Format config without upwind.
+    if verbose:                                                                                                                         # Check verbosity.
+        logger.info(f'\nExecuting {run_file} with [{config_str}]...')                                                                   # Log current execution.
+    
+    start_time         = time()                                                                                                         # Start per-script timer.
+    run_kwargs         = base_kwargs.copy()                                                                                             # Copy global kwargs to avoid side-effects.
+    run_kwargs['nvec'] = nvec                                                                                                           # Inject neighbor count into kwargs.
+    
+    if upwind is not None:                                                                                                              # If upwind is required for this runner.
+        run_kwargs['upwind'] = upwind                                                                                                   # Inject upwind flag into kwargs.
+    
+    ok             = import_module_from_file(file_path, verbose=verbose, **run_kwargs)                                                  # Dynamically load and run script with kwargs.
+    execution_time = time() - start_time                                                                                                # Compute per-script runtime.
+    
+    if ok:                                                                                                                              # Check execution success.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.info(f'Completed {run_file} [{config_str}] in {execution_time:.2f} seconds')                                         # Log completion.
+    else:                                                                                                                               # Script execution failed.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.error(f'Error executing {run_file} [{config_str}]')                                                                  # Report failure.
+    return ok                                                                                                                           # Return execution result.
 
 def save_neighbors(cloud_path: str, nvec: int, vec: Union[np.ndarray, list], tag: Optional[str] = None) -> str:
     """
@@ -195,67 +304,64 @@ def iter_clouds(data_root: Optional[str] = None, scales: Union[Tuple[str, ...], 
                 if base.endswith('_cloud.csv'):                                                                                         # Filter for cloud files.
                     yield dataset, scale, cloud_path                                                                                    # Yield dataset info and path.
 
-import json                                                                                                                             # Import module dependency.
-import logging                                                                                                                          # Import module dependency.
-from typing import Callable, Any, Dict                                                                                                  # Import module dependency.
-
-logger = logging.getLogger(__name__)                                                                                                    # Assign logger.
-
 def run_batch_suite(
-    process_func: Callable,                                                                                                             # Execute statement.
-    data_root: str,                                                                                                                     # Execute statement.
-    results_root: str,                                                                                                                  # Execute statement.
-    scales: Optional[Union[tuple, list, str]] = None,                                                                                   # Assign scales: Optional[Union[tuple, list, str]].
-    **kwargs: Any
-) -> None:                                                                                                                              # Execute statement.
+    process_func: Callable,                                                                                                             # Point cloud processing function.
+    data_root:    str,                                                                                                                  # Input dataset root directory.
+    results_root: str,                                                                                                                  # Output results root directory.
+    scales:       Optional[Union[tuple, list, str]] = None,                                                                             # Target refinement scales.
+    **kwargs:     Any                                                                                                                   # Dynamic keyword arguments.
+) -> None:                                                                                                                              # Return None.
     """
-    run_batch_suite
     Universal orchestrator for all runner batch scripts.
-    Iterates all point clouds in the datasets and invokes the solver logic.
+
+    Iterates over point clouds from data_root for given scales and processes each with process_func.
 
     Input:
         process_func    1           Callable        The function to process each point cloud.
         data_root       1           str             Input dataset root directory.
         results_root    1           str             Output results root directory.
         scales          1           tuple/list/str  Tuple or list of scale subfolders to process (optional).
-        **kwargs        Any         dict            Dynamic configuration from main orchestrator.
+        **kwargs                    Any             Dynamic configuration forwarded from main orchestrator.
         
     Output:
         None
     """
+    # 1. Scale configuration resolution
     if scales is None:                                                                                                                  # Evaluate condition.
-        scales = kwargs.pop('scales', None)                                                                                             # Assign scales.
-    if scales is None:                                                                                                                  # Evaluate condition.
-        config_path = os.path.join(project_root(), 'codes', 'sweep_config.json')                                                        # Assign config_path.
-        if os.path.exists(config_path):                                                                                                 # Evaluate condition.
-            try:                                                                                                                        # Execute statement.
-                with open(config_path, 'r') as f:                                                                                       # Execute statement.
-                    cfg = json.load(f)                                                                                                  # Assign cfg.
-                    scales = cfg.get('scales', ('1', '2', '3'))                                                                         # Assign scales.
-            except Exception:                                                                                                           # Execute statement.
-                scales = ('1', '2', '3')                                                                                                # Assign scales.
-        else:                                                                                                                           # Execute fallback branch.
-            scales = ('1', '2', '3')                                                                                                    # Assign scales.
+        scales = kwargs.pop('scales', None)                                                                                             # Extract scales from kwargs.
+    if scales is None:                                                                                                                  # If still None, inspect sweep config.
+        config_path = os.path.join(project_root(), 'codes', 'sweep_config.json')                                                        # Resolve config path.
+        if os.path.exists(config_path):                                                                                                 # Check config existence.
+            try:                                                                                                                        # Try parsing config.
+                with open(config_path, 'r') as f:                                                                                       # Open configuration file.
+                    cfg    = json.load(f)                                                                                               # Load JSON.
+                    scales = cfg.get('scales', ('1', '2', '3', '4'))                                                                    # Extract scales list.
+            except Exception:                                                                                                           # Handle JSON read error.
+                scales = ('1', '2', '3', '4')                                                                                           # Fallback to scales 1-4.
+        else:                                                                                                                           # Config file not present.
+            scales = ('1', '2', '3', '4')                                                                                               # Default to scales 1-4.
 
-    if isinstance(scales, (int, str)):                                                                                                  # Evaluate condition.
-        scales = (str(scales),)                                                                                                         # Assign scales.
-    else:                                                                                                                               # Execute fallback branch.
-        scales = tuple(str(s) for s in scales)                                                                                          # Iterate over collection.
+    if isinstance(scales, (int, str)):                                                                                                  # Single scale scalar.
+        scales = (str(scales),)                                                                                                         # Wrap in tuple.
+    else:                                                                                                                               # Multiple scales collection.
+        scales = tuple(str(s) for s in scales)                                                                                          # Cast all elements to str.
 
-    verbose = kwargs.pop('verbose', True)                                                                                               # Assign verbose.
-    save = kwargs.pop('save', True)                                                                                                     # Assign save.
-    found = 0                                                                                                                           # Assign found.
+    verbose = kwargs.pop('verbose', True)                                                                                               # Verbosity flag.
+    save    = kwargs.pop('save', True)                                                                                                  # Save outputs flag.
+    found   = 0                                                                                                                         # Match counter.
     
-    if verbose:                                                                                                                         # Evaluate condition.
-        logger.info(f'Processing point clouds from {data_root} (scales={scales}).')                                                     # Assign logger.info(f'Processing point clouds from {data_root} (scales.
+    # 2. Dataset iteration and execution
+    if verbose:                                                                                                                         # Evaluate verbosity condition.
+        logger.info(f'Processing point clouds from {data_root} (scales={scales}).')                                                     # Log active processing batch.
         
-    for dataset, scale, cloud_path in iter_clouds(data_root, scales):                                                                   # Iterate over collection.
-        found += 1                                                                                                                      # Assign found +.
-        process_func(dataset, scale, cloud_path, results_root, save, verbose=verbose, **kwargs)                                         # Assign process_func(dataset, scale, cloud_path, results_root, save, verbose.
+    for dataset, scale, cloud_path in iter_clouds(data_root, scales):                                                                   # Iterate through point clouds.
+        found += 1                                                                                                                      # Increment match counter.
+        process_func(dataset, scale, cloud_path, results_root, save, verbose=verbose, **kwargs)                                         # Execute cloud processing function.
         
-    if found == 0:                                                                                                                      # Evaluate condition.
-        if verbose:                                                                                                                     # Evaluate condition.
-            logger.warning(f'No point clouds found in {data_root} for scales {scales}.')                                                # Iterate over collection.
+    # 3. Completion check
+    if found == 0:                                                                                                                      # If no matching clouds were located.
+        if verbose:                                                                                                                     # Check verbosity.
+            logger.warning(f'No point clouds found in {data_root} for scales {scales}.')                                                # Warn user.
 
 def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[str] = None, scale: Optional[str] = None, p: Optional[np.ndarray] = None) -> None:
     """
@@ -276,14 +382,6 @@ def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[st
     exec_time = metrics.pop('Compute_Time_Secs', None)                                                                                  # Extract primary solver execution time if present.
     if exec_time is not None:                                                                                                           # If primary compute time present.
         metrics['Time_Secs'] = exec_time                                                                                                # Set standardized execution time metric.
-        if 'Time_Callable' not in metrics and 'Time_Array' not in metrics and 'Time_Pandas' not in metrics:                             # If no type-specific key was created.
-            metrics['Time_Callable'] = exec_time                                                                                        # Fallback to Callable label for backward compatibility.
-    elif 'Time_Callable' in metrics:                                                                                                    # If Callable time is present.
-        metrics['Time_Secs'] = metrics['Time_Callable']                                                                                 # Mirror to unified execution time metric.
-    elif 'Time_Array' in metrics:                                                                                                       # If Array time is present.
-        metrics['Time_Secs'] = metrics['Time_Array']                                                                                    # Mirror to unified execution time metric.
-    elif 'Time_Pandas' in metrics:                                                                                                      # If Pandas time is present.
-        metrics['Time_Secs'] = metrics['Time_Pandas']                                                                                   # Mirror to unified execution time metric.
         
     metrics.pop('Max_Abs_Error', None)                                                                                                  # Standardize metrics.
     metrics.pop('Mean_Abs_Error', None)                                                                                                 # Standardize metrics.
@@ -325,13 +423,10 @@ def save_metrics(out_dir: str, metrics: Dict[str, float], config_id: Optional[st
         with open(metrics_path, 'w') as f:                                                                                              # Open the file in write mode.
             json.dump(metrics, f, indent=4)                                                                                             # Dump the single metrics dictionary.
 
-import pandas as pd                                                                                                                     # Import module dependency.
-from datetime import datetime                                                                                                           # Import module dependency.
-
 def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
     """
-    generate_sweep_summary
     Crawls all Metrics.json files in the results directory and generates a master CSV summary.
+
     This allows for rapid comparison of GPU vs CPU times and solver combinations.
 
     Input:
@@ -341,6 +436,7 @@ def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
     Output:
         None
     """
+    # 1. Results root verification
     all_records = []                                                                                                                    # Initialize list for all records.
     
     if not os.path.exists(results_root):                                                                                                # Check if results root exists.
@@ -348,6 +444,7 @@ def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
             logger.warning(f"Results root {results_root} does not exist. Cannot generate summary.")                                     # Log warning.
         return                                                                                                                          # Exit function.
         
+    # 2. Metric crawling across equations, regions, and scales
     for equation in os.listdir(results_root):                                                                                           # Iterate through equations.
         eq_path = os.path.join(results_root, equation)                                                                                  # Build equation path.
         if not os.path.isdir(eq_path) or equation == 'benchmarks':                                                                      # Check if it is a valid directory.
@@ -378,9 +475,9 @@ def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
                 metrics_dict = scale_data.get('Metrics', {})                                                                            # Get metrics dictionary.
                 for config_id, metrics in metrics_dict.items():                                                                         # Iterate through configurations.
                     record = {                                                                                                          # Initialize record dictionary.
-                        'Equation': equation,                                                                                           # Store equation name.
-                        'Dataset': dataset,                                                                                             # Store dataset name.
-                        'Scale': scale,                                                                                                 # Store scale string.
+                        'Equation':  equation,                                                                                          # Store equation name.
+                        'Dataset':   dataset,                                                                                           # Store dataset name.
+                        'Scale':     scale,                                                                                             # Store scale string.
                         'Config_ID': config_id                                                                                          # Store configuration ID.
                     }                                                                                                                   # End record initialization.
                     
@@ -389,14 +486,15 @@ def generate_sweep_summary(results_root: str, verbose: bool = True) -> None:
                         
                     all_records.append(record)                                                                                          # Append record to list.
                     
+    # 3. Export to consolidated CSV
     if not all_records:                                                                                                                 # Check if records list is empty.
         if verbose:                                                                                                                     # Check verbosity.
             logger.warning("No metrics found to summarize.")                                                                            # Log warning.
         return                                                                                                                          # Exit function.
         
-    df = pd.DataFrame(all_records)                                                                                                      # Convert records to DataFrame.
+    df        = pd.DataFrame(all_records)                                                                                               # Convert records to DataFrame.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")                                                                                # Generate timestamp string.
-    out_file = os.path.join(results_root, f"sweep_summary_{timestamp}.csv")                                                             # Build output file path.
+    out_file  = os.path.join(results_root, f"sweep_summary_{timestamp}.csv")                                                            # Build output file path.
     df.to_csv(out_file, index=False)                                                                                                    # Export DataFrame to CSV.
     
     if verbose:                                                                                                                         # Check verbosity.

@@ -56,7 +56,8 @@ from mGFD.cloud_generator.core.point_generation.regular_generation import (     
     generate_region_cloud_with_holes                                                                                                    # Execute statement.
 )                                                                                                                                       # Execute statement.
 
-def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary_points: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:
+def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30,                                                                 # Poisson-disk sampling method.
+                           boundary_points: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:                   # Sample Poisson points.
     """
     poisson_disk_sampling
     Generate points using Poisson Disk Sampling algorithm via SciPy QMC engine for extreme speed.
@@ -182,7 +183,8 @@ def poisson_disk_sampling(polygon: Polygon, radius: float, k: int = 30, boundary
         
     return interior_points                                                                                                              # Return points directly if no boundary checks needed.
 
-def generate_interior_points_poisson(polygon: Polygon, cloud_size: float, boundary_points: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:
+def generate_interior_points_poisson(polygon: Polygon, cloud_size: float,                                                               # Generate Poisson interior nodes.
+                                     boundary_points: Optional[List[Tuple[float, float]]] = None) -> List[Tuple[float, float]]:         # Interior points generator.
     """
     generate_interior_points_poisson
     Generate interior points using Poisson Disk Sampling for more natural distribution.
@@ -207,7 +209,7 @@ def generate_interior_points_poisson(polygon: Polygon, cloud_size: float, bounda
         
         return list(map(tuple, generate_interior_points(polygon, cloud_size)))                                                          # Return grid-based points.
 
-def generate_region_cloud_poisson(region_points: List[Tuple[float, float]], cloud_size: float) -> Tuple[Any, Any, Any]:
+def generate_region_cloud_poisson(region_points: List[Tuple[float, float]], cloud_size: float) -> Tuple[Any, Any, Any]:                 # Generate Poisson cloud for region.
     """
     generate_region_cloud_poisson
     Generate a complete cloud for a single region using Poisson Disk Sampling for more natural distribution.
@@ -248,7 +250,10 @@ def generate_region_cloud_poisson(region_points: List[Tuple[float, float]], clou
         # Fallback to uniform density method
         return generate_region_cloud_with_uniform_density(region_points, cloud_size)                                                    # Use simpler grid-based generator.
 
-def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[float, float]], hole_regions_list: List[List[Tuple[float, float]]], cloud_size: Optional[float] = None, inside_regions: bool = False) -> Tuple[Any, Any, Any]:
+def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[float, float]],                                             # Generate region cloud with holes.
+                                             hole_regions_list: List[List[Tuple[float, float]]],                                        # Subregion hole boundaries.
+                                             cloud_size: Optional[float] = None,                                                        # Target node spacing.
+                                             inside_regions: bool = False) -> Tuple[Any, Any, Any]:                                     # Poisson cloud with holes generator.
     """
     generate_region_cloud_with_holes_poisson
     Generate a cloud for the main region (region 1) considering interior regions as holes,
@@ -318,12 +323,13 @@ def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[floa
         
         # 7. Generate interior points avoiding holes using Poisson Disk Sampling
         boundary_tuples = [(bp[0], bp[1]) for bp in boundary_points] if len(boundary_points) > 0 else None                              # Convert boundary array to list of tuples.
-        interior_points = generate_interior_points_poisson(cast(Polygon, polygon_with_holes), cloud_size, boundary_points=boundary_tuples) # Fill space with Poisson sampling & boundary check.
+        interior_points = generate_interior_points_poisson(                                                                             # Call Poisson interior point generation.
+            cast(Polygon, polygon_with_holes), cloud_size, boundary_points=boundary_tuples)                                             # Fill space with Poisson sampling & boundary check.
         
         # Apply Lloyd's relaxation
         if len(interior_points) > 0:                                                                                                    # Check if any interior points exist.
-            interior_points = lloyd_relaxation(np.array(interior_points), np.array(boundary_points), cast(Polygon, polygon_with_holes), iterations=5).tolist() # Assign interior_points.
-                                                                                                                                        # Apply smoothing.
+            interior_points = lloyd_relaxation(                                                                                         # Smooth point distribution via Lloyd.
+                np.array(interior_points), np.array(boundary_points), cast(Polygon, polygon_with_holes), iterations=5).tolist()         # Apply Lloyd relaxation iterations.
 
         return boundary_points, interior_points, cloud_size                                                                             # Return generated data.
         
@@ -331,7 +337,8 @@ def generate_region_cloud_with_holes_poisson(main_region_points: List[Tuple[floa
         # Fallback to grid-based method with holes
         return generate_region_cloud_with_holes(main_region_points, hole_regions_list)                                                  # Use simpler grid-based generator.
 
-def generate_region_task_poisson(region_points: List[Tuple[float, float]], region_id: int, main_cloud_size: float) -> Optional[Tuple[np.ndarray, np.ndarray, int]]:
+def generate_region_task_poisson(region_points: List[Tuple[float, float]], region_id: int,                                              # Parallel task for Poisson region.
+                                 main_cloud_size: float) -> Optional[Tuple[np.ndarray, np.ndarray, int]]:                               # Return generated regional cloud.
     """
     generate_region_task_poisson
     Helper for parallel Poisson interior regions.
@@ -365,7 +372,8 @@ def generate_region_task_poisson(region_points: List[Tuple[float, float]], regio
     except Exception as e:                                                                                                              # If execution crashes.
         return None                                                                                                                     # Return failure.
 
-def generate_interior_regions_clouds_poisson(regions: List[List[Tuple[float, float]]], main_cloud_size: float) -> List[Tuple[np.ndarray, np.ndarray, int]]:
+def generate_interior_regions_clouds_poisson(regions: List[List[Tuple[float, float]]],                                                  # Generate clouds for interior regions.
+                                             main_cloud_size: float) -> List[Tuple[np.ndarray, np.ndarray, int]]:                       # Multiprocessing Poisson generator.
     """
     generate_interior_regions_clouds_poisson
     Parallel generation for interior regions using Poisson.

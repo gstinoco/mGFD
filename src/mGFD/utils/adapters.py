@@ -45,7 +45,7 @@ Last Modification:
 import sys                                                                                                                              # System-specific parameters and functions.
 import numpy as np                                                                                                                      # Core numerical operations.
 
-def extract_cloud(p: np.ndarray) -> np.ndarray:
+def extract_cloud(p: np.ndarray) -> np.ndarray:                                                                                         # Extract NumPy array from point cloud.
     """
     Safely extracts NumPy arrays from pandas DataFrames or xarray DataArrays using a soft-dependency (duck typing) approach.
     
@@ -77,7 +77,7 @@ def extract_cloud(p: np.ndarray) -> np.ndarray:
         return np.asarray(p)                                                                                                            # Return numpy array wrapper.
     return p                                                                                                                            # Return original object unchanged (will fail validation downstream).
 
-def repack_solution(p_orig: np.ndarray, u_ap: np.ndarray):
+def repack_solution(p_orig: np.ndarray, u_ap: np.ndarray):                                                                              # Repack solution into original container.
     """
     Packs the computed NumPy solution back into the original data format (DataFrame or DataArray) if applicable.
     

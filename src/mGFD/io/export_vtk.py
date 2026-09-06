@@ -58,7 +58,7 @@ from mGFD.utils.core_utils import get_valid_triangulation                       
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
-def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData:
+def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData:                                                       # Create PyVista polydata mesh.
     """
     _create_mesh
     Helper function to construct a PyVista PolyData mesh from point coordinates and triangles.
@@ -89,7 +89,9 @@ def _create_mesh(p: np.ndarray, cloud_path: Optional[str] = None) -> pv.PolyData
     
     return mesh                                                                                                                         # Return created mesh.
 
-def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basename: str = "Stationary_Solution", cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str,                                                                # Export stationary solution.
+                          basename: str = "Stationary_Solution", cloud_path: Optional[str] = None,                                      # VTK output file parameters.
+                          verbose: bool = True) -> None:                                                                                # Save PolyData VTK file.
     """
     export_stationary_vtk
     Export a stationary PDE solution to a VTK (.vtp) file.
@@ -120,7 +122,10 @@ def export_stationary_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basenam
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f"\tSaved VTK to {filepath}")                                                                                       # Report successful save.
 
-def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basename: str = "Transient_Solution", t: Optional[int] = None, T: Optional[np.ndarray] = None, t_span: Tuple[float, float] = (0.0, 1.0), cloud_path: Optional[str] = None, verbose: bool = True) -> None:
+def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str,                                                                 # Export transient solution.
+                         basename: str = "Transient_Solution", t: Optional[int] = None,                                                 # Output time-series parameters.
+                         T: Optional[np.ndarray] = None, t_span: Tuple[float, float] = (0.0, 1.0),                                      # Physical time coordinates.
+                         cloud_path: Optional[str] = None, verbose: bool = True) -> None:                                               # Save PVD and VTP time-series.
     """
     export_transient_vtk
     Export a transient PDE solution to a time-series VTK (.pvd + .vtp) format.
@@ -184,7 +189,7 @@ def export_transient_vtk(p: np.ndarray, u_ap: np.ndarray, out_dir: str, basename
     if verbose:                                                                                                                         # Check if verbosity is enabled.
         logger.info(f"\tSaved VTK series ({frames_saved} frames) to {pvd_filepath}")                                                    # Report successful save.
 
-def export_vtk(p: np.ndarray, u_ap: np.ndarray, filepath: str, verbose: bool = True) -> bool:                                          # Unified VTK export function.
+def export_vtk(p: np.ndarray, u_ap: np.ndarray, filepath: str, verbose: bool = True) -> bool:                                           # Unified VTK export function.
     """
     export_vtk
     Unified export function for stationary (.vtp/.vtu) and transient (.pvd) VTK formats.
@@ -198,7 +203,7 @@ def export_vtk(p: np.ndarray, u_ap: np.ndarray, filepath: str, verbose: bool = T
     Output:
         success     bool        True if export succeeded.
     """
-    out_dir, filename = os.path.split(filepath)                                                                                          # Split directory and filename.
+    out_dir, filename = os.path.split(filepath)                                                                                         # Split directory and filename.
     if not out_dir:                                                                                                                     # Default to current directory if empty.
         out_dir = "."                                                                                                                   # Set current directory.
     if not filename:                                                                                                                    # Fallback if empty filename.
@@ -206,8 +211,8 @@ def export_vtk(p: np.ndarray, u_ap: np.ndarray, filepath: str, verbose: bool = T
 
     u = np.squeeze(u_ap)                                                                                                                # Squeeze solution array dimensions.
     if u.ndim == 1 or (u.ndim == 2 and u.shape[1] == 1):                                                                                # Check if 1D stationary solution.
-        export_stationary_vtk(p, u, out_dir, basename=filename, verbose=verbose)                                                       # Export stationary VTP/VTU file.
+        export_stationary_vtk(p, u, out_dir, basename=filename, verbose=verbose)                                                        # Export stationary VTP/VTU file.
     else:                                                                                                                               # Transient solution series.
         basename, _ = os.path.splitext(filename)                                                                                        # Extract base name for PVD collection.
-        export_transient_vtk(p, u, out_dir, basename=basename, verbose=verbose)                                                        # Export transient PVD series.
+        export_transient_vtk(p, u, out_dir, basename=basename, verbose=verbose)                                                         # Export transient PVD series.
     return True                                                                                                                         # Return success boolean.

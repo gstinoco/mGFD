@@ -48,7 +48,10 @@ from shapely.geometry import Polygon, LineString                                
 
 from mGFD.cloud_generator.utils.utils import calculate_dynamic_boundary_refinement                                                      # Import tolerance calculator.
 
-def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions_contours: Optional[List[List[Tuple[float, float]]]] = None, cloud_size: Optional[float] = None, inside_regions: bool = False) -> List[str]:
+def classify_nodes(points: np.ndarray, regions_list: List[int],                                                                         # Node classification method.
+                   original_regions_contours: Optional[List[List[Tuple[float, float]]]] = None,                                         # Regional contour geometries.
+                   cloud_size: Optional[float] = None,                                                                                  # Cloud size parameter.
+                   inside_regions: bool = False) -> List[str]:                                                                          # Classify nodes as boundary/interior.
     """
     classify_nodes
     Classify nodes as boundary or interior using Shapely contours for precise geometric operations.
@@ -129,13 +132,13 @@ def classify_nodes(points: np.ndarray, regions_list: List[int], original_regions
     domain_boundary = None                                                                                                              # Initialize the global boundary variable.
     
     try:                                                                                                                                # Try to build the boundary box.
-        domain_coords = [                                                                                                               # Define the rectangular box coordinates.
+        domain_coords   = [                                                                                                             # Define the rectangular box coordinates.
             (global_min_x, global_min_y),                                                                                               # Bottom-left corner.
             (global_max_x, global_min_y),                                                                                               # Bottom-right corner.
             (global_max_x, global_max_y),                                                                                               # Top-right corner.
             (global_min_x, global_max_y),                                                                                               # Top-left corner.
             (global_min_x, global_min_y)                                                                                                # Close back at bottom-left.
-        ]                                                                                                                               #
+        ]                                                                                                                               # 
         domain_boundary = LineString(domain_coords)                                                                                     # Create a LineString for the boundary box.
     except:                                                                                                                             # Catch any exceptions during boundary creation.
         domain_boundary = None                                                                                                          # Set it to None if failed.

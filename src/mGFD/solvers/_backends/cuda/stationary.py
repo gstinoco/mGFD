@@ -65,7 +65,7 @@ def solve_cuda(p: np.ndarray,                                                   
     if verbose:                                                                                                                         # Verbosity.
         logger.info(f"Solving Stationary problem for {m} nodes on CUDA...")                                                             # Progress info.
     
-    u_ap = np.zeros([m])                                                                                                                # u_ap init.
+    u_ap   = np.zeros([m])                                                                                                              # u_ap init.
     boun_n = (p[:, 2] == 1) | (p[:, 2] == 2)                                                                                            # Boundary nodes.
     inne_n = p[:, 2] == 0                                                                                                               # Inner nodes.
 
@@ -81,18 +81,18 @@ def solve_cuda(p: np.ndarray,                                                   
         u_ap[boun_n] = phi                                                                                                              # Apply constant.
 
     if vec is None:                                                                                                                     # No vec provided.
-        if upwind: vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                                              # Upwind neighbors.
+        if upwind and (a != 0.0 or b != 0.0): vec = Neighbors.compute_upwind_neighbors(p, a, b, nvec)                                   # Upwind neighbors.
         else: vec = Neighbors.compute_neighbors(p, nvec)                                                                                # Central neighbors.
 
-    L = operator[:-1]                                                                                                                   # Extracted operator.
-    K = Gammas.compute_sparse_matrix(p, vec, L)                                                                                         # K sparse generation on CPU.
+    L     = operator[:-1]                                                                                                               # Extracted operator.
+    K     = Gammas.compute_sparse_matrix(p, vec, L)                                                                                     # K sparse generation on CPU.
     K_gpu = cp_csr_matrix(K)                                                                                                            # Transfer matrix to GPU.
     
-    R = Gammas.RHS(p, boun_n, inne_n, phi, f)                                                                                           # RHS on CPU.
+    R     = Gammas.RHS(p, boun_n, inne_n, phi, f)                                                                                       # RHS on CPU.
     R_gpu = cp.asarray(R)                                                                                                               # Transfer vector to GPU.
     
-    un_gpu = cp_spsolve(K_gpu, R_gpu)                                                                                                   # CuPy direct spsolve.
-    un = un_gpu.get()                                                                                                                   # Pull from GPU.
+    un_gpu       = cp_spsolve(K_gpu, R_gpu)                                                                                             # CuPy direct spsolve.
+    un           = un_gpu.get()                                                                                                         # Pull from GPU.
     u_ap[inne_n] = un[inne_n]                                                                                                           # Unpack to interior.
     
     if verbose: logger.info("\tCUDA Solver finished successfully.")                                                                     # Success.

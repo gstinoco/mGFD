@@ -60,9 +60,10 @@ from mGFD.cloud_generator.core.point_generation import (                        
     generate_interior_regions_clouds_poisson,                                                                                           # Interior regions Poisson generation.
 )                                                                                                                                       # Execute statement.
 
-def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main_region_strategy: Callable, interior_regions_strategy: Callable, 
-                         inside_regions: bool = False, cloud_size: Optional[float] = None, density_multiplier: float = 1.0,             # Assign inside_regions: bool.
-                         save: bool = True, show: bool = False) -> Dict:                                                                # Assign inside_regions: bool.
+def _generate_cloud_core(csv_file: str, output_file: str, method_name: str,                                                             # Cloud generation core pipeline.
+                         main_region_strategy: Callable, interior_regions_strategy: Callable,                                           # Region generation strategies.
+                         inside_regions: bool = False, cloud_size: Optional[float] = None,                                              # Internal region & spacing options.
+                         density_multiplier: float = 1.0, save: bool = True, show: bool = False) -> Dict:                               # Execute cloud generation core.
     """
     _generate_cloud_core
     Core generation logic shared between different distribution methods.
@@ -172,9 +173,9 @@ def _generate_cloud_core(csv_file: str, output_file: str, method_name: str, main
         
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
-def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0,                                         # Assign cloud_size: Optional[float].
-                           save: bool = True, show: bool = False) -> Dict:                                                              # Assign cloud_size: Optional[float].
+def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool = False,                                               # Natural point cloud generator.
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0,                                         # Spacing and density parameters.
+                           save: bool = True, show: bool = False) -> Dict:                                                              # Generate cloud via Poisson disk.
     """
     generate_cloud_natural
     Generate point cloud using Natural Distribution algorithm with Poisson Disk Sampling.
@@ -212,9 +213,9 @@ def generate_cloud_natural(csv_file: str, output_file: str, inside_regions: bool
         
         return {"success": False, "error": error_msg}                                                                                   # Return failure dictionary.
 
-def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool = False,
-                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0,                                         # Assign cloud_size: Optional[float].
-                           save: bool = True, show: bool = False) -> Dict:                                                              # Assign cloud_size: Optional[float].
+def generate_cloud_regular(csv_file: str, output_file: str, inside_regions: bool = False,                                               # Regular point cloud generator.
+                           cloud_size: Optional[float] = None, density_multiplier: float = 1.0,                                         # Spacing and density parameters.
+                           save: bool = True, show: bool = False) -> Dict:                                                              # Generate cloud via regular grid.
     """
     generate_cloud_regular
     Generate point cloud using Regular Distribution algorithm with grid-based approach.

@@ -42,9 +42,9 @@ Credits:
         https://doi.org/10.1016/j.camwa.2025.07.034
 
 Date:
-        May, 2024.
-    Last Modification:
-        August, 2026.
+    May, 2024.
+Last Modification:
+    September, 2026.
 """
 
 ## Library importation.
@@ -236,7 +236,7 @@ def Compute_Metrics_Transient(p: Union[np.ndarray, list], vec: Union[np.ndarray,
         compute_time    1           float           (Optional) Time spent computing the solution in seconds.
         
     Output:
-        metrics         1           dict            Dictionary containing 'Time_Mean_RMSE', 'Max_Abs_Error', 'Final_Step_RMSE', and optionally 'Compute_Time_Secs'.
+        metrics         1           dict            Dictionary containing 'Time_Mean_RMSE', 'Max_Abs_Error', and optionally 'Compute_Time_Secs'.
     """
     # 0. Input validation
     if not isinstance(p, (np.ndarray, list)):                                                                                           # Validate p.
@@ -259,9 +259,8 @@ def Compute_Metrics_Transient(p: Union[np.ndarray, list], vec: Union[np.ndarray,
     abs_diff   = np.abs(u_ap_arr - u_ex_arr)                                                                                            # Pointwise absolute difference over time and space.
     
     metrics: Dict[str, float] = {                                                                                                       # Dictionary to store the metrics.
-        "Time_Mean_RMSE":  float(np.mean(rmse_array)),                                                                                  # Store mean RMSE over all time steps.
-        "Max_Abs_Error":   float(np.max(abs_diff)),                                                                                     # Store absolute error peak.
-        "Final_Step_RMSE": float(rmse_array[-1]) if len(rmse_array) > 0 else 0.0                                                        # Store RMSE at the very last step.
+        "Time_Mean_RMSE": float(np.mean(rmse_array)),                                                                                   # Store mean RMSE over all time steps.
+        "Max_Abs_Error":  float(np.max(abs_diff))                                                                                       # Store absolute error peak.
     }                                                                                                                                   # Execute statement.
     if compute_time is not None:                                                                                                        # If computation time is provided.
         metrics["Compute_Time_Secs"] = compute_time                                                                                     # Store computation time in seconds.

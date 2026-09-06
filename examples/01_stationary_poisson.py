@@ -1,10 +1,13 @@
 """
-Example 01: Solving the Stationary Poisson Equation using mGFD (OOP Interface)
+Example 01: Stationary Poisson Equation — Solving Poisson PDE using mGFD (OOP Interface)
 
 Overview:
     This tutorial demonstrates how to solve the classic Poisson Equation:
         u_xx + u_yy = f(x, y)
-    On an irregular 2D domain (Star), using the modern OOP Architecture of mGFD.
+    on an irregular 2D domain (Star), using the modern OOP Architecture of mGFD.
+
+Public API:
+    main                                    Main execution routine for the Poisson equation tutorial.
 
 Credits:
     All the codes presented below were developed by:
@@ -13,6 +16,18 @@ Credits:
         Dr. José Alberto Guzmán-Torres
         Universidad Michoacana de San Nicolás de Hidalgo
         gerardo.tinoco@umich.mx
+    With the funding of:
+        Secretary of Science, Humanities, Technology and Innovation, SECIHTI (Secretaria de Ciencia, Humanidades, Tecnología e Innovación). México.
+        Coordination of Scientific Research, CIC-UMSNH (Coordinación de la Investigación Científica de la Universidad Michoacana de San Nicolás de Hidalgo, CIC-UMSNH). México.
+        Aula CIMNE-Morelia. México.
+        SIIIA-MATH: Soluciones de Ingeniería. México.
+
+    Based on the theoretical concepts presented in:
+        "mGFD: A meshless generalized finite difference method",
+        Gerardo Tinoco-Guerrero, Francisco Javier Domínguez-Mota, José Alberto Guzmán-Torres, 
+        Gabriela Pedraza-Jiménez, José Gerardo Tinoco-Ruiz,
+        Computers & Mathematics with Applications, Volume 195 (2025) 396-418.
+        https://doi.org/10.1016/j.camwa.2025.07.034
 
 Date:
     September, 2026.
@@ -26,6 +41,16 @@ import numpy as np                                                              
 import mGFD as mgfd                                                                                                                     # Import mGFD library.
 
 def main() -> None:                                                                                                                     # Main execution routine.
+    """
+    main
+    Executes Example 01 tutorial solving stationary Poisson equation on a star domain.
+
+    Input:
+        None
+
+    Output:
+        None
+    """
     print("=================================================================================")                                          # Separator log.
     print("                Example 01: Stationary Poisson PDE (OOP API)                     ")                                          # Title log.
     print("=================================================================================\n")                                        # Separator log.
@@ -50,10 +75,14 @@ def main() -> None:                                                             
     domain  = cloud.set_boundary(mgfd.Dirichlet(bc_func))                                                                               # Bind Dirichlet boundary condition.
 
     # 3. Define Physics & Instantiate Solver
-    print("\nStep 3: Formulating Poisson PDE physics and solver...")                                                                    # Log step 3.
+    print("\nStep 3: Formulating generalized PDE physics and solver...")                                                                # Log step 3.
     force_func = lambda x, y: -2.0 * np.pi**2 * np.sin(np.pi * x) * np.sin(np.pi * y)                                                   # Forcing term function.
-    pde        = mgfd.PoissonEquation(source=force_func)                                                                                # Formulate Poisson PDE.
-    solver     = mgfd.Solver(domain, pde, nvec=15, verbose=True)                                                                        # Instantiate high-level Solver.
+    
+    # For Poisson: L u = u_xx + u_yy. The operator vector [D, E, A, B, C, F] is [0, 0, 2, 0, 2, 0] (since A=2*u_xx, C=2*u_yy).
+    custom_operator = [0.0, 0.0, 2.0, 0.0, 2.0, 0.0]                                                                                    # Custom Laplacian operator.
+    pde             = mgfd.PDE(operator=custom_operator, source=force_func, order=0)                                                    # Instantiate fully generalized PDE.
+    
+    solver          = mgfd.Solver(domain, pde, nvec=15, verbose=True)                                                                   # Instantiate high-level Solver.
 
     # 4. Solve and Plot
     print("\nStep 4: Solving PDE and rendering results...")                                                                             # Log step 4.

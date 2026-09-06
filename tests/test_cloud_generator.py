@@ -35,8 +35,8 @@ Last Modification:
 """
 
 ## Library importation.
-import numpy as np                                                                                                      # Core numerical operations.
-from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                # Point generation module.
+import numpy as np                                                                                                                      # Core numerical operations.
+from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                                # Point generation module.
 
 def test_boundary_generation() -> None:
     """
@@ -46,13 +46,13 @@ def test_boundary_generation() -> None:
     A square domain of 1x1 with a spacing of 0.5 must yield at least 8 boundary nodes.
     """
     # 1. Test initialization
-    contour    = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]                                                       # Square contour definition.
-    cloud_size = 0.5                                                                                                    # Target spacing.
+    contour    = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]                                                                       # Square contour definition.
+    cloud_size = 0.5                                                                                                                    # Target spacing.
     
     # 2. Execution
-    p          = generate_boundary_points(contour, cloud_size)                                                          # Generate point cloud.
+    p          = generate_boundary_points(contour, cloud_size)                                                                          # Generate point cloud.
     
     # 3. Assertions
-    assert isinstance(p, np.ndarray)                                                                                    # Result must be an array.
-    assert p.shape[1] == 2                                                                                              # Boundary points have 2 dimensions (x, y).
-    assert p.shape[0] >= 4                                                                                              # At least the 4 corners must be present.
+    assert isinstance(p, np.ndarray)                                                                                                    # Result must be an array.
+    assert p.shape[1] == 2                                                                                                              # Boundary points have 2 dimensions (x, y).
+    assert p.shape[0] >= 4                                                                                                              # At least the 4 corners must be present.

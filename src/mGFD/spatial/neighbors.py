@@ -63,7 +63,7 @@ from scipy.spatial import KDTree                                                
 from typing import Optional, Tuple                                                                                                      # Type hinting.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
-def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int) -> np.ndarray:
+def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int) -> np.ndarray:                      # Numba JIT neighbor extractor.
     """
     _find_neighbors_jit
     Numba JIT-compiled helper to extract valid neighbors from KDTree candidate pool.
@@ -96,7 +96,7 @@ def _find_neighbors_jit(indices: np.ndarray, distances: np.ndarray, dist: float,
     return vec                                                                                                                          # Return populated neighbor list.
 
 @nb.njit(cache=True, fastmath=True)                                                                                                     # Assign @nb.njit(cache.
-def _check_stencil_condition_jit(dx: np.ndarray, dy: np.ndarray) -> float:
+def _check_stencil_condition_jit(dx: np.ndarray, dy: np.ndarray) -> float:                                                              # Check local stencil condition number via JIT.
     """
     _check_stencil_condition_jit
     Numba JIT-compiled helper to compute the condition number of the local geometric matrix.
@@ -140,7 +140,8 @@ def _check_stencil_condition_jit(dx: np.ndarray, dy: np.ndarray) -> float:
     return L1 / L2                                                                                                                      # Return geometric condition number.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
-def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, dist: float, m: int, nvec: int, target_per_quad: int) -> np.ndarray:
+def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray,                                             # Candidate points and distances.
+                                 dist: float, m: int, nvec: int, target_per_quad: int) -> np.ndarray:                                   # Extract balanced neighbors via JIT.
     """
     _find_neighbors_balanced_jit
     Numba JIT-compiled helper to extract quadrant-balanced and condition-aware neighbors.
@@ -251,7 +252,8 @@ def _find_neighbors_balanced_jit(p: np.ndarray, indices: np.ndarray, distances: 
     return vec                                                                                                                          # Return dynamically balanced neighbor list.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
-def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray, a: float, b: float, tol: float, m: int, nvec: int) -> np.ndarray:
+def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.ndarray,                                                  # Candidate points and distances.
+                            a: float, b: float, tol: float, m: int, nvec: int) -> np.ndarray:                                           # Extract upwind neighbors via JIT.
     """
     _find_neighbors_adv_jit
     Numba JIT-compiled helper to extract upwind-biased neighbors from KDTree candidate pool.
@@ -327,7 +329,7 @@ def _find_neighbors_adv_jit(p: np.ndarray, indices: np.ndarray, distances: np.nd
     
     return vec                                                                                                                          # Return upwind neighbor list.
 
-def compute_neighbors(p: np.ndarray, nvec: int) -> np.ndarray:
+def compute_neighbors(p: np.ndarray, nvec: int) -> np.ndarray:                                                                          # Compute neighbor list using adaptive KDTree.
     """
     compute_neighbors
     Convenience function to build the neighbor list vec for a point cloud.
@@ -355,7 +357,7 @@ def compute_neighbors(p: np.ndarray, nvec: int) -> np.ndarray:
 
     return vec                                                                                                                          # Return global neighbor list.
 
-def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np.ndarray:
+def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np.ndarray:                                               # Build upwind-biased neighbor list.
     """
     compute_upwind_neighbors
     Convenience function to build an upwind-biased neighbor list for a point cloud.
@@ -383,7 +385,7 @@ def compute_upwind_neighbors(p: np.ndarray, a: float, b: float, nvec: int) -> np
 
     return vec                                                                                                                          # Return global neighbor list.
 
-def find_distances(p: np.ndarray) -> float:
+def find_distances(p: np.ndarray) -> float:                                                                                             # Estimate characteristic search radius dist.
     """
     find_distances
     Estimate a characteristic spacing from the point cloud and convert it to a search radius dist.
@@ -406,7 +408,7 @@ def find_distances(p: np.ndarray) -> float:
 
     return dist                                                                                                                         # Return radius distance.
 
-def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:
+def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:                                                                # Find neighbors within radius dist.
     """
     find_neighbors
     Find up to nvec neighbors for each point within a radius distance dist.
@@ -436,7 +438,7 @@ def find_neighbors(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:
     
     return vec                                                                                                                          # Return neighbor list.
 
-def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:
+def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray:                                                       # Find balanced neighbors across 4 quadrants.
     """
     find_neighbors_balanced
     Find up to nvec neighbors for each point, ensuring a balanced spatial distribution by
@@ -472,7 +474,7 @@ def find_neighbors_balanced(p: np.ndarray, dist: float, nvec: int) -> np.ndarray
     
     return vec                                                                                                                          # Return balanced neighbor list.
 
-def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int) -> np.ndarray:
+def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int) -> np.ndarray:                                        # Find upwind-biased neighbors.
     """
     find_neighbors_adv
     Find up to nvec neighbors per node with an upwind preference for direction (a, b).
@@ -519,7 +521,7 @@ def find_neighbors_adv(p: np.ndarray, dist: float, a: float, b: float, nvec: int
 
     return vec                                                                                                                          # Return upwind neighbor list.
 
-def compute_mesh_spacing(p: np.ndarray, vec: Optional[np.ndarray] = None) -> Tuple[float, float]:
+def compute_mesh_spacing(p: np.ndarray, vec: Optional[np.ndarray] = None) -> Tuple[float, float]:                                       # Compute minimum and average mesh spacing.
     """
     compute_mesh_spacing
     Compute characteristic spatial node spacing (h_min, h_avg) for a 2D point cloud.

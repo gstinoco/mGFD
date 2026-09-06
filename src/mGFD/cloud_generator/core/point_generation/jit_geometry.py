@@ -35,7 +35,7 @@ import numpy as np                                                              
 import numba as nb                                                                                                                      # JIT compilation.
 
 @nb.njit(cache=True, fastmath=True)                                                                                                     # Decorator for JIT compilation.
-def _is_point_in_polygon_jit(px: float, py: float, poly: np.ndarray) -> bool:
+def _is_point_in_polygon_jit(px: float, py: float, poly: np.ndarray) -> bool:                                                           # JIT point-in-polygon ray-casting test.
     """
     _is_point_in_polygon_jit
     Numba JIT-compiled ray-casting algorithm to determine if a point is inside a polygon.

@@ -52,7 +52,7 @@ CLOUD_FACTORS = {                                                               
     "boundary_refinement": 0.02                                                                                                         # Default boundary refinement distance.
 }                                                                                                                                       # Execute statement.
 
-def calculate_cloud_size(region_points: List[Tuple[float, float]]) -> float:
+def calculate_cloud_size(region_points: List[Tuple[float, float]]) -> float:                                                            # Calculate adaptive cloud size.
     """
     Calculate adaptive cloud size based on region geometry characteristics.
     
@@ -91,7 +91,7 @@ def calculate_cloud_size(region_points: List[Tuple[float, float]]) -> float:
     except Exception as e:                                                                                                              # If execution fails.
         return CLOUD_FACTORS["default_cloud_size"]                                                                                      # Return default cloud size.
 
-def create_closed_contour(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+def create_closed_contour(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:                                              # Ensure contour is closed.
     """
     Ensure a contour is properly closed for geometric operations.
     
@@ -113,7 +113,7 @@ def create_closed_contour(points: List[Tuple[float, float]]) -> List[Tuple[float
     else:                                                                                                                               # If already closed.
         return points                                                                                                                   # Return as is.
 
-def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Optional[float] = None) -> float:
+def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Optional[float] = None) -> float:                             # Dynamic boundary refinement.
     """
     Calculate dynamic boundary refinement based on cloud density.
     
@@ -147,7 +147,7 @@ def calculate_dynamic_boundary_refinement(points: np.ndarray, cloud_size: Option
         sample_indices = np.random.choice(len(points_array), sample_size, replace=False)                                                # Randomly select indices.
         sample_points  = points_array[sample_indices]                                                                                   # Extract the sampled points.
         
-        diff = sample_points[:, np.newaxis, :] - sample_points[np.newaxis, :, :]                                                        # Calculate pairwise coordinate differences.
+        diff      = sample_points[:, np.newaxis, :] - sample_points[np.newaxis, :, :]                                                   # Calculate pairwise coordinate differences.
         distances = np.sqrt(np.sum(diff**2, axis=-1))                                                                                   # Compute Euclidean distance matrix.
         
         np.fill_diagonal(distances, np.inf)                                                                                             # Exclude self-distances from minimum calculation.

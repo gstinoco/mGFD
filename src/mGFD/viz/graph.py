@@ -59,7 +59,9 @@ from mGFD.utils.core_utils import get_valid_triangulation, get_aspect_and_bounds
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
-def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, float], x_bounds: List[float], y_bounds: List[float], z_bounds: List[float], z_label: str) -> None:
+def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, float],                                                   # Format 3D axes parameters.
+                   x_bounds: List[float], y_bounds: List[float],                                                                        # Horizontal axes limits.
+                   z_bounds: List[float], z_label: str) -> None:                                                                        # Set camera, aspect, and labels.
     """
     _setup_3d_axes
     Helper function to standardize the formatting and limits of 3D axes in Matplotlib.
@@ -102,7 +104,9 @@ def _setup_3d_axes(ax: Any, angle_view: bool, box_aspect: Tuple[float, float, fl
         ax.view_init(elev=90, azim=270)                                                                                                 # Set top-down viewing angle.
 
 
-def _render_surface(ax: Any, p: Union[np.ndarray, Any], data: Union[np.ndarray, Any], triangles: Optional[Union[np.ndarray, Any]], cmap: Any, vmin: float, vmax: float) -> Any:
+def _render_surface(ax: Any, p: Union[np.ndarray, Any], data: Union[np.ndarray, Any],                                                   # Render surface on 3D axes.
+                    triangles: Optional[Union[np.ndarray, Any]], cmap: Any,                                                             # Triangulation and colormap.
+                    vmin: float, vmax: float) -> Any:                                                                                   # Plot trisurf or scatter.
     """
     _render_surface
     Helper function to render a 3D surface plot using a valid Delaunay triangulation, 
@@ -129,7 +133,9 @@ def _render_surface(ax: Any, p: Union[np.ndarray, Any], data: Union[np.ndarray, 
         return ax.scatter(p[:, 0], p[:, 1], zs=data, c=data, cmap=cmap, s=1, vmin=vmin, vmax=vmax)                                      # Fallback to plotting scattered points.
 
 
-def _prepare_plot_data(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], nom: str) -> Tuple[float, float, Tuple[float, float, float], List[float], List[float], Optional[Union[np.ndarray, Any]]]:
+def _prepare_plot_data(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any],                                                            # Prepare common plot geometry.
+                       nom: str) -> Tuple[float, float, Tuple[float, float, float],                                                     # Compute data range and aspect.
+                                          List[float], List[float], Optional[Union[np.ndarray, Any]]]:                                  # Return plot data tuple.
     """
     _prepare_plot_data
     Helper to compute common plotting bounds, color scales, and triangulation.
@@ -159,7 +165,8 @@ def _prepare_plot_data(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], nom
     return min_val, max_val, box_aspect, x_bounds, y_bounds, triangles                                                                  # Return preparation components.
 
 
-def _generate_static_views(render_func: Callable, title: str, save_path: Optional[str] = None, show: bool = False, verbose: bool = True) -> None:
+def _generate_static_views(render_func: Callable, title: str, save_path: Optional[str] = None,                                          # Generate static plot views.
+                           show: bool = False, verbose: bool = True) -> None:                                                           # Render perspective and top views.
     """
     _generate_static_views
     Helper to generate both perspective and top views for a static snapshot.
@@ -196,7 +203,9 @@ def _generate_static_views(render_func: Callable, title: str, save_path: Optiona
         plt.show()                                                                                                                      # Display the interactive plot window.
 
 
-def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, show: bool = True, nom: str = '', title: str = 'Solution', verbose: bool = True) -> None:
+def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any],                                                               # Render stationary solution plot.
+                    save: bool = False, show: bool = True, nom: str = '',                                                               # Output visualization flags.
+                    title: str = 'Solution', verbose: bool = True) -> None:                                                             # Plot stationary PDE solution.
     """
     plot_stationary
     Render a single 3D scatter plot of the solution for a stationary PDE problem.
@@ -217,7 +226,7 @@ def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: 
     min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
     # 2. Helper function definition
-    def draw_plot(fig_obj: Any, ax1: Any, angle_view: bool = True) -> None:
+    def draw_plot(fig_obj: Any, ax1: Any, angle_view: bool = True) -> None:                                                             # Draw stationary plot surface.
         """
         draw_plot
         Helper function to render a single stationary plot.
@@ -241,7 +250,10 @@ def plot_stationary(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: 
         _generate_static_views(draw_plot, title, show=True, verbose=verbose)                                                            # Generate and show interactive views.
 
 
-def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: bool = False, show: bool = True, nom: str = '', title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:
+def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any],                                                                # Render transient solution plot.
+                   save: bool = False, show: bool = True, nom: str = '',                                                                # Output and animation flags.
+                   title: str = 'Solution', verbose: bool = True,                                                                       # Title and logging control.
+                   t_span: Tuple[float, float] = (0.0, 1.0)) -> None:                                                                   # Plot transient PDE solution.
     """
     plot_transient
     Render a single 3D scatter plot of the solution for a transient PDE problem,
@@ -267,7 +279,7 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
     min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
     # 2. Helper function definition
-    def draw_frame(fig_obj: Any, ax1: Any, k: int, angle_view: bool = True) -> None:
+    def draw_frame(fig_obj: Any, ax1: Any, k: int, angle_view: bool = True) -> None:                                                    # Draw transient animation frame.
         """
         draw_frame
         Helper function to render a single animation frame.
@@ -279,7 +291,7 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
             angle_view              bool            If True, sets a perspective view; if False, sets a top-down view.
         """
         if not hasattr(fig_obj, 'surf_artists'):                                                                                        # Evaluate condition.
-            s1 = _render_surface(ax1, p, u[:, k], triangles, matplotlib.colormaps['coolwarm'], min_val, max_val)                        # Render solution surface.
+            s1                   = _render_surface(ax1, p, u[:, k], triangles, matplotlib.colormaps['coolwarm'], min_val, max_val)      # Render solution surface.
             fig_obj.surf_artists = {'s1': s1}                                                                                           # Cache surface artists for animation updates.
             _setup_3d_axes(ax1, angle_view, box_aspect, x_bounds, y_bounds, [min_val, max_val], 'U(x, y)')                              # Format axes for the solution.
             
@@ -301,7 +313,7 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
 
     # 3. Render execution
     if save:                                                                                                                            # Check if save flag is enabled.
-        def save_animation(angle_view: bool, view_name: str, suffix: str, verbose: bool = verbose) -> None:
+        def save_animation(angle_view: bool, view_name: str, suffix: str, verbose: bool = verbose) -> None:                             # Save animated video or GIF.
             """
             save_animation
             Helper function to initialize and save an animation for a specific view.
@@ -314,7 +326,7 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
             """
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"}, figsize=(10, 8))                                              # Create figure and 3D axis for animation.
             
-            def update(frame: int) -> None:
+            def update(frame: int) -> None:                                                                                             # Update animation frame artists.
                 """
                 update
                 
@@ -383,7 +395,9 @@ def plot_transient(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], save: b
         plt.show()                                                                                                                      # Display interactive plot window.
 
 
-def plot_transient_steps(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], nom: str, title: str = 'Solution', verbose: bool = True, t_span: Tuple[float, float] = (0.0, 1.0)) -> None:
+def plot_transient_steps(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any],                                                          # Plot transient step snapshots.
+                         nom: str, title: str = 'Solution', verbose: bool = True,                                                       # File naming and display titles.
+                         t_span: Tuple[float, float] = (0.0, 1.0)) -> None:                                                             # Render snapshot time series.
     """
     plot_transient_steps
     Render and save static single 3D scatter plots of the solution at a few key time steps
@@ -404,7 +418,7 @@ def plot_transient_steps(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], n
     min_val, max_val, box_aspect, x_bounds, y_bounds, triangles = _prepare_plot_data(p, u, nom)                                         # Assign min_val, max_val, box_aspect, x_bounds, y_bounds, triangles.
 
     # 2. Helper function definition
-    def draw_snapshot(fig_obj: Any, ax1: Any, k: int, angle_view: bool = True) -> None:
+    def draw_snapshot(fig_obj: Any, ax1: Any, k: int, angle_view: bool = True) -> None:                                                 # Render snapshot frame surface.
         """
         draw_snapshot
         Helper function to render a specific snapshot step.
@@ -427,7 +441,7 @@ def plot_transient_steps(p: Union[np.ndarray, Any], u: Union[np.ndarray, Any], n
         tin = float(T[k])                                                                                                               # Assign tin.
         nok = nom + '_' + str(format(T[k], '.2f'))                                                                                      # Format snapshot filename.
 
-        def render_cb(fig: Any, ax: Any, angle_view: bool) -> None:
+        def render_cb(fig: Any, ax: Any, angle_view: bool) -> None:                                                                     # Snapshot render callback.
             """
             render_cb
             Callback function to execute the snapshot rendering with the fixed time step k.

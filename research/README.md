@@ -62,13 +62,14 @@ The orchestrator reads `codes/sweep_config.json` to generate a combinatorial exe
         "run_AdvReactionDiff.py",
         "run_Wave.py"
     ],
-    "scales": ["1", "2", "3", "4", "5"],
-    "nvec": [12],
+    "scales": ["1", "2", "3", "4"],
+    "nvec": [16],
     "device": ["cpu", "cuda"],
     "upwind": [true, false],
-    "input_types": ["callable"],
-    "save": [true],
+    "save": false,
     "cfl": [0.1],
+    "damping": [0.0],
+    "alpha": [0.0],
     "parallel": true,
     "cpu_workers": 2
 }

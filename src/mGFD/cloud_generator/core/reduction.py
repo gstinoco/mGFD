@@ -53,7 +53,7 @@ import numpy as np                                                              
 from typing import List, Dict, Any, Optional                                                                                            # Import type hints.
 from shapely.geometry import Point, Polygon, MultiPoint                                                                                 # Import geometric objects from Shapely.
 
-def reduce_points_by_region_single(input_csv: str, output_csv: str) -> Optional[List[Dict[str, Any]]]:
+def reduce_points_by_region_single(input_csv: str, output_csv: str) -> Optional[List[Dict[str, Any]]]:                                  # Single pass regional point reduction.
     """
     reduce_points_by_region_single
     Reduce points in region 1 using uniform method while preserving other regions (single pass).
@@ -157,7 +157,7 @@ def reduce_points_by_region_single(input_csv: str, output_csv: str) -> Optional[
         error_msg = f"Error processing point reduction for {input_csv}: {str(e)}"                                                       # Create an error message.
         return None                                                                                                                     # Return None on error.
 
-def reduce_points_by_region_multiple(input_csv: str, output_csv: str, multiplier: int = 2) -> Optional[List[Dict[str, Any]]]:
+def reduce_points_by_region_multiple(input_csv: str, output_csv: str, multiplier: int = 2) -> Optional[List[Dict[str, Any]]]:           # Multiple pass regional point reduction.
     """
     reduce_points_by_region_multiple
     Advanced point reduction using iterative uniform method for aggressive point reduction.
@@ -218,7 +218,7 @@ def reduce_points_by_region_multiple(input_csv: str, output_csv: str, multiplier
         error_msg = f"Error in multiple point reduction: {str(e)}"                                                                      # Create an error message.
         return None                                                                                                                     # Return None on error.
 
-def filter_main_region_points_in_subregions(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def filter_main_region_points_in_subregions(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:                                        # Filter main points overlapping subregions.
     """
     filter_main_region_points_in_subregions
     Advanced geometric filtering to remove main region points that fall within subregion boundaries.
@@ -303,7 +303,7 @@ def filter_main_region_points_in_subregions(rows: List[Dict[str, Any]]) -> List[
     except Exception as e:                                                                                                              # Handle general exceptions.
         return rows                                                                                                                     # Return the original rows if filtering fails.
 
-def reduce_points_by_region(input_csv: str, output_csv: str, multiplier: int = 2) -> Optional[List[Dict[str, Any]]]:
+def reduce_points_by_region(input_csv: str, output_csv: str, multiplier: int = 2) -> Optional[List[Dict[str, Any]]]:                    # Main entry for point cloud reduction.
     """
     reduce_points_by_region
     Main entry point for intelligent point reduction with adaptive algorithm selection.

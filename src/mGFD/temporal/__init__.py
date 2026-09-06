@@ -21,8 +21,9 @@ Date:
 """
 
 ## Library importation.
-from mGFD.temporal.cfl import estimate_cfl_dt
+from mGFD.temporal.cfl import estimate_cfl_dt                                                                                           # Import CFL time-step estimation.
 
-__all__ = [
-    'estimate_cfl_dt'
-]
+__all__ = [                                                                                                                             # List of public symbols exported.
+    'estimate_cfl_dt'                                                                                                                   # CFL time-step estimation function.
+]                                                                                                                                       # End of exported symbols list.
+

@@ -54,7 +54,7 @@ from mGFD.cloud_generator.core.generator import generate_cloud_natural, generate
 
 logger = logging.getLogger(__name__)                                                                                                    # Module level logger.
 
-def handle_generate(args: argparse.Namespace) -> None:
+def handle_generate(args: argparse.Namespace) -> None:                                                                                  # CLI handle generate command.
     """
     handle_generate
     Handler for the 'generate' subcommand.
@@ -115,7 +115,7 @@ def handle_generate(args: argparse.Namespace) -> None:
         logger.error(f"\nError generating cloud: {e}")                                                                                  # Log error details.
         sys.exit(1)                                                                                                                     # Exit with an error code.
 
-def handle_reduce(args: argparse.Namespace) -> None:
+def handle_reduce(args: argparse.Namespace) -> None:                                                                                    # CLI handle reduce command.
     """
     handle_reduce
     Handler for the 'reduce' subcommand.
@@ -175,7 +175,7 @@ def handle_reduce(args: argparse.Namespace) -> None:
         logger.error(f"\nError reducing cloud: {e}")                                                                                    # Log error details.
         sys.exit(1)                                                                                                                     # Exit with an error code.
 
-def main() -> None:
+def main() -> None:                                                                                                                     # Main CLI entry point.
     """
     main
     Main entry point for the CLI.

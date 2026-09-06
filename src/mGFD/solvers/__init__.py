@@ -20,8 +20,9 @@ Date:
 """
 
 ## Library importation.
-from mGFD.solvers.results import SolverResult
+from mGFD.solvers.results import SolverResult                                                                                           # Import standardized solver result container.
 
-__all__ = [
-    'SolverResult'
-]
+__all__ = [                                                                                                                             # List of public symbols exported.
+    'SolverResult'                                                                                                                      # Standardized solution container.
+]                                                                                                                                       # End of exported symbols list.
+

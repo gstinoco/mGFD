@@ -37,12 +37,12 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation. # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation.
 
 from typing import List, Tuple                                                                                                          # Type hinting.
 
 @nb.njit(cache=True, fastmath=True)                                                                                                     # Decorator for JIT compilation.
-def _generate_boundary_points_jit(contour: np.ndarray, cloud_size: float) -> np.ndarray:
+def _generate_boundary_points_jit(contour: np.ndarray, cloud_size: float) -> np.ndarray:                                                # Fast JIT boundary point generator.
     """
     _generate_boundary_points_jit
     Numba JIT-compiled helper to interpolate points along a boundary contour.
@@ -89,7 +89,7 @@ def _generate_boundary_points_jit(contour: np.ndarray, cloud_size: float) -> np.
                 
     return out[:count]                                                                                                                  # Return valid slice of output array.
 
-def generate_boundary_points(contour: List[Tuple[float, float]], cloud_size: float) -> np.ndarray:
+def generate_boundary_points(contour: List[Tuple[float, float]], cloud_size: float) -> np.ndarray:                                      # Generate boundary points along contour.
     """
     generate_boundary_points
     Generate points along the boundary of a contour.

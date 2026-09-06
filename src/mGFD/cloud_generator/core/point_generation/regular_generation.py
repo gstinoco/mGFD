@@ -39,7 +39,7 @@ Last Modification:
 import os                                                                                                                               # Operating system interfaces.
 import cv2                                                                                                                              # OpenCV for fast rasterization and masking.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation. # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation.
 
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 from typing import List, Tuple, Optional, Any                                                                                           # Type hinting.
@@ -47,10 +47,10 @@ from concurrent.futures import ProcessPoolExecutor                              
 
 from mGFD.cloud_generator.utils.utils import calculate_cloud_size, create_closed_contour                                                # Utility functions.
 from mGFD.cloud_generator.core.point_generation.boundary import generate_boundary_points                                                # Boundary generation.
-from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations. # Geometric operations.
+from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.
-def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, poly_coords: np.ndarray) -> np.ndarray:
+def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, poly_coords: np.ndarray) -> np.ndarray:                   # Fast JIT interior fallback generator.
     """
     _generate_interior_fallback_jit
     Numba JIT-compiled grid point generator using Ray-Casting.
@@ -97,7 +97,7 @@ def _generate_interior_fallback_jit(x_range: np.ndarray, y_range: np.ndarray, po
 
     return final_out                                                                                                                    # Return valid slice of output array.
 
-def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:
+def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:                                                            # Generate interior points on grid.
     """
     generate_interior_points
     Generate points inside a polygon using a vectorized grid-based approach.
@@ -131,7 +131,7 @@ def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:
         mask   = np.zeros((height, width), dtype=np.uint8)                                                                              # Initialize the mask array.
         
         # 3. Function to convert world coords to pixel coords
-        def to_pixel_coords(coords: List[Tuple[float, ...]]) -> np.ndarray:
+        def to_pixel_coords(coords: List[Tuple[float, ...]]) -> np.ndarray:                                                             # Convert world to pixel coordinates.
             """
             to_pixel_coords
             
@@ -182,7 +182,7 @@ def generate_interior_points(polygon: Any, cloud_size: float) -> np.ndarray:
         
         return points if len(points) > 0 else np.empty((0, 2))                                                                          # Return array of points.
 
-def generate_region_cloud_with_uniform_density(region_points: List[Tuple[float, float]], cloud_size: float) -> Tuple[Any, Any, Any]:
+def generate_region_cloud_with_uniform_density(region_points: List[Tuple[float, float]], cloud_size: float) -> Tuple[Any, Any, Any]:    # Uniform density cloud generation.
     """
     generate_region_cloud_with_uniform_density
     Generate a complete cloud for a single region using a specified cloud size.
@@ -219,7 +219,10 @@ def generate_region_cloud_with_uniform_density(region_points: List[Tuple[float, 
         
         return None, None, None                                                                                                         # Return None values.
 
-def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float]], hole_regions_list: List[List[Tuple[float, float]]], cloud_size: Optional[float] = None, inside_regions: bool = False) -> Tuple[Any, Any, Any]:
+def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float]],                                                     # Generate grid cloud with holes.
+                                     hole_regions_list: List[List[Tuple[float, float]]],                                                # Inner hole contours list.
+                                     cloud_size: Optional[float] = None,                                                                # Point spacing scale.
+                                     inside_regions: bool = False) -> Tuple[Any, Any, Any]:                                             # Return cloud arrays and size.
     """
     generate_region_cloud_with_holes
     Generate a cloud for the main region (region 1) considering interior regions as holes.
@@ -299,7 +302,8 @@ def generate_region_cloud_with_holes(main_region_points: List[Tuple[float, float
         
         return None, None, None                                                                                                         # Return failure values.
 
-def generate_region_task(region_points: List[Tuple[float, float]], region_id: int, main_cloud_size: float) -> Optional[Tuple[np.ndarray, np.ndarray, int]]:
+def generate_region_task(region_points: List[Tuple[float, float]], region_id: int,                                                      # Task worker for grid region.
+                         main_cloud_size: float) -> Optional[Tuple[np.ndarray, np.ndarray, int]]:                                       # Generate cloud task.
     """
     generate_region_task
     Helper function for parallel region generation.
@@ -339,7 +343,8 @@ def generate_region_task(region_points: List[Tuple[float, float]], region_id: in
     except Exception as e:                                                                                                              # If execution crashes.
         return None                                                                                                                     # Return failure.
 
-def generate_interior_regions_clouds(regions: List[List[Tuple[float, float]]], main_cloud_size: float) -> List[Tuple[np.ndarray, np.ndarray, int]]:
+def generate_interior_regions_clouds(regions: List[List[Tuple[float, float]]],                                                          # Interior regions generator.
+                                     main_cloud_size: float) -> List[Tuple[np.ndarray, np.ndarray, int]]:                               # Return inner cloud lists.
     """
     generate_interior_regions_clouds
     Generate clouds for interior regions (regions 2 onwards) using the same cloud size as the main region.

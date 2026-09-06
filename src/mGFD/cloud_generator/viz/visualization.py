@@ -47,7 +47,8 @@ import matplotlib.pyplot as plt                                                 
 from typing import List, Optional                                                                                                       # Import type hints.
 from matplotlib.collections import LineCollection                                                                                       # For fast line rendering.
 
-def create_visualization(points: np.ndarray, regions_list: List[int], output_base: str, classifications: Optional[List[str]] = None, save: bool = True, show: bool = False) -> bool:
+def create_visualization(points: np.ndarray, regions_list: List[int], output_base: str,                                                 # Point cloud visualization method.
+                         classifications: Optional[List[str]] = None, save: bool = True, show: bool = False) -> bool:                   # Plot cloud nodes and regions.
     """
     create_visualization
     Create a visualization of the generated point cloud.
@@ -160,7 +161,7 @@ def create_visualization(points: np.ndarray, regions_list: List[int], output_bas
             pass                                                                                                                        # Ignore.
         return False                                                                                                                    # Return failure state.
 
-def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, regions: List[int], output_base: str) -> bool:
+def render_neighbors_graph(points: np.ndarray, neighbors_indices: np.ndarray, regions: List[int], output_base: str) -> bool:            # Render neighbor graph visualization.
     """
     render_neighbors_graph
     Render the connectivity graph of neighbors using LineCollection for performance.

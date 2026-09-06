@@ -38,15 +38,17 @@ Last Modification:
 
 ## Library importation.
 import numpy as np                                                                                                                      # Core numerical operations.
-import numba as nb                                                                                                                      # JIT compilation. # Core numerical operations.
+import numba as nb                                                                                                                      # JIT compilation.
 
 from scipy.spatial import Voronoi                                                                                                       # Voronoi diagram computation.
 from shapely.geometry import Polygon                                                                                                    # Geometric objects and operations.
 
-from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations. # Fast polygon checker.
+from mGFD.cloud_generator.core.point_generation.jit_geometry import _is_point_in_polygon_jit                                            # Fast JIT geometric operations.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Decorator for JIT compilation.
-def _compute_relaxation_step_jit(int_pts: np.ndarray, point_region: np.ndarray, flat_regions: np.ndarray, offsets: np.ndarray, vertices: np.ndarray, poly_coords: np.ndarray) -> tuple:
+def _compute_relaxation_step_jit(int_pts: np.ndarray, point_region: np.ndarray,                                                         # JIT relaxation step kernel.
+                                 flat_regions: np.ndarray, offsets: np.ndarray,                                                         # CSR region vertices data.
+                                 vertices: np.ndarray, poly_coords: np.ndarray) -> tuple:                                               # Fast Lloyd relaxation step.
     """
     _compute_relaxation_step_jit
     Numba JIT-compiled helper to compute centroids and update node positions efficiently.
@@ -108,7 +110,8 @@ def _compute_relaxation_step_jit(int_pts: np.ndarray, point_region: np.ndarray, 
     max_movement = np.max(movements)                                                                                                    # Safely extract maximum movement outside prange.
     return new_int_pts, max_movement                                                                                                    # Return updated points and tracker.
 
-def lloyd_relaxation(interior_points: np.ndarray, boundary_points: np.ndarray, polygon: Polygon, iterations: int = 5, tolerance: float = 1e-4) -> np.ndarray:
+def lloyd_relaxation(interior_points: np.ndarray, boundary_points: np.ndarray,                                                          # Lloyd relaxation method.
+                     polygon: Polygon, iterations: int = 5, tolerance: float = 1e-4) -> np.ndarray:                                     # Smooth interior points.
     """
     lloyd_relaxation
     Apply Lloyd's relaxation using Voronoi diagrams to regularize the point cloud into a honeycomb-like pattern.
@@ -133,7 +136,7 @@ def lloyd_relaxation(interior_points: np.ndarray, boundary_points: np.ndarray, p
     dummy_points           = np.array([                                                                                                 # Define the four far-away points.
         [minx - dx, miny - dy], [maxx + dx, miny - dy],                                                                                 # Bottom-left and Bottom-right.
         [maxx + dx, maxy + dy], [minx - dx, maxy + dy]                                                                                  # Top-right and Top-left.
-    ])                                                                                                                                  #
+    ])                                                                                                                                  # 
     
     int_pts     = np.array(interior_points, dtype=np.float64)                                                                           # Copy interior points array.
     bnd_pts     = np.array(boundary_points, dtype=np.float64) if len(boundary_points) > 0 else np.empty((0, 2))                         # Ensure boundary is a valid array.

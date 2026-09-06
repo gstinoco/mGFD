@@ -61,7 +61,7 @@ from typing import Callable, Optional, Tuple, Union                             
 from scipy.sparse.linalg import LinearOperator, bicgstab                                                                                # SciPy iterative solver interface.
 
 @nb.njit(cache=True, fastmath=True)                                                                                                     # Assign @nb.njit(cache.
-def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray:
+def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray:                                                       # NNLS solver via Lawson-Hanson.
     """
     _nnls_numba
     Non-Negative Least Squares solver using Lawson-Hanson algorithm, compiled with Numba JIT.
@@ -159,7 +159,7 @@ def _nnls_numba(A: np.ndarray, b: np.ndarray, max_iter: int = 100) -> np.ndarray
     return x                                                                                                                            # Return solution.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
-def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
+def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:                                              # Compile dense stencil calculation via Numba.
     """
     _compute_cloud_dense_jit
     Assemble a full dense stencil matrix K for a 2D point cloud, compiled with Numba JIT.
@@ -227,7 +227,7 @@ def _compute_cloud_dense_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> n
     return K                                                                                                                            # Return dense stencil matrix.
 
 @nb.njit(cache=True, fastmath=True, parallel=True)                                                                                      # Assign @nb.njit(cache.
-def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float) -> Tuple[np.ndarray, np.ndarray]:
+def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float) -> Tuple[np.ndarray, np.ndarray]:      # Stencil calculation via Numba.
     """
     _compute_cloud_stencil_jit
     Compute a stencil representation (diag, w) for a 2D point cloud, compiled with Numba JIT.
@@ -351,7 +351,7 @@ def _compute_cloud_stencil_jit(p: np.ndarray, vec: np.ndarray, L: np.ndarray, re
             
     return diag, w                                                                                                                      # Return stencil representation.
 
-def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
+def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:                                                                 # Assemble dense stencil matrix.
     """
     Cloud
     Assemble a full dense stencil matrix K for a 2D point cloud.
@@ -386,7 +386,9 @@ def Cloud(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> np.ndarray:
     
     return K                                                                                                                            # Return dense stencil matrix.
 
-def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Union[Callable, np.ndarray, float, int], f: Union[Callable, np.ndarray, float, int]) -> np.ndarray:
+def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray,                                                                          # Function signature part 1.
+        phi: Union[Callable, np.ndarray, float, int],                                                                                   # Function signature part 2.
+        f: Union[Callable, np.ndarray, float, int]) -> np.ndarray:                                                                      # Build RHS vector.
     """
     RHS
     Build the right-hand-side vector for a Dirichlet problem on a point cloud.
@@ -424,7 +426,7 @@ def RHS(p: np.ndarray, boun_n: np.ndarray, inne_n: np.ndarray, phi: Union[Callab
 
     return R                                                                                                                            # Return assembled RHS.
 
-def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float = 1e-8) -> Tuple[np.ndarray, np.ndarray]:
+def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: float = 1e-8) -> Tuple[np.ndarray, np.ndarray]:             # Compute stencil weights without dense matrix.
     """
     CloudStencil
     Compute a stencil representation (diag, w) for a 2D point cloud without assembling a dense matrix.
@@ -460,7 +462,7 @@ def CloudStencil(p: np.ndarray, vec: np.ndarray, L: np.ndarray, reg_factor: floa
 
     return diag, w                                                                                                                      # Return stencil representation (central + neighbor weights).
 
-def ApplyCloudStencil(u: np.ndarray, vec: np.ndarray, diag: np.ndarray, w: np.ndarray) -> np.ndarray:
+def ApplyCloudStencil(u: np.ndarray, vec: np.ndarray, diag: np.ndarray, w: np.ndarray) -> np.ndarray:                                   # Apply cloud stencil to vector.
     """
     ApplyCloudStencil
     Apply a precomputed cloud stencil (diag, w) to a vector u.
@@ -487,7 +489,7 @@ def ApplyCloudStencil(u: np.ndarray, vec: np.ndarray, diag: np.ndarray, w: np.nd
     # 2. Stencil application
     return diag * u + np.sum(w * neigh_vals, axis = 1)                                                                                  # Apply diag + weighted neighbor sum.
 
-def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, tol: float = 1e-10, max_iter: int = 2000) -> np.ndarray:
+def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, tol: float = 1e-10, max_iter: int = 2000) -> np.ndarray: # Solve linear system via BiCGStab.
     """
     BiCGStab
     Solve the linear system A x = b using the BiCGStab Krylov method (matrix-free).
@@ -516,7 +518,7 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
             MatrixFreeOp
             Custom LinearOperator subclass for SciPy iterative solvers.
             """
-            def __init__(self):
+            def __init__(self):                                                                                                         # Initialize custom LinearOperator.
                 """
                 __init__
                 Initialize the LinearOperator required by scipy.sparse.linalg.lsqr.
@@ -525,7 +527,7 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
                 self.shape = (n, n)                                                                                                     # Shape of the matrix.
                 self.dtype = np.dtype(float)                                                                                            # Set operator data type.
             
-            def _matvec(self, x):                                                                       
+            def _matvec(self, x):                                                                                                       # Perform matrix-vector multiplication.                                                                       
                 """
                 _matvec
                 Matrix-vector multiplication method.
@@ -616,7 +618,7 @@ def BiCGStab(matvec: Callable, b: np.ndarray, x0: Optional[np.ndarray] = None, t
     return x                                                                                                                            # Return final iterate.
 
 @nb.njit(parallel=True, fastmath=True)                                                                                                  # Assign @nb.njit(parallel.
-def _compute_K_matvec_numba(x: np.ndarray, diag: np.ndarray, w: np.ndarray, vec: np.ndarray) -> np.ndarray:
+def _compute_K_matvec_numba(x: np.ndarray, diag: np.ndarray, w: np.ndarray, vec: np.ndarray) -> np.ndarray:                             # Matrix-vector multiplication helper.
     """
     _compute_K_matvec_numba
     Numba JIT-compiled closure helper to compute the matrix-vector multiplication K * x in parallel.
@@ -636,7 +638,7 @@ def _compute_K_matvec_numba(x: np.ndarray, diag: np.ndarray, w: np.ndarray, vec:
     y    = np.zeros(m, dtype=np.float64)                                                                                                # Output vector initialization.
     
     # 2. Parallel Matrix-Vector Multiplication
-    for i in nb.prange(m):                                                                                                              # type: ignore # Iterate over all nodes.
+    for i in nb.prange(m):                                                                                                              # type: ignore
         val = diag[i] * x[i]                                                                                                            # Initialize with the main diagonal contribution.
         for j in range(nvec):                                                                                                           # Iterate over the node's stencil.
             col = vec[i, j]                                                                                                             # Fetch target neighbor index.
@@ -646,7 +648,7 @@ def _compute_K_matvec_numba(x: np.ndarray, diag: np.ndarray, w: np.ndarray, vec:
         
     return y                                                                                                                            # Return resulting vector.
 
-def compute_K_matvec(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:
+def compute_K_matvec(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:                              # Construct closure for matvec product.
     """
     compute_K_matvec
     Generates an on-the-fly matrix-vector product closure for K * x without building K explicitly.
@@ -677,7 +679,7 @@ def compute_K_matvec(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> Callable[
         
     return matvec                                                                                                                       # Return the callable operator.
 
-def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_matrix:
+def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_matrix:                                                 # Assemble sparse matrix in CSR format.
     """
     compute_sparse_matrix
     Builds a sparse csr_matrix for the stencil K directly, avoiding dense allocation.
