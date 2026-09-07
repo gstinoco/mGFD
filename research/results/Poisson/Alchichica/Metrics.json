@@ -1,0 +1,86 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 2463,
+            "Interior_Nodes": 2182,
+            "Boundary_Nodes": 281,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "RMSE": 0.00022958273493582147,
+                "Time_Secs": 0.1781160329701379
+            },
+            "nvec_16_cuda": {
+                "RMSE": 0.00022958273536689142,
+                "Time_Secs": 0.5506818160647526
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 9454,
+            "Interior_Nodes": 8892,
+            "Boundary_Nodes": 562,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "RMSE": 5.7018143570217206e-05,
+                "Time_Secs": 0.16257102496456355
+            },
+            "nvec_16_cuda": {
+                "RMSE": 5.7018141969067384e-05,
+                "Time_Secs": 0.37040516594424844
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 20893,
+            "Interior_Nodes": 20188,
+            "Boundary_Nodes": 705,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "RMSE": 2.31095172857318e-05,
+                "Time_Secs": 0.4071008919272572
+            },
+            "nvec_16_cuda": {
+                "RMSE": 2.3109514807030835e-05,
+                "Time_Secs": 1.0048896539956331
+            }
+        }
+    },
+    "Scale_4": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 36894,
+            "Interior_Nodes": 36040,
+            "Boundary_Nodes": 854,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.9182692307692307
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "RMSE": 1.023829884869749e-05,
+                "Time_Secs": 0.7650848859921098
+            },
+            "nvec_16_cuda": {
+                "RMSE": 1.0238299408944751e-05,
+                "Time_Secs": 2.1141497910721228
+            }
+        }
+    }
+}

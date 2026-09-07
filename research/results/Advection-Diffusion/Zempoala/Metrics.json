@@ -11,32 +11,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 2.023509577667494e-05,
+                "Time_Mean_RMSE": 0.0013235155115147263,
                 "CFL": 0.4976445174020135,
                 "dt": 0.01,
                 "Time_Steps": 100,
-                "Time_Secs": 0.04538338596466929
+                "Time_Secs": 0.06944805302191526
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 2.023509577667494e-05,
+                "Time_Mean_RMSE": 1.994699914562835e-06,
                 "CFL": 0.4976445174020135,
                 "dt": 0.01,
                 "Time_Steps": 100,
-                "Time_Secs": 0.04000822000671178
+                "Time_Secs": 0.0305411129957065
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 2.0235095615436533e-05,
+                "Time_Mean_RMSE": 0.0013235155118483009,
                 "CFL": 0.4976445174020135,
                 "dt": 0.01,
                 "Time_Steps": 100,
-                "Time_Secs": 0.7948007240192965
+                "Time_Secs": 0.547938862000592
             },
             "nvec_16_cuda_upwind_False": {
-                "Time_Mean_RMSE": 2.0235095615436533e-05,
+                "Time_Mean_RMSE": 1.994699174624129e-06,
                 "CFL": 0.4976445174020135,
                 "dt": 0.01,
                 "Time_Steps": 100,
-                "Time_Secs": 0.7836150579387322
+                "Time_Secs": 0.8176367050036788
             }
         }
     },
@@ -52,32 +52,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 13428.203833603053,
+                "Time_Mean_RMSE": 0.0013905320356835714,
                 "CFL": 0.49836622140275794,
                 "dt": 0.005494505494505495,
                 "Time_Steps": 182,
-                "Time_Secs": 0.10811005509458482
+                "Time_Secs": 0.1556862200377509
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 13428.203833603053,
+                "Time_Mean_RMSE": 5.511854067396801e-07,
                 "CFL": 0.49836622140275794,
                 "dt": 0.005494505494505495,
                 "Time_Steps": 182,
-                "Time_Secs": 0.0965961110778153
+                "Time_Secs": 0.12125664495397359
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 13428.24930314609,
+                "Time_Mean_RMSE": 0.0013905320349724961,
                 "CFL": 0.49836622140275794,
                 "dt": 0.005494505494505495,
                 "Time_Steps": 182,
-                "Time_Secs": 1.5043342630378902
+                "Time_Secs": 1.4710530089214444
             },
             "nvec_16_cuda_upwind_False": {
-                "Time_Mean_RMSE": 13428.24930314609,
+                "Time_Mean_RMSE": 5.511850450130454e-07,
                 "CFL": 0.49836622140275794,
                 "dt": 0.005494505494505495,
                 "Time_Steps": 182,
-                "Time_Secs": 1.509280038997531
+                "Time_Secs": 2.1124750800663605
             }
         }
     },
@@ -93,32 +93,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 1.1245567856519303e-07,
+                "Time_Mean_RMSE": 0.001249251657364314,
                 "CFL": 0.499722203094586,
                 "dt": 0.003875968992248062,
                 "Time_Steps": 258,
-                "Time_Secs": 0.25536143803037703
+                "Time_Secs": 0.3127388460561633
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 1.1245567856519303e-07,
+                "Time_Mean_RMSE": 2.154445328568493e-07,
                 "CFL": 0.499722203094586,
                 "dt": 0.003875968992248062,
                 "Time_Steps": 258,
-                "Time_Secs": 0.25300896004773676
+                "Time_Secs": 0.2690117049496621
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 1.12454872147137e-07,
+                "Time_Mean_RMSE": 0.0012492516566734936,
                 "CFL": 0.499722203094586,
                 "dt": 0.003875968992248062,
                 "Time_Steps": 258,
-                "Time_Secs": 3.4950199999148026
+                "Time_Secs": 2.8556418229127303
             },
             "nvec_16_cuda_upwind_False": {
-                "Time_Mean_RMSE": 1.12454872147137e-07,
+                "Time_Mean_RMSE": 2.154444657689809e-07,
                 "CFL": 0.499722203094586,
                 "dt": 0.003875968992248062,
                 "Time_Steps": 258,
-                "Time_Secs": 3.495324988034554
+                "Time_Secs": 3.786749133025296
             }
         }
     },
@@ -134,32 +134,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 1.2209477918119567e-07,
+                "Time_Mean_RMSE": 0.001105646603445045,
                 "CFL": 0.4988676914677931,
                 "dt": 0.002932551319648094,
                 "Time_Steps": 341,
-                "Time_Secs": 0.8229968380182981
+                "Time_Secs": 0.6124699719948694
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 1.2209477918119567e-07,
+                "Time_Mean_RMSE": 1.941055663509935e-07,
                 "CFL": 0.4988676914677931,
                 "dt": 0.002932551319648094,
                 "Time_Steps": 341,
-                "Time_Secs": 0.8150216980138794
+                "Time_Secs": 0.7141619980102405
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 1.2209386390350698e-07,
+                "Time_Mean_RMSE": 0.0011056466011980695,
                 "CFL": 0.4988676914677931,
                 "dt": 0.002932551319648094,
                 "Time_Steps": 341,
-                "Time_Secs": 4.889269685023464
+                "Time_Secs": 3.991160062025301
             },
             "nvec_16_cuda_upwind_False": {
-                "Time_Mean_RMSE": 1.2209386390350698e-07,
+                "Time_Mean_RMSE": 1.941042839260342e-07,
                 "CFL": 0.4988676914677931,
                 "dt": 0.002932551319648094,
                 "Time_Steps": 341,
-                "Time_Secs": 4.920407192083076
+                "Time_Secs": 5.650789898005314
             }
         }
     }

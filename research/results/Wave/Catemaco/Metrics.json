@@ -1,0 +1,126 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 1443,
+            "Interior_Nodes": 1026,
+            "Boundary_Nodes": 417,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.0016661701255628715,
+                "CFL": 0.4993053071145316,
+                "dt": 0.0021645021645021645,
+                "Time_Steps": 462,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.11437734903302044
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.00166617093256761,
+                "CFL": 0.4993053071145316,
+                "dt": 0.0021645021645021645,
+                "Time_Steps": 462,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.7589762329589576
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 4913,
+            "Interior_Nodes": 4215,
+            "Boundary_Nodes": 698,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.0004666035084659264,
+                "CFL": 0.49939962963759393,
+                "dt": 0.0012121212121212121,
+                "Time_Steps": 825,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.5415627210168168
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.0004666045762778446,
+                "CFL": 0.49939962963759393,
+                "dt": 0.0012121212121212121,
+                "Time_Steps": 825,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 1.3850968650076538
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 10522,
+            "Interior_Nodes": 9683,
+            "Boundary_Nodes": 839,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.00023467091155605392,
+                "CFL": 0.4996998476955679,
+                "dt": 0.0008410428931875525,
+                "Time_Steps": 1189,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 2.236215236946009
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.00023467211749345784,
+                "CFL": 0.4996998476955679,
+                "dt": 0.0008410428931875525,
+                "Time_Steps": 1189,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 2.075520951068029
+            }
+        }
+    },
+    "Scale_4": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 18394,
+            "Interior_Nodes": 17404,
+            "Boundary_Nodes": 990,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.8397742757698697
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.00017144425142696888,
+                "CFL": 0.4997700194924743,
+                "dt": 0.0006389776357827476,
+                "Time_Steps": 1565,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 6.482723501045257
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.0001714454893574991,
+                "CFL": 0.4997700194924743,
+                "dt": 0.0006389776357827476,
+                "Time_Steps": 1565,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 2.8492062269942835
+            }
+        }
+    }
+}

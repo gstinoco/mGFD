@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mGFD"
-version = "0.11.1"
+version = "0.12.0"
 description = "mGFD (Meshless Generalized Finite Differences) is a high-performance Python ecosystem designed to solve Partial Differential Equations (PDEs) directly on unstructured point clouds, bypassing traditional mesh generation."
 readme = "README.md"
 requires-python = ">=3.8"

@@ -41,82 +41,104 @@ The laboratory provides point clouds for **20 distinct geographic regions** (pri
 
 ## 2. 📏 Density Scales
 
-To evaluate the numerical convergence and execution performance of the `mGFD` method, each geographic region is discretized at **5 different node densities**. 
+To evaluate numerical convergence and execution performance of the `mGFD` method, each geographic region is discretized across **4 calibrated node densities** (Scales 1 through 4) generated via independent Poisson-Disk Sampling (`generate_cloud_natural`) with calibrated density multipliers ($d = 0.10, 0.20, 0.30, 0.40$).
 
-Inside `research/data/<Region>/`, you will find subdirectories numbered `1` through `5`:
+Inside `research/data/<Region>/`, you will find subdirectories numbered `1` through `4`:
 
 > [!NOTE]
 > **Scale Range:**
-> *   `1/`: The **coarsest** point cloud representation (ideal for fast prototyping and debugging).
-> *   `5/`: The **most dense** point cloud representation (used for high-fidelity physics and convergence validation).
+> *   `1/`: The **coarsest** point cloud representation (~500 to ~2,500 nodes; ideal for fast testing and parameter sweeps).
+> *   `2/`: **Intermediate** resolution (~1,500 to ~9,500 nodes; default scale for graphical animation and MP4 rendering).
+> *   `3/`: **Fine** resolution (~3,000 to ~21,000 nodes; high-fidelity physics).
+> *   `4/`: **Ultra-dense** resolution (~5,000 to ~37,000 nodes; asymptotic convergence and GPU speedup benchmarking).
 >
-> *Note on Graphical Outputs:* To optimize repository storage and processing times during massive automated sweeps, MP4 animations and PNG renderings are intentionally restricted exclusively to **Scale 3** using the `nvec_16_spsolve` baseline configuration.
+> *Note on Graphical Outputs:* To optimize repository storage and execution times during massive automated parameter sweeps, MP4 animations and PNG renderings are generated exclusively for **Scale 2** by default (`plot_scales: ["2"]` in `sweep_config.json`).
 
-Numerical benchmarks iterate over these 5 scales to plot error convergence bounds ($\mathcal{O}(h^2)$) as the spatial step size $h$ approaches zero.
+### 📊 Complete Discretization Census Across All 20 Geometries
+
+The table below summarizes the exact node counts across all 80 benchmark point clouds (20 geographic regions $\times$ 4 scales):
+
+| Geographic Region | Scale 1 (Coarse) | Scale 2 (Nominal) | Scale 3 (Fine) | Scale 4 (Dense) | Asymptotic Refinement Factor (4 / 1) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Alchichica** | 2,464 | 9,455 | 20,894 | 36,895 | **14.97x** |
+| **Baikal** | 673 | 2,000 | 4,159 | 7,141 | **10.61x** |
+| **Balkhash** | 525 | 1,487 | 2,797 | 4,680 | **8.91x** |
+| **Caspio** | 806 | 2,775 | 5,889 | 10,277 | **12.75x** |
+| **Catemaco** | 1,444 | 4,914 | 10,523 | 18,395 | **12.74x** |
+| **Chapala** | 1,001 | 3,505 | 7,553 | 13,191 | **13.18x** |
+| **Cuitzeo** | 1,151 | 4,013 | 8,675 | 15,135 | **13.15x** |
+| **Erie** | 1,134 | 3,817 | 8,235 | 14,339 | **12.64x** |
+| **Huron** | 905 | 2,816 | 5,747 | 9,819 | **10.85x** |
+| **Ladoga** | 1,540 | 5,318 | 11,454 | 19,793 | **12.85x** |
+| **Malawi** | 714 | 2,388 | 5,068 | 8,796 | **12.32x** |
+| **Metztitlán** | 667 | 2,301 | 4,803 | 8,334 | **12.49x** |
+| **Ness** | 492 | 1,512 | 3,046 | 5,252 | **10.67x** |
+| **Patzcuaro** | 958 | 2,915 | 5,986 | 10,202 | **10.65x** |
+| **Poopo** | 1,060 | 3,736 | 7,927 | 13,939 | **13.15x** |
+| **Santa Maria del Oro** | 2,134 | 8,225 | 18,206 | 32,026 | **15.01x** |
+| **Titicaca** | 733 | 2,181 | 4,339 | 7,326 | **9.99x** |
+| **Yuriria** | 1,160 | 4,120 | 8,773 | 15,324 | **13.21x** |
+| **Zempoala** | 909 | 3,200 | 6,701 | 11,695 | **12.87x** |
+| **Zirahuen** | 1,469 | 5,577 | 12,118 | 21,260 | **14.47x** |
 
 ---
 
 ## 3. 🧩 Cloud Components
 
-Within every scale directory (e.g., `research/data/Metztitlán/3/`), you will find the following core files essential for the simulations. Below is a visual example of the point cloud structure:
-
-<div align="center">
-  <img src="docs/images/Metztitlan_cloud.png" alt="Metztitlán Point Cloud" width="650" style="border-radius: 8px; margin: 15px 0;">
-  <br/>
-  <sub><em>Visualization of the unstructured point cloud for Lake Metztitlán (Mexico)</em></sub>
-</div>
-<br/>
+Within every scale directory (e.g., `research/data/Metztitlán/2/`), you will find the spatial domain files essential for the simulations.
 
 ### 📍 The Unstructured Cloud (`*_cloud.csv`)
 This is the primary spatial domain. It contains the $m \times 3$ coordinate matrix where columns represent: `[x, y, flag]`. 
 *   `flag = 0`: Interior computational nodes
 *   `flag = 1`: Primary outer boundary nodes
-*   `flag = 2`: Inner boundary nodes (e.g., islands or internal holes)
+*   `flag = 2`: Inner boundary nodes (e.g., islands or internal boundary holes)
 
-### 🕸️ Precomputed Stencils (`*_neighbors_12.csv`)
-To accelerate the solver execution during massive batch testing, the local neighborhoods are precomputed using a fast **KD-Tree** algorithm. This file stores an $m \times 12$ integer matrix, where each row contains the indices of the up to 12 closest neighbors for the corresponding node in the cloud.
-
-### 🌬️ Upwind Stencils (`*_adv_vx1_vy0_neighbors_12.csv`)
-For advection-dominated problems (like the Advection-Diffusion equation), symmetric stencils induce instability. This file contains the precomputed neighbors constrained strictly to the *upstream* direction relative to a flow velocity vector of $(v_x=1, v_y=0)$. 
+### 🕸️ Dynamic In-Memory KD-Tree Stencils
+In modern `mGFD` (v0.11+), neighbor stencils (`vec`) are computed dynamically in-memory via Numba JIT-accelerated spatial KDTrees (`Neighbors.compute_neighbors(p, nvec)` and `Neighbors.compute_upwind_neighbors(p, a, b, nvec)`). Dynamic stencil generation executes in **$< 0.05$ seconds** even for 37,000 nodes, completely eliminating the need for stale on-disk neighbor caches (`.csv`) and guaranteeing fresh, equation-specific stencils.
 
 > [!WARNING]
-> ### 🔺 Visualization Mesh (`*_triangulation.csv`)
-> `mGFD` is strictly a **meshless** method. The mathematical solvers *never* use elements, cells, or connectivity matrices. However, plotting tools (like PyVista for `.vtk` exports) require polygons to render continuous color maps. This file contains an automatically cached Delaunay triangulation used **exclusively for data visualization** to save overhead during continuous rendering.
+> ### 🔺 Visualization Mesh (`*_triangulation.csv` / VTK)
+> `mGFD` is strictly a **meshless** method. The mathematical solvers *never* use elements, cells, or connectivity matrices. However, plotting tools and external post-processors (ParaView) require surface elements to render continuous color maps. `SolverResult.export_vtk("solution.vtu")` automatically generates high-quality UnstructuredGrid VTK files.
 
 ---
 
-## 4. 💻 Loading the Datasets (Python)
+## 4. 💻 Loading and Solving on the Datasets (Python)
 
-If you are building your own solvers from scratch using this laboratory, there is a critical technical detail regarding the **Precomputed Stencils** you must handle: **Padding**.
-
-If a boundary node has fewer viable neighbors than the requested matrix size (e.g., 8 neighbors found for a 12-neighbor stencil), the unused trailing slots in the CSV row are padded with `-1`. **You must filter out these `-1` indices before extracting coordinates**, otherwise your arrays will throw an Out-of-Bounds error.
-
-Here is a robust snippet to properly load a point cloud and safely iterate over its KD-Tree stencils:
+Using the modern `mGFD.oop` interface, loading a geographic cloud, constructing the differential operator, solving the PDE, and exporting results is clean, expressive, and robust:
 
 ```python
 import numpy as np
-import pandas as pd
+from mGFD.oop import Cloud, Dirichlet, Domain, PDE, Solver
+from mGFD.io.io import load_points
 
 # 1. Load the unstructured point cloud
-cloud_df = pd.read_csv("Metztitlan_3_cloud.csv", header=None)
-p = cloud_df.values  # Shape: (m, 3) -> [x, y, flag]
+cloud = Cloud.from_csv("research/data/Metztitlán/2/Metztitlán_cloud.csv")
+print(f"Loaded {cloud.n_nodes} nodes (Interior: {cloud.n_interior}, Boundary: {cloud.n_boundary})")
 
-# Separate coordinates and flags
-coords = p[:, 0:2]
-flags = p[:, 2]
+# 2. Dynamic KD-Tree stencil generation in-memory (<0.05s)
+cloud.compute_neighbors(nvec=16)
 
-# 2. Load the precomputed KD-Tree stencils
-vec_df = pd.read_csv("Metztitlan_3_neighbors_12.csv", header=None)
-vec = vec_df.values  # Shape: (m, 12)
+# 3. Define Dirichlet boundary condition matching exact solution u = 2 * exp(2x + y)
+bc = Dirichlet(lambda x, y: 2.0 * np.exp(2.0 * x + y))
+domain = cloud.set_boundary(bc)
 
-# 3. Safe iteration example
-central_node_idx = 150
-print(f"Coordinates of Central Node: {coords[central_node_idx]}")
+# 4. Define the Poisson PDE: u_xx + u_yy = 10 * exp(2x + y)
+# Operator format: [D, E, 2*A, B, 2*C, F] -> [0, 0, 2, 0, 2, 0]
+poisson_pde = PDE(
+    operator=[0, 0, 2, 0, 2, 0],
+    f=lambda x, y: 10.0 * np.exp(2.0 * x + y)
+)
 
-# Extract neighbors and filter out the '-1' padding
-raw_neighbors = vec[central_node_idx]
-valid_neighbors = raw_neighbors[raw_neighbors != -1]
+# 5. Solve on CPU (or pass device="cuda" for GPU acceleration)
+solver = Solver(domain=domain, pde=poisson_pde, device="cpu")
+result = solver.solve()
 
-print(f"Valid neighbor indices: {valid_neighbors}")
-print(f"Neighbor coordinates:\n{coords[valid_neighbors]}")
+# 6. Evaluate accuracy and export to ParaView
+u_exact = 2.0 * np.exp(2.0 * cloud.nodes[:, 0] + cloud.nodes[:, 1])
+rmse = np.sqrt(np.mean((result.solution - u_exact) ** 2))
+print(f"Solve completed in {result.execution_time:.4f}s | RMSE: {rmse:.3e}")
+
+# Export for high-end rendering in ParaView
+result.export_vtk("research/results/Metztitlan_Poisson_Scale2.vtu")
 ```
+

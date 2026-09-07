@@ -41,6 +41,7 @@ class Domain:                                                                   
             boundary    BoundaryCondition   Boundary condition object (defaults to Dirichlet(0.0)).
         """
         self.cloud = cloud                                                                                                              # Store point cloud instance.
+        self.boundary: BoundaryCondition                                                                                                # Declare boundary condition type.
         if boundary is None:                                                                                                            # If boundary condition not provided.
             self.boundary = Dirichlet(0.0)                                                                                              # Default to Dirichlet(0.0).
         elif isinstance(boundary, BoundaryCondition):                                                                                   # If BoundaryCondition instance.

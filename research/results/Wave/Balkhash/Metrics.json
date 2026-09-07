@@ -1,0 +1,126 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 524,
+            "Interior_Nodes": 144,
+            "Boundary_Nodes": 380,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.5051729362494755
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.0003075330349111247,
+                "CFL": 0.4993178275564334,
+                "dt": 0.0014727540500736377,
+                "Time_Steps": 679,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.07992227689828724
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.0003075330729145967,
+                "CFL": 0.4993178275564334,
+                "dt": 0.0014727540500736377,
+                "Time_Steps": 679,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 1.0623353508999571
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 1486,
+            "Interior_Nodes": 775,
+            "Boundary_Nodes": 711,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.5051729362494755
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.00011642711993979983,
+                "CFL": 0.4997156490037728,
+                "dt": 0.0009389671361502347,
+                "Time_Steps": 1065,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.16820855590049177
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.0001164272655827375,
+                "CFL": 0.4997156490037728,
+                "dt": 0.0009389671361502347,
+                "Time_Steps": 1065,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 1.6451009190641344
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 2796,
+            "Interior_Nodes": 1919,
+            "Boundary_Nodes": 877,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.5051729362494755
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 6.554587003283997e-05,
+                "CFL": 0.4996477417293079,
+                "dt": 0.0007173601147776184,
+                "Time_Steps": 1394,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.3604014500742778
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 6.554607697283789e-05,
+                "CFL": 0.4996477417293079,
+                "dt": 0.0007173601147776184,
+                "Time_Steps": 1394,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 2.2538687920896336
+            }
+        }
+    },
+    "Scale_4": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 4679,
+            "Interior_Nodes": 3608,
+            "Boundary_Nodes": 1071,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.5051729362494755
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 4.711584697378818e-05,
+                "CFL": 0.4999354696809898,
+                "dt": 0.0005617977528089888,
+                "Time_Steps": 1780,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.7274581100791693
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 4.711600804349289e-05,
+                "CFL": 0.4999354696809898,
+                "dt": 0.0005617977528089888,
+                "Time_Steps": 1780,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 2.834882359020412
+            }
+        }
+    }
+}

@@ -43,7 +43,11 @@ from mGFD.oop import (                                                          
     Solver                                                                                                                              # High-level solver orchestrator.
 )                                                                                                                                       # End of OOP imports.
 
+## Semantic version.
+__version__ = "0.12.0"                                                                                                          # Library semantic version.
+
 __all__ = [                                                                                                                             # List of public symbols exported.
+    '__version__',                                                                                                                      # Library semantic version.
     'Cloud', 'Dirichlet', 'Neumann', 'Domain', 'PDE',                                                                                   # Core domain and physics classes.
     'Solver', 'SolverResult',                                                                                                           # Solvers and result containers.
     'compute_neighbors', 'compute_mesh_spacing', 'compute_sparse_matrix',                                                               # Spatial discretization functions.

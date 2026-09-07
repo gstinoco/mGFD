@@ -56,7 +56,7 @@ Last Modification:
 import numpy as np                                                                                                                      # Core numerical operations.
 import numba as nb                                                                                                                      # JIT compiler.
 
-from scipy.sparse import csr_matrix                                                                                                     # Core sparse matrix representations.
+from scipy.sparse import csr_matrix, diags                                                                                              # Core sparse matrix representations.
 from typing import Callable, Optional, Tuple, Union                                                                                     # Type hinting.
 from scipy.sparse.linalg import LinearOperator, bicgstab                                                                                # SciPy iterative solver interface.
 
@@ -679,7 +679,10 @@ def compute_K_matvec(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> Callable[
         
     return matvec                                                                                                                       # Return the callable operator.
 
-def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_matrix:                                                 # Assemble sparse matrix in CSR format.
+def compute_sparse_matrix(p: np.ndarray,                                                                                                # Function signature part 1.
+                          vec: np.ndarray,                                                                                              # Function signature part 2.
+                          L: np.ndarray,                                                                                                # Function signature part 3.
+                          symmetric: bool = False) -> csr_matrix:                                                                       # Assemble sparse matrix in CSR format.
     """
     compute_sparse_matrix
     Builds a sparse csr_matrix for the stencil K directly, avoiding dense allocation.
@@ -690,7 +693,8 @@ def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_
     Input:
         p           m x 3           ndarray             Array with the coordinates of the nodes and the boundary flag.
         vec         m x nvec        ndarray             Neighbor indices per node (padded with -1).
-        L           5               ndarray             Array with the weights for the operator.
+        L           5 or 6          ndarray             Array with the weights for the operator.
+        symmetric                   bool                If True, enforces conservative off-diagonal symmetrization.
 
     Output:
         K           m x m           csr_matrix          The highly-efficient Sparse operator representation.
@@ -710,6 +714,21 @@ def compute_sparse_matrix(p: np.ndarray, vec: np.ndarray, L: np.ndarray) -> csr_
     cols    = np.concatenate([cols, np.arange(m)])                                                                                      # Append the central column index positions for the main diagonal.
     data    = np.concatenate([data, diag])                                                                                              # Append the main diagonal (central) weights.
 
-    return csr_matrix((data, (rows, cols)), shape=(m, m))                                                                               # Construct and return the compressed sparse row matrix.
+    K_mat   = csr_matrix((data, (rows, cols)), shape=(m, m))                                                                            # Construct initial compressed sparse row matrix.
+
+    # 4. Conservative off-diagonal symmetrization (optional)
+    if symmetric:                                                                                                                       # If conservative symmetrization requested.
+        K_off      = K_mat.copy()                                                                                                       # Copy sparse matrix representation.
+        K_off.setdiag(0.0)                                                                                                              # Eliminate main diagonal entries.
+        K_off.eliminate_zeros()                                                                                                         # Purge explicit stored zeros.
+        K_off.data = np.maximum(0.0, K_off.data)                                                                                        # Enforce non-negative off-diagonal weights.
+        W_sym      = 0.5 * (K_off + K_off.T)                                                                                            # Symmetrize off-diagonal edge weights.
+        diag_sym   = -np.array(W_sym.sum(axis=1)).flatten()                                                                             # Conservative negative row-sum diagonal.
+        L_flat     = np.asarray(L, dtype=float).flatten()                                                                               # Flatten differential operator coefficients.
+        if L_flat.shape[0] > 5 and L_flat[5] != 0.0:                                                                                    # Check if reaction term coefficient is present.
+            diag_sym += L_flat[5]                                                                                                       # Add reaction contribution to diagonal.
+        return (W_sym + diags(diag_sym, format='csr')).tocsr()                                                                          # Return symmetric conservative CSR matrix.
+
+    return K_mat                                                                                                                        # Return computed CSR matrix.
 
 

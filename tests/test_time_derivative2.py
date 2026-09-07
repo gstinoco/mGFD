@@ -11,6 +11,7 @@ Public API:
     test_time_derivative2_wave                      Validates numerical convergence and accuracy for 2nd-order Wave equation.
     test_time_derivative2_hht_alpha_and_damping     Validates HHT-alpha and damping dissipation mechanics.
     test_time_derivative2_irregular_cloud_stability Validates solver stability on irregular star-shaped point cloud geometries.
+    test_time_derivative2_conservative_symmetrization Validates conservative symmetrization on irregular point clouds.
 
 Credits:
     All the codes presented below were developed by:
@@ -170,3 +171,29 @@ def test_time_derivative2_irregular_cloud_stability() -> None:
 
     assert np.all(np.isfinite(sol))                                                                                                     # Verify finite values (no NaN/Inf).
     assert np.max(np.abs(sol)) < 1.5                                                                                                    # Verify wave solution remains bounded < 1.5 on irregular cloud.
+
+def test_time_derivative2_conservative_symmetrization() -> None:                                                                        # Unit test function.
+    """
+    test_time_derivative2_conservative_symmetrization
+    Validates that conservative symmetrization produces a strictly symmetric negative semi-definite matrix and preserves stability.
+    """
+    from mGFD.spatial.gammas import compute_sparse_matrix                                                                               # Import sparse matrix assembly.
+    from mGFD.spatial.neighbors import compute_neighbors                                                                                # Import neighbor routine.
+
+    p = generate_square_cloud(9)                                                                                                        # Generate 9x9 test cloud.
+    vec = compute_neighbors(p, 16)                                                                                                      # Compute 16 neighbors.
+    L = np.array([0.0, 0.0, 1.0, 0.0, 1.0, 0.0])                                                                                        # Pure Laplacian operator.
+
+    K_sym = compute_sparse_matrix(p, vec, L, symmetric=True)                                                                            # Compute symmetric matrix.
+    diff = (K_sym - K_sym.T).tocsr()                                                                                                    # Calculate symmetry deviation.
+    assert diff.nnz == 0                                                                                                                # Verify K_sym is strictly symmetric.
+
+    row_sums = np.array(K_sym.sum(axis=1)).flatten()                                                                                    # Compute matrix row sums.
+    assert np.all(row_sums <= 1e-12)                                                                                                    # Verify negative semi-definite row sums.
+
+    cloud = Cloud.from_array(p)                                                                                                         # Instantiate Cloud.
+    domain = cloud.set_boundary(Dirichlet(0.0))                                                                                         # Zero boundary walls.
+    pde = PDE(operator=[0, 0, 1.0, 0, 1.0, 0], ic=lambda x, y: np.sin(np.pi*x)*np.sin(np.pi*y), g=0.0, order=2)                         # Formulate 2nd order PDE.
+    solver = Solver(domain, pde, symmetric=True, verbose=False)                                                                         # Instantiate Solver with symmetric=True.
+    res = solver.solve(t_span=(0.0, 0.5))                                                                                               # Execute solver.
+    assert np.all(np.isfinite(res.solution))                                                                                            # Verify finite values (no NaN/Inf).

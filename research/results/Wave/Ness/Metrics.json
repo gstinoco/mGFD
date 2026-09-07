@@ -1,0 +1,126 @@
+{
+    "Scale_1": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 491,
+            "Interior_Nodes": 191,
+            "Boundary_Nodes": 300,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.1580548589270102
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 0.0001175567008658227,
+                "CFL": 0.49959914194660937,
+                "dt": 0.0010256410256410256,
+                "Time_Steps": 975,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.07960167992860079
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 0.0001175567559648715,
+                "CFL": 0.49959914194660937,
+                "dt": 0.0010256410256410256,
+                "Time_Steps": 975,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 1.5138697719667107
+            }
+        }
+    },
+    "Scale_2": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 1511,
+            "Interior_Nodes": 994,
+            "Boundary_Nodes": 517,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.1580548589270102
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 5.6756931332131576e-05,
+                "CFL": 0.4997511032614957,
+                "dt": 0.0010152284263959391,
+                "Time_Steps": 985,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.16453995800111443
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 5.67569479094444e-05,
+                "CFL": 0.4997511032614957,
+                "dt": 0.0010152284263959391,
+                "Time_Steps": 985,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 1.7712089950218797
+            }
+        }
+    },
+    "Scale_3": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 3045,
+            "Interior_Nodes": 2352,
+            "Boundary_Nodes": 693,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.1580548589270102
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 2.9735919327858152e-05,
+                "CFL": 0.4998545942496526,
+                "dt": 0.0009199632014719411,
+                "Time_Steps": 1087,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.30913885007612407
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 2.9735917822737983e-05,
+                "CFL": 0.4998545942496526,
+                "dt": 0.0009199632014719411,
+                "Time_Steps": 1087,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 2.263333823066205
+            }
+        }
+    },
+    "Scale_4": {
+        "Cloud_Statistics": {
+            "Total_Nodes": 5251,
+            "Interior_Nodes": 4362,
+            "Boundary_Nodes": 889,
+            "X_Min": 0.0,
+            "X_Max": 1.0,
+            "Y_Min": 0.0,
+            "Y_Max": 0.1580548589270102
+        },
+        "Metrics": {
+            "nvec_16_cpu": {
+                "Time_Mean_RMSE": 2.014495606024694e-05,
+                "CFL": 0.4997511032614924,
+                "dt": 0.0005076142131979696,
+                "Time_Steps": 1970,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 0.9241226069862023
+            },
+            "nvec_16_cuda": {
+                "Time_Mean_RMSE": 2.0144960909714193e-05,
+                "CFL": 0.4997511032614924,
+                "dt": 0.0005076142131979696,
+                "Time_Steps": 1970,
+                "Damping": 0.0,
+                "Alpha": 0.0,
+                "Time_Secs": 3.643247942905873
+            }
+        }
+    }
+}

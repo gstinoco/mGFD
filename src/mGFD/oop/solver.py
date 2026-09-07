@@ -23,7 +23,7 @@ Date:
 ## Library importation.
 import time                                                                                                                             # Performance timing utilities.
 import numpy as np                                                                                                                      # Core numerical operations.
-from typing import Tuple, Optional, Any, Union                                                                                          # Type hinting interfaces.
+from typing import Tuple, Optional, Any, Union, List                                                                                    # Type hinting interfaces.
 
 from mGFD.oop.domain import Domain                                                                                                      # Domain abstraction class.
 from mGFD.oop.pde import PDE                                                                                                            # PDE physics classes.
@@ -40,7 +40,7 @@ class Solver:                                                                   
     """
     def __init__(self, domain: Domain, pde: PDE, device: str = "cpu", cfl: float = 0.5,                                                 # Constructor part 1.
                  implicit: bool = True, lam: float = 0.5, nvec: int = 15, upwind: Optional[bool] = None,                                # Constructor part 2.
-                 verbose: bool = True) -> None:                                                                                         # Constructor.
+                 verbose: bool = True, symmetric: bool = True) -> None:                                                                 # Constructor.
         """
         __init__
         Initialize Solver with Domain, PDE, hardware device, CFL parameter, and stencil options.
@@ -63,8 +63,9 @@ class Solver:                                                                   
         self.implicit = implicit                                                                                                        # Store implicit integration flag.
         self.lam      = lam                                                                                                             # Store implicit time scheme parameter (theta/beta).
         self.nvec     = nvec                                                                                                            # Store neighbor stencil size.
-        self.upwind   = upwind                                                                                                          # Store upwind stencil selection.
-        self.verbose  = verbose                                                                                                         # Store verbose logging flag.
+        self.upwind    = upwind                                                                                                         # Store upwind stencil selection.
+        self.verbose   = verbose                                                                                                        # Store verbose logging flag.
+        self.symmetric = symmetric                                                                                                      # Store conservative symmetrization flag.
 
     def solve(self, t_span: Tuple[float, float] = (0.0, 1.0), dt: Optional[float] = None) -> SolverResult:                              # Main solve method.
         """
@@ -83,8 +84,8 @@ class Solver:                                                                   
         p           = self.domain.points                                                                                                # Extract points array from domain cloud.
         bc_callable = self.domain.boundary                                                                                              # Extract boundary condition evaluation wrapper.
         vec         = self.domain.cloud.neighbors                                                                                       # Extract cached neighbor list.
-
-        if self.pde.operator is None:                                                                                                   # Validate operator is set for type checker.
+        op          = self.pde.operator                                                                                                 # Extract differential operator array.
+        if op is None:                                                                                                                  # Validate operator is set for type checker.
             raise ValueError("PDE operator is undefined. Ensure the PDE was initialized with a valid operator.")                        # Raise ValueError exception.
 
         # 2. Stationary PDEs (Order 0: Poisson / Perturbation)
@@ -93,13 +94,13 @@ class Solver:                                                                   
             upwind_flag = False if self.upwind is None else self.upwind                                                                 # Upwind flag selection.
 
             if self.device == "cpu":                                                                                                    # Evaluate CPU backend.
-                from mGFD.solvers._backends.cpu.stationary import solve_cpu                                                             # Import CPU backend solver.
-                u_ap, vec, converged = solve_cpu(p, bc_callable, f_src, self.pde.operator,                                              # Call CPU solver part 1.
-                                                 upwind_flag, vec, self.nvec, verbose=self.verbose)                                     # Execute CPU solver.
+                from mGFD.solvers._backends.cpu.stationary import solve_cpu as solve_cpu_stat                                           # Import CPU backend solver.
+                u_ap, vec, converged = solve_cpu_stat(p, bc_callable, f_src, op,                                                        # Call CPU solver part 1.
+                                                       upwind_flag, vec, self.nvec, verbose=self.verbose)                               # Execute CPU solver.
             else:                                                                                                                       # Evaluate CUDA backend.
-                from mGFD.solvers._backends.cuda.stationary import solve_cuda                                                           # Import CUDA backend solver.
-                u_ap, vec, converged = solve_cuda(p, bc_callable, f_src, self.pde.operator,                                             # Call CUDA solver part 1.
-                                                  upwind_flag, vec, self.nvec, verbose=self.verbose)                                    # Execute CUDA solver.
+                from mGFD.solvers._backends.cuda.stationary import solve_cuda as solve_cuda_stat                                        # Import CUDA backend solver.
+                u_ap, vec, converged = solve_cuda_stat(p, bc_callable, f_src, op,                                                       # Call CUDA solver part 1.
+                                                        upwind_flag, vec, self.nvec, verbose=self.verbose)                              # Execute CUDA solver.
 
             comp_time = time.perf_counter() - start_time                                                                                # Compute total duration.
             return SolverResult(solution=u_ap, neighbors=vec, converged=converged, compute_time=comp_time, p=p)                         # Return structured result.
@@ -108,7 +109,7 @@ class Solver:                                                                   
         elif self.pde.order == 1:                                                                                                       # Check if 1st-order transient PDE.
             upwind_flag               = False if self.upwind is None else self.upwind                                                   # Auto-select isotropic stencils for 1st order.
             t_len                     = t_span[1] - t_span[0]                                                                           # Time domain length.
-            dt_est, t_est, actual_cfl = estimate_cfl_dt(p, self.pde.operator, cfl=self.cfl, order=1, vec=vec, t_end=t_len)              # Estimate CFL metrics.
+            dt_est, t_est, actual_cfl = estimate_cfl_dt(p, op, cfl=self.cfl, order=1, vec=vec, t_end=t_len)                             # Estimate CFL metrics.
 
             self.domain.boundary.t_span = t_span                                                                                        # Store physical time domain in boundary.
             if dt is not None:                                                                                                          # If explicit dt provided.
@@ -118,19 +119,19 @@ class Solver:                                                                   
                 dt_use = dt_est                                                                                                         # Use estimated dt.
                 t_use  = t_est                                                                                                          # Use estimated steps.
 
-            lam      = self.lam                                                                                                         # Theta parameter for implicit scheme.
-            coef_val = self.pde.coef if self.pde.coef is not None else []                                                               # Type checker fallback.
+            lam                   = self.lam                                                                                            # Theta parameter for implicit scheme.
+            coef_val: List[float] = [float(x) for x in self.pde.coef] if isinstance(self.pde.coef, (list, tuple)) else []               # Type-safe coefficient list.
 
             if self.device == "cpu":                                                                                                    # Evaluate CPU backend.
-                from mGFD.solvers._backends.cpu.time_derivative1 import solve_cpu                                                       # Import CPU backend solver.
-                u_ap, vec, converged = solve_cpu(p, None, t_use, coef_val, self.pde.operator, upwind_flag, vec, self.nvec,              # Call CPU solver.
-                                                 self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,              # Pass parameters.
-                                                 source=self.pde.source, t_span=t_span)                                                 # Pass t_span.
+                from mGFD.solvers._backends.cpu.time_derivative1 import solve_cpu as solve_cpu_td1                                      # Import CPU backend solver.
+                u_ap, vec, converged = solve_cpu_td1(p, None, t_use, coef_val, op, upwind_flag, vec, self.nvec,                         # Call CPU solver.
+                                                     self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,          # Pass parameters.
+                                                     source=self.pde.source, t_span=t_span)                                             # Pass t_span.
             else:                                                                                                                       # Evaluate CUDA backend.
-                from mGFD.solvers._backends.cuda.time_derivative1 import solve_cuda                                                     # Import CUDA backend solver.
-                u_ap, vec, converged = solve_cuda(p, None, t_use, coef_val, self.pde.operator, upwind_flag, vec, self.nvec,             # Call CUDA solver.
-                                                  self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,             # Pass parameters.
-                                                  source=self.pde.source, t_span=t_span)                                                # Pass t_span.
+                from mGFD.solvers._backends.cuda.time_derivative1 import solve_cuda as solve_cuda_td1                                   # Import CUDA backend solver.
+                u_ap, vec, converged = solve_cuda_td1(p, None, t_use, coef_val, op, upwind_flag, vec, self.nvec,                        # Call CUDA solver.
+                                                      self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,         # Pass parameters.
+                                                      source=self.pde.source, t_span=t_span)                                            # Pass t_span.
 
             comp_time = time.perf_counter() - start_time                                                                                # Compute total duration.
             return SolverResult(solution=u_ap, neighbors=vec, converged=converged, compute_time=comp_time,                              # Construct result.
@@ -149,7 +150,7 @@ class Solver:                                                                   
             elif alpha_val is None: alpha_val = -0.1                                                                                    # Default.
             
             t_len                     = t_span[1] - t_span[0]                                                                           # Time domain length.
-            dt_est, t_est, actual_cfl = estimate_cfl_dt(p, self.pde.operator, cfl=self.cfl, order=2, vec=vec, t_end=t_len)              # Estimate CFL metrics for 2nd order.
+            dt_est, t_est, actual_cfl = estimate_cfl_dt(p, op, cfl=self.cfl, order=2, vec=vec, t_end=t_len)                             # Estimate CFL metrics for 2nd order.
 
             self.domain.boundary.t_span = t_span                                                                                        # Store physical time domain in boundary.
             if dt is not None:                                                                                                          # If explicit dt provided.
@@ -161,19 +162,22 @@ class Solver:                                                                   
 
             g_val = getattr(self.pde, 'g', 0.0)                                                                                         # Initial velocity u_t(0).
             if g_val is None: g_val = 0.0                                                                                               # Default to 0.0.
-            lam      = self.lam                                                                                                         # Newmark beta parameter for implicit scheme.
-            coef_val = self.pde.coef if self.pde.coef is not None else []                                                               # Type checker fallback.
+            lam                   = self.lam                                                                                            # Newmark beta parameter for implicit scheme.
+            coef_val              = [float(x) for x in self.pde.coef] if isinstance(self.pde.coef, (list, tuple)) else []               # Type-safe coefficient list.
+            symmetric_val         = getattr(self.pde, 'symmetric', getattr(self, 'symmetric', True))                                    # Determine conservative symmetrization.
 
             if self.device == "cpu":                                                                                                    # Evaluate CPU backend.
-                from mGFD.solvers._backends.cpu.time_derivative2 import solve_cpu                                                       # Import CPU backend solver.
-                u_ap, vec, converged = solve_cpu(p, None, g_val, t_use, coef_val, self.pde.operator, upwind_flag, vec, self.nvec,       # Call CPU solver with correct positional args.
-                                                 self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,              # Pass implicit, lam, verbose, ic, bc.
-                                                 source=self.pde.source, damping=damping_val, alpha=alpha_val, t_span=t_span)           # Pass source, damping, alpha, t_span.
+                from mGFD.solvers._backends.cpu.time_derivative2 import solve_cpu as solve_cpu_td2                                      # Import CPU backend solver.
+                u_ap, vec, converged = solve_cpu_td2(p, None, g_val, t_use, coef_val, op, upwind_flag, vec, self.nvec,                  # Call CPU solver with correct positional args.
+                                                     self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,          # Pass implicit, lam, verbose, ic, bc.
+                                                     source=self.pde.source, damping=damping_val, alpha=alpha_val, t_span=t_span,       # Pass source, damping, alpha, t_span.
+                                                     symmetric=symmetric_val)                                                           # Pass conservative symmetrization flag.
             else:                                                                                                                       # Evaluate CUDA backend.
-                from mGFD.solvers._backends.cuda.time_derivative2 import solve_cuda                                                     # Import CUDA backend solver.
-                u_ap, vec, converged = solve_cuda(p, None, g_val, t_use, coef_val, self.pde.operator, upwind_flag, vec, self.nvec,      # Call CUDA solver with correct positional args.
-                                                  self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,             # Pass implicit, lam, verbose, ic, bc.
-                                                  source=self.pde.source, damping=damping_val, alpha=alpha_val, t_span=t_span)          # Pass source, damping, alpha, t_span.
+                from mGFD.solvers._backends.cuda.time_derivative2 import solve_cuda as solve_cuda_td2                                   # Import CUDA backend solver.
+                u_ap, vec, converged = solve_cuda_td2(p, None, g_val, t_use, coef_val, op, upwind_flag, vec, self.nvec,                 # Call CUDA solver with correct positional args.
+                                                      self.implicit, lam, verbose=self.verbose, ic=self.pde.ic, bc=bc_callable,         # Pass implicit, lam, verbose, ic, bc.
+                                                      source=self.pde.source, damping=damping_val, alpha=alpha_val, t_span=t_span,      # Pass source, damping, alpha, t_span.
+                                                      symmetric=symmetric_val)                                                          # Pass conservative symmetrization flag.
 
             comp_time = time.perf_counter() - start_time                                                                                # Compute total duration.
             return SolverResult(solution=u_ap, neighbors=vec, converged=converged, compute_time=comp_time,                              # Construct result.

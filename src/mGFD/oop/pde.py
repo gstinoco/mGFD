@@ -68,13 +68,12 @@ class PDE:                                                                      
             order       int                                                                 Time derivative order (0=stationary, 1=transient 1st, 2=transient 2nd).
         """
         # 1. Operator validation
+        self.operator: Optional[np.ndarray] = None                                                                                      # Differential operator vector.
         if operator is not None:                                                                                                        # If operator supplied.
             op_arr = np.asarray(operator)                                                                                               # Convert to numpy array.
             if op_arr.size < 5:                                                                                                         # Validate 5+ coefficients.
                 raise OperatorFormatError("Operator must be a numpy array with at least 5 coefficients")                                # Raise exception.
-            self.operator = op_arr                                                                                                      # Differential operator vector.
-        else:                                                                                                                           # Fallback for undefined operator.
-            self.operator = None                                                                                                        # Initialize operator attribute as None.
+            self.operator = op_arr                                                                                                      # Store validated operator vector.
 
         # 2. Physics properties
         self.source                   = source                                                                                          # Source term function F.

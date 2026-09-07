@@ -11,25 +11,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 9.78503392559259e-05,
+                "Time_Mean_RMSE": 0.001870675932954332,
                 "CFL": 0.49892228323959203,
                 "dt": 0.01,
                 "Time_Steps": 200,
-                "Time_Secs": 0.03909486101474613
+                "Time_Secs": 0.05802713008597493
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 9.78503392559259e-05,
+                "Time_Mean_RMSE": 1.3877279063056216e-06,
                 "CFL": 0.49892228323959203,
                 "dt": 0.01,
                 "Time_Steps": 200,
-                "Time_Secs": 0.032443096046335995
+                "Time_Secs": 0.057638784986920655
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 9.785033707637841e-05,
+                "Time_Mean_RMSE": 0.0018706759328720986,
                 "CFL": 0.49892228323959203,
                 "dt": 0.01,
                 "Time_Steps": 200,
-                "Time_Secs": 1.7420498100109398
+                "Time_Secs": 0.8920226939953864
+            },
+            "nvec_16_cuda_upwind_False": {
+                "Time_Mean_RMSE": 1.3877279525141156e-06,
+                "CFL": 0.49892228323959203,
+                "dt": 0.01,
+                "Time_Steps": 200,
+                "Time_Secs": 1.5220250509446487
             }
         }
     },
@@ -45,25 +52,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 2.5726350891606607e-05,
+                "Time_Mean_RMSE": 0.0021905633105612863,
                 "CFL": 0.4988373459146227,
                 "dt": 0.006369426751592357,
                 "Time_Steps": 314,
-                "Time_Secs": 0.08343104808591306
+                "Time_Secs": 0.08235707099083811
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 2.5726350891606607e-05,
+                "Time_Mean_RMSE": 4.906387131912875e-07,
                 "CFL": 0.4988373459146227,
                 "dt": 0.006369426751592357,
                 "Time_Steps": 314,
-                "Time_Secs": 0.07759531296323985
+                "Time_Secs": 0.08057685801759362
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 2.5726350306242805e-05,
+                "Time_Mean_RMSE": 0.0021905633094266674,
                 "CFL": 0.4988373459146227,
                 "dt": 0.006369426751592357,
                 "Time_Steps": 314,
-                "Time_Secs": 4.38626150903292
+                "Time_Secs": 2.3224877329776064
+            },
+            "nvec_16_cuda_upwind_False": {
+                "Time_Mean_RMSE": 4.906386026765981e-07,
+                "CFL": 0.4988373459146227,
+                "dt": 0.006369426751592357,
+                "Time_Steps": 314,
+                "Time_Secs": 3.9334681449690834
             }
         }
     },
@@ -79,25 +93,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 4.650172702031631e-06,
+                "Time_Mean_RMSE": 0.00224930185207046,
                 "CFL": 0.49998721137539176,
                 "dt": 0.004878048780487805,
                 "Time_Steps": 410,
-                "Time_Secs": 0.13286380900535733
+                "Time_Secs": 0.16843285504728556
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 4.650172702031631e-06,
+                "Time_Mean_RMSE": 2.7844640569322065e-07,
                 "CFL": 0.49998721137539176,
                 "dt": 0.004878048780487805,
                 "Time_Steps": 410,
-                "Time_Secs": 0.1385824829339981
+                "Time_Secs": 0.13834776997100562
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 4.650172426035537e-06,
+                "Time_Mean_RMSE": 0.002249301849040876,
                 "CFL": 0.49998721137539176,
                 "dt": 0.004878048780487805,
                 "Time_Steps": 410,
-                "Time_Secs": 7.439077114104293
+                "Time_Secs": 4.021276687970385
+            },
+            "nvec_16_cuda_upwind_False": {
+                "Time_Mean_RMSE": 2.7844631415461584e-07,
+                "CFL": 0.49998721137539176,
+                "dt": 0.004878048780487805,
+                "Time_Steps": 410,
+                "Time_Secs": 6.87985290796496
             }
         }
     },
@@ -113,25 +134,32 @@
         },
         "Metrics": {
             "nvec_16_cpu_upwind_True": {
-                "Time_Mean_RMSE": 2.8856165879022963e-08,
+                "Time_Mean_RMSE": 0.0021173459628544993,
                 "CFL": 0.49982585314885786,
                 "dt": 0.003816793893129771,
                 "Time_Steps": 524,
-                "Time_Secs": 0.29222827299963683
+                "Time_Secs": 0.3295127709861845
             },
             "nvec_16_cpu_upwind_False": {
-                "Time_Mean_RMSE": 2.8856165879022963e-08,
+                "Time_Mean_RMSE": 1.956874076389572e-07,
                 "CFL": 0.49982585314885786,
                 "dt": 0.003816793893129771,
                 "Time_Steps": 524,
-                "Time_Secs": 0.2790498019894585
+                "Time_Secs": 0.27856536593753844
             },
             "nvec_16_cuda_upwind_True": {
-                "Time_Mean_RMSE": 2.8856121897399127e-08,
+                "Time_Mean_RMSE": 0.002117345961096925,
                 "CFL": 0.49982585314885786,
                 "dt": 0.003816793893129771,
                 "Time_Steps": 524,
-                "Time_Secs": 8.823337070993148
+                "Time_Secs": 5.660431811935268
+            },
+            "nvec_16_cuda_upwind_False": {
+                "Time_Mean_RMSE": 1.9568723300482472e-07,
+                "CFL": 0.49982585314885786,
+                "dt": 0.003816793893129771,
+                "Time_Steps": 524,
+                "Time_Secs": 9.915760613977909
             }
         }
     }

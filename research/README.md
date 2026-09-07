@@ -34,8 +34,8 @@ Unlike the project root (which functions as the installable Python package), thi
 To maintain readability, the deep scientific details of the laboratory are divided into specialized markdown files. Please visit the following pages for comprehensive information:
 
 *   **[🧮 Mathematical Methodology (METHODOLOGY.md)](METHODOLOGY.md)**: Detailed derivations of the mGFD scheme, Taylor expansions, consistency conditions, and the Upwind stabilization scheme.
-*   **[🗂️ Benchmark Datasets (DATASETS.md)](DATASETS.md)**: A complete catalog of the 20 real-world geographic point clouds, density scaling (1-5), and KD-Tree stencil structures.
-*   **[🎬 Experimental Results (RESULTS.md)](RESULTS.md)**: Visual demonstrations (GIFs/PNGs) and error bounds for the Poisson, Heat, Wave, and Advection-Diffusion equations.
+*   **[🗂️ Benchmark Datasets (DATASETS.md)](DATASETS.md)**: A complete catalog of the 20 real-world geographic point clouds, density scaling (1-4), exact node census across all geometries, and KD-Tree stencil structures.
+*   **[🎬 Experimental Results (RESULTS.md)](RESULTS.md)**: Visual demonstrations, error bounds, and hardware speedups for the 6 families of Partial Differential Equations (Poisson, Perturbation, Heat, Advection-Diffusion, AdvReactionDiff, Wave).
 
 ---
 
@@ -79,32 +79,39 @@ The orchestrator reads `codes/sweep_config.json` to generate a combinatorial exe
 > **Benchmarking GPU vs CPU in Parallel:** Adding `"cuda"` and `"cpu"` to the `"device"` array with `"parallel": true` runs CPU worker processes concurrently alongside the CUDA GPU worker, cutting total parameter sweep execution time in half (**~2x speedup**).
 
 > [!NOTE]
-> **Performance Scaling:** On fine meshes ($m > 20,000$ nodes), CUDA GPU solvers with warm-start BiCGSTAB achieve **up to 3.3x speedups** over CPU solves.
+> **Performance Scaling:** On fine meshes ($m > 12,000$ to $37,000$ nodes), CUDA GPU solvers deliver **up to 4.0x speedups** over CPU solves in transient wave propagation.
 
 The raw metrics are exported as JSON files inside `results/`. **However, for your convenience, `sweep.py` will automatically crawl all generated JSONs at the end of the execution and compile a master `sweep_summary_YYYYMMDD_HHMMSS.csv` inside the `results/` folder.** This file contains a tabular view of all combinations (Equation, Scale, Device, Matrix-Free, Time, Error, etc.), making it incredibly easy to plot and analyze CPU vs GPU performance.
+
+To produce publication-grade analytical figures from any sweep summary CSV, run the plotting orchestrator:
+```bash
+python codes/utils/plot_sweep.py
+```
+This generates 6 specialized visualization categories inside `results/sweep_plots/` (scaling, speedup, convergence, per-step efficiency, upwind impact, and geometric breakdowns).
 
 ---
 
 ## :bar_chart: Computational Performance Profile
 
-The `mGFD` suite is rigorously benchmarked. The following visual profile and data table summarize **500 automated tests** evaluating 5 families of equations across 20 distinct geographic point clouds and 5 density scales.
+The `mGFD` suite is rigorously benchmarked. The following visual profile and data table summarize **1,440 automated tests** evaluating 6 families of equations across 20 distinct geographic point clouds and 4 density scales on both CPU and CUDA GPU hardware backends.
 
 <div align="center">
-  <img src="docs/images/benchmark_profile.png" alt="Benchmark Profile" width="800"><br/>
-  <sub>Averaged execution time and memory footprint for standard unstructured domains</sub>
+  <img src="results/sweep_plots/scaling/scaling_all_equations.png" alt="Benchmark Scaling" width="850"><br/>
+  <sub>Averaged execution time and scaling per PDE family across all 20 unstructured lake geometries</sub>
 </div>
 
 ### :bar_chart: Global Averages (Summary)
 
-| Equation | :stopwatch: Avg. Time (s) | :floppy_disk: Avg. Memory (MB) | :triangular_ruler: Avg. Error (RMSE) |
-|:---|:---:|:---:|:---:|
-| **Poisson** | `0.230` | `3.2` | `1.86e-06` |
-| **Advection** | `0.934` | `140.6` | `7.63e-05` |
-| **Advection-Diffusion** | `0.923` | `127.0` | `8.22e-04` |
-| **Heat** | `2.425` | `137.0` | `1.17e-07` |
-| **Wave** | `2.434` | `112.4` | `3.18e-06` |
+| Equation | Type / Physics | :stopwatch: Mean CPU Time (s) | :zap: Mean CUDA Time (s) | :triangular_ruler: Median Error (RMSE) | Scale 4 GPU Speedup |
+|:---|:---|:---:|:---:|:---:|:---:|
+| **Poisson** | Elliptic (Stationary) | `0.128` | `0.285` | `5.34e-06` | 0.57x |
+| **Perturbation** | Multilayer Elliptic | `0.182` | `0.332` | `2.43e-06` | 0.63x |
+| **Heat** | Parabolic Diffusion | `0.308` | `3.712` | `3.92e-07` | 0.37x |
+| **Advection-Diffusion** | Advective Transient | `0.372` | `2.577` | `3.32e-05` | 0.60x |
+| **AdvReactionDiff** | Forcing + Reaction | `0.567` | `5.875` | `3.46e-04` | 0.40x |
+| **Wave** | Hyperbolic Oscillation | `1.386` | `1.769` | `1.74e-04` | **3.99x (Max) / 1.40x (Mean)** |
 
-*Note: Computations rely on sparse KD-Tree stencils and the `scipy.sparse.linalg.bicgstab` solver.*
+*Note: Computations rely on sparse KD-Tree stencils and the `scipy.sparse` / `cupy.sparse` backends.*
 
 ## :scientist: Research Team
 

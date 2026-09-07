@@ -64,7 +64,8 @@ def solve_cuda(p: np.ndarray,                                                   
                source: Optional[Union[Callable, np.ndarray, float, int]] = None,                                                        # Assign source: Optional[Union[Callable, np.ndarray, float, int]].
                t_span: Tuple[float, float] = (0.0, 1.0),                                                                                # Assign t_span: Tuple[float, float].
                damping: float = 0.0,                                                                                                    # Assign damping: float (velocity damping eta).
-               alpha: float = 0.0) -> Tuple[np.ndarray, np.ndarray, bool]:                                                              # Assign alpha: float (HHT-alpha high-frequency dissipation).
+               alpha: float = 0.0,                                                                                                      # Assign alpha: float (HHT-alpha high-frequency dissipation).
+               symmetric: bool = True) -> Tuple[np.ndarray, np.ndarray, bool]:                                                          # Enforce conservative spatial operator symmetrization.
     """CUDA backend for TimeDerivative2 using CuPy pre-factorized direct sparse LU solver."""
 
     try:                                                                                                                                # Attempt CuPy import.
@@ -187,7 +188,8 @@ def solve_cuda(p: np.ndarray,                                                   
         else: vec = Neighbors.compute_neighbors(p, nvec)                                                                                # Standard distance-based neighbors.
 
     L         = operator.flatten()                                                                                                      # Flatten operator weights (5 or 6 elements).
-    K_spatial = Gammas.compute_sparse_matrix(p, vec, L)                                                                                 # Build sparse spatial differentiation matrix (includes F_react).
+    use_sym   = symmetric and (L[0] == 0.0 and L[1] == 0.0)                                                                             # Enforce symmetry for pure 2nd-order diffusion/wave operators.
+    K_spatial = Gammas.compute_sparse_matrix(p, vec, L, symmetric=use_sym)                                                              # Build sparse spatial differentiation matrix.
     K         = (dt**2) * K_spatial                                                                                                     # Scale by time step squared.
     
     u_ap_gpu     = cp.asarray(u_ap)                                                                                                     # Transfer solution matrix to VRAM.
