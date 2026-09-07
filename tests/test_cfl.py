@@ -42,6 +42,7 @@ Last Modification:
 ## Library importation.
 import pytest                                                                                                                           # Test framework.
 import numpy as np                                                                                                                      # Core numerical array operations.
+from typing import List, Optional                                                                                                       # Type hinting annotations.
 
 from mGFD.spatial.neighbors import compute_mesh_spacing                                                                                 # Mesh spacing routine.
 from mGFD.temporal.cfl import estimate_cfl_dt                                                                                           # CFL estimation function.
@@ -116,7 +117,7 @@ def test_adaptive_time_derivative1(sample_cloud: np.ndarray) -> None:
         sample_cloud    m x 3       ndarray         Input point cloud fixture.
     """
     # 1. Formulation
-    def f_init(x: np.ndarray, y: np.ndarray, t_val: float = 0.0, coef: list | None = None) -> np.ndarray:                               # Analytical initial function.
+    def f_init(x: np.ndarray, y: np.ndarray, t_val: float = 0.0, coef: Optional[List[float]] = None) -> np.ndarray:                     # Analytical initial function.
         return np.exp(-2 * 0.2 * np.pi**2 * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)                                              # Spatial-temporal state.
         
     v      = 0.2                                                                                                                        # Diffusion coefficient.
@@ -145,7 +146,7 @@ def test_adaptive_time_derivative2(sample_cloud: np.ndarray) -> None:
         sample_cloud    m x 3       ndarray         Input point cloud fixture.
     """
     # 1. Formulation
-    def f_init(x: np.ndarray, y: np.ndarray, t_val: float = 0.0, coef: list | None = None) -> np.ndarray:                               # Analytical initial displacement.
+    def f_init(x: np.ndarray, y: np.ndarray, t_val: float = 0.0, coef: Optional[List[float]] = None) -> np.ndarray:                     # Analytical initial displacement.
         return np.cos(np.pi * 0.5 * np.sqrt(2) * t_val) * np.sin(np.pi * x) * np.sin(np.pi * y)                                         # Spatio-temporal wave state.
         
     c      = 0.5                                                                                                                        # Wave propagation speed.
