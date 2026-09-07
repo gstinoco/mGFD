@@ -140,8 +140,6 @@ def test_time_derivative2_irregular_cloud_stability() -> None:
     Validates that WaveEquation remains bounded and stable on an irregular natural point cloud over long physical time steps.
     """
     import csv, os                                                                                                                      # Standard OS and CSV interfaces.
-    import pandas as pd                                                                                                                 # DataFrame manipulation.
-    from mGFD.cloud_generator.core.generator import generate_cloud_natural                                                              # Natural point cloud generator.
 
     theta        = np.linspace(0, 2 * np.pi, 60)                                                                                        # Angular sampling array.
     r_star       = 0.5 + 0.15 * np.sin(5 * theta)                                                                                       # Star radius contour profile.
