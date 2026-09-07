@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
-
 ## [0.12.0] - 2026-09-07
 
 ### Added
@@ -79,7 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `mGFD.solvers.results` module defining `SolverResult` dataclass to standardize PDE solver outputs.
 - `mGFD.utils.adapters` for native Pandas DataFrames and Xarray DataArrays support.
 
-[Unreleased]: https://github.com/gstinoco/mGFD/compare/v0.12.0...HEAD
 [0.12.0]: https://github.com/gstinoco/mGFD/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/gstinoco/mGFD/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/gstinoco/mGFD/compare/v0.10.0...v0.11.0
